@@ -1,0 +1,625 @@
+"use client";
+import { useState } from "react";
+import {
+  ArrowRight,
+  Check,
+  ShieldCheck,
+  Sparkles,
+  TriangleAlert,
+  FileText,
+  GitBranch,
+} from "lucide-react";
+import {
+  api,
+  type Task,
+  type Overview,
+  type Risk,
+  type Proposal,
+  type Action,
+  type Integrations,
+} from "@/lib/api";
+import { Modal, Badge, Busy, statusLabels } from "./ui";
+
+type Member = Overview["members"][number];
+export function TaskDialog({
+  task,
+  data,
+  onClose,
+  onSaved,
+  userId,
+}: {
+  task: Task;
+  data: Overview;
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+  userId: string;
+}) {
+  const [status, setStatus] = useState(task.status),
+    [note, setNote] = useState(""),
+    [pending, setPending] = useState(false),
+    [error, setError] = useState("");
+  const [reviewer, setReviewer] = useState(task.reviewer_id ?? ""),
+    [priority, setPriority] = useState(task.priority);
+  const canEdit =
+    task.status !== "done" &&
+    (data.project.role === "lead" || task.owner_id === userId);
+  async function save() {
+    setPending(true);
+    setError("");
+    try {
+      await api(`/tasks/${task.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ status, expected_version: task.version, note }),
+      });
+      await onSaved();
+      onClose();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setPending(false);
+    }
+  }
+  async function propose() {
+    setPending(true);
+    setError("");
+    const actions: Action[] = [];
+    if (reviewer && reviewer !== task.reviewer_id)
+      actions.push({
+        task_id: task.id,
+        field: "reviewer_id",
+        before: task.reviewer_id,
+        after: reviewer,
+      });
+    if (priority !== task.priority)
+      actions.push({
+        task_id: task.id,
+        field: "priority",
+        before: task.priority,
+        after: priority,
+      });
+    try {
+      await api(`/projects/${data.project.id}/proposals`, {
+        method: "POST",
+        body: JSON.stringify({
+          title: `Update ${task.key} review plan`,
+          base_plan_version: data.plan_version,
+          actions,
+        }),
+      });
+      await onSaved();
+      onClose();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setPending(false);
+    }
+  }
+  return (
+    <Modal title={task.title} onClose={onClose}>
+      <div className="dialog-meta">
+        <span className="mono">{task.key}</span>
+        <Badge value={task.status} />
+        <span>Version {task.version}</span>
+      </div>
+      <p className="dialog-description">{task.description}</p>
+      {error && (
+        <div className="error" role="alert">
+          {error}
+        </div>
+      )}
+      <div className="field-grid">
+        <label>
+          Status
+          <select
+            value={status}
+            onChange={(e) => setStatus(e.target.value as Task["status"])}
+            disabled={!canEdit || pending}
+          >
+            {Object.entries(statusLabels).map(([v, l]) => (
+              <option value={v} key={v}>
+                {l}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Assignee
+          <input
+            readOnly
+            value={
+              data.members.find((m) => m.id === task.owner_id)?.name ??
+              "Unassigned"
+            }
+          />
+        </label>
+      </div>
+      {status === "blocked" && (
+        <label className="field">
+          Blocker note
+          <textarea
+            maxLength={500}
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            placeholder="What is preventing this task from moving forward?"
+          />
+        </label>
+      )}
+      <button
+        className="primary"
+        disabled={!canEdit || status === task.status || pending}
+        onClick={save}
+      >
+        {pending ? <Busy /> : "Save status"}
+      </button>
+      {!canEdit && (
+        <p className="field-help">
+          {task.status === "done"
+            ? "Completed work is preserved."
+            : "Only the assignee or a project lead can change status."}
+        </p>
+      )}
+      <div className="dialog-section">
+        <h3>Propose a plan change</h3>
+        <p>Review and priority changes require lead approval.</p>
+        <div className="field-grid">
+          <label>
+            PR reviewer
+            <select
+              disabled={task.status === "done" || pending}
+              value={reviewer}
+              onChange={(e) => setReviewer(e.target.value)}
+            >
+              <option value="">No reviewer assigned</option>
+              {data.members
+                .filter((m) => m.role === "lead" || m.role === "reviewer")
+                .map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.name} · {m.available_hours}h available
+                  </option>
+                ))}
+            </select>
+          </label>
+          <label>
+            Priority
+            <select
+              disabled={task.status === "done" || pending}
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+            >
+              {["normal", "high", "critical"].map((v) => (
+                <option key={v}>{v}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <button
+          className="secondary"
+          disabled={
+            pending ||
+            task.status === "done" ||
+            ((!reviewer || reviewer === task.reviewer_id) &&
+              priority === task.priority)
+          }
+          onClick={propose}
+        >
+          Create proposal
+          <ArrowRight size={16} />
+        </button>
+      </div>
+    </Modal>
+  );
+}
+export function RiskDialog({
+  risk,
+  tasks,
+  integrations,
+  onClose,
+  onProposal,
+}: {
+  risk: Risk;
+  tasks: Task[];
+  integrations: Integrations;
+  onClose: () => void;
+  onProposal: (p: Proposal) => Promise<void>;
+}) {
+  const [pending, setPending] = useState(""),
+    [error, setError] = useState("");
+  async function analyze(mode: string) {
+    setPending(mode);
+    setError("");
+    try {
+      const result = await api<Proposal>(
+        `/risks/${risk.id}/analyze?mode=${mode}`,
+        { method: "POST" },
+      );
+      await onProposal(result);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setPending("");
+    }
+  }
+  return (
+    <Modal title="Risk evidence & recovery" onClose={onClose} wide>
+      <div className="dialog-meta">
+        <Badge value={risk.severity} />
+        <span className="source-tag">
+          {risk.evidence.origin === "replay"
+            ? "Replayed sample event"
+            : "Observed project event"}
+        </span>
+      </div>
+      <h3 className="risk-title">{risk.evidence.title}</h3>
+      <p>{risk.reason}</p>
+      {error && (
+        <div className="error" role="alert">
+          {error}
+        </div>
+      )}
+      <div className="review-grid">
+        <section className="evidence-card">
+          <span className="section-kicker">OBSERVED EVIDENCE</span>
+          <h3>
+            <FileText size={18} />
+            Source record
+          </h3>
+          <p>{risk.evidence.detail}</p>
+          <dl>
+            <dt>Source ID</dt>
+            <dd className="mono">{risk.evidence.id}</dd>
+            <dt>Observed</dt>
+            <dd>{new Date(risk.evidence.observed_at).toLocaleString()}</dd>
+          </dl>
+          {risk.stale_evidence && (
+            <div className="warning">
+              Evidence is older than 72 hours. Verify freshness before deciding.
+            </div>
+          )}
+        </section>
+        <section className="evidence-card">
+          <span className="section-kicker">DERIVED FROM THE GRAPH</span>
+          <h3>
+            <GitBranch size={18} />
+            Downstream impact
+          </h3>
+          <div className="affected-list">
+            {risk.affected_task_ids.map((id) => {
+              const t = tasks.find((t) => t.id === id);
+              return (
+                <div key={id}>
+                  <span>{t?.title ?? id}</span>
+                  <small>{t?.key}</small>
+                </div>
+              );
+            })}
+            {!risk.affected_task_ids.length && (
+              <p>No unfinished downstream tasks.</p>
+            )}
+          </div>
+        </section>
+      </div>
+      <div className="human-note">
+        <ShieldCheck size={18} />
+        <span>
+          Analysis produces a proposal. No task owner, priority or dependency
+          changes before approval.
+        </span>
+      </div>
+      <div className="dialog-actions">
+        <button
+          className="primary"
+          disabled={!!pending || !risk.active || !integrations.ai_configured}
+          onClick={() => analyze("openai")}
+        >
+          {pending === "openai" ? (
+            <Busy text="Analyzing evidence…" />
+          ) : (
+            <>
+              <Sparkles size={17} />
+              Analyze with OpenAI
+            </>
+          )}
+        </button>
+        <button
+          className="secondary"
+          disabled={!!pending || !risk.active}
+          onClick={() => analyze("rules")}
+        >
+          {pending === "rules" ? <Busy /> : "Use rule-based recovery"}
+        </button>
+      </div>
+      {!integrations.ai_configured && (
+        <p className="field-help">
+          OpenAI is not configured yet. Rule-based recovery is available and
+          will be explicitly labeled.
+        </p>
+      )}
+    </Modal>
+  );
+}
+export function ProposalDialog({
+  proposal,
+  data,
+  onClose,
+  onDecided,
+}: {
+  proposal: Proposal;
+  data: Overview;
+  onClose: () => void;
+  onDecided: () => Promise<void>;
+}) {
+  const [pending, setPending] = useState(""),
+    [error, setError] = useState("");
+  const [key] = useState(() => crypto.randomUUID());
+  const canApprove =
+    data.project.role === "lead" &&
+    proposal.status === "pending" &&
+    !proposal.stale;
+  function display(action: Action, value: string | number | null) {
+    if (value === null) return "Not assigned";
+    if (action.field === "reviewer_id")
+      return data.members.find((m) => m.id === value)?.name ?? String(value);
+    if (action.field === "dependency")
+      return data.tasks.find((t) => t.id === value)?.title ?? String(value);
+    if (action.field === "position") return `Position ${Number(value) + 1}`;
+    return String(value);
+  }
+  async function decide(decision: string) {
+    setPending(decision);
+    setError("");
+    try {
+      await api(`/proposals/${proposal.id}/decision`, {
+        method: "POST",
+        headers: { "Idempotency-Key": `${key}-${decision}` },
+        body: JSON.stringify({
+          decision,
+          base_plan_version: proposal.base_plan_version,
+        }),
+      });
+      await onDecided();
+      onClose();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setPending("");
+    }
+  }
+  return (
+    <Modal title="Review recovery proposal" onClose={onClose} wide>
+      <div className="dialog-meta">
+        <Badge value={proposal.stale ? "stale" : proposal.status} />
+        <span>
+          {proposal.source === "openai"
+            ? "OpenAI analysis"
+            : proposal.source === "rules"
+              ? "Rule-based suggestion · no AI call"
+              : "Team proposal"}
+        </span>
+        <span>Based on plan v{proposal.base_plan_version}</span>
+      </div>
+      <h3 className="risk-title">{proposal.title}</h3>
+      <p>{proposal.explanation}</p>
+      {error && (
+        <div className="error" role="alert">
+          {error}
+        </div>
+      )}
+      {proposal.stale && (
+        <div className="warning">
+          <TriangleAlert size={18} />
+          The plan has changed. Generate a new proposal from the risk before
+          approving.
+        </div>
+      )}
+      <div className="diff-table">
+        <div className="diff-header">
+          <span>PROPOSED CHANGE</span>
+          <span>BEFORE</span>
+          <span>AFTER</span>
+        </div>
+        {proposal.actions.map((a, i) => (
+          <div className="diff-row" key={i}>
+            <div>
+              <b>{data.tasks.find((t) => t.id === a.task_id)?.title}</b>
+              <small>{a.field === "reviewer_id" ? "Reviewer" : a.field === "position" ? "Task order" : a.field}</small>
+            </div>
+            <span>{display(a, a.before)}</span>
+            <strong>{display(a, a.after)}</strong>
+          </div>
+        ))}
+      </div>
+      <div className="assumptions">
+        <h3>Check before applying</h3>
+        <ul>
+          {proposal.assumptions.map((s, i) => (
+            <li key={i}>{s}</li>
+          ))}
+        </ul>
+      </div>
+      <div className="human-note">
+        <ShieldCheck size={18} />
+        <span>
+          Approval is validated against the current plan and recorded in the
+          audit log. It does not clear failed CI.
+        </span>
+      </div>
+      <div className="dialog-actions">
+        <button
+          className="primary"
+          disabled={!canApprove || !!pending}
+          onClick={() => decide("approve")}
+        >
+          {pending === "approve" ? (
+            <Busy text="Applying safely…" />
+          ) : (
+            <>
+              <Check size={18} />
+              Approve & apply
+            </>
+          )}
+        </button>
+        <button
+          className="secondary"
+          disabled={
+            data.project.role !== "lead" ||
+            proposal.status !== "pending" ||
+            !!pending
+          }
+          onClick={() => decide("reject")}
+        >
+          {pending === "reject" ? <Busy /> : "Reject proposal"}
+        </button>
+      </div>
+      {data.project.role !== "lead" && (
+        <p className="field-help">
+          You can inspect this proposal. A project lead must approve or reject
+          it.
+        </p>
+      )}
+    </Modal>
+  );
+}
+export function DependencyDialog({
+  data,
+  onClose,
+  onSaved,
+}: {
+  data: Overview;
+  onClose: () => void;
+  onSaved: () => Promise<void>;
+}) {
+  const [before, setBefore] = useState(data.tasks[0]?.id ?? ""),
+    [after, setAfter] = useState(data.tasks[1]?.id ?? ""),
+    [error, setError] = useState(""),
+    [pending, setPending] = useState(false);
+  async function submit() {
+    setPending(true);
+    setError("");
+    try {
+      await api(`/projects/${data.project.id}/dependencies/validate`, {
+        method: "POST",
+        body: JSON.stringify({ predecessor_id: before, successor_id: after }),
+      });
+      await api(`/projects/${data.project.id}/proposals`, {
+        method: "POST",
+        body: JSON.stringify({
+          title: "Update task dependency",
+          base_plan_version: data.plan_version,
+          actions: [
+            {
+              task_id: after,
+              field: "dependency",
+              before: null,
+              after: before,
+            },
+          ],
+        }),
+      });
+      await onSaved();
+      onClose();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setPending(false);
+    }
+  }
+  return (
+    <Modal title="Propose a dependency" onClose={onClose}>
+      <p>
+        The predecessor must finish before the dependent task. Cycles and
+        cross-project links are rejected.
+      </p>
+      {error && (
+        <div className="error" role="alert">
+          {error}
+        </div>
+      )}
+      <div className="field-grid">
+        <label>
+          Predecessor
+          <select value={before} onChange={(e) => setBefore(e.target.value)}>
+            {data.tasks.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.title}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Dependent task
+          <select value={after} onChange={(e) => setAfter(e.target.value)}>
+            {data.tasks
+              .filter((t) => t.status !== "done")
+              .map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.title}
+                </option>
+              ))}
+          </select>
+        </label>
+      </div>
+      <button className="primary" disabled={pending} onClick={submit}>
+        {pending ? <Busy /> : "Validate & create proposal"}
+      </button>
+    </Modal>
+  );
+}
+export function AvailabilityForm({
+  member,
+  projectId,
+  onSaved,
+}: {
+  member: Member;
+  projectId: string;
+  onSaved: () => Promise<void>;
+}) {
+  const [hours, setHours] = useState(member.available_hours),
+    [pending, setPending] = useState(false),
+    [error, setError] = useState("");
+  async function save() {
+    setPending(true);
+    setError("");
+    try {
+      await api(`/projects/${projectId}/availability`, {
+        method: "PUT",
+        body: JSON.stringify({ hours }),
+      });
+      await onSaved();
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setPending(false);
+    }
+  }
+  return (
+    <div className="availability-form">
+      <div>
+        <h3>Your available hours</h3>
+        <p>Voluntary availability for the current planning period.</p>
+      </div>
+      <label className="sr-only" htmlFor="hours">
+        Available hours
+      </label>
+      <input
+        id="hours"
+        type="number"
+        min={0}
+        max={80}
+        value={hours}
+        onChange={(e) => setHours(Number(e.target.value))}
+      />
+      <button
+        className="secondary"
+        disabled={pending || hours === member.available_hours}
+        onClick={save}
+      >
+        {pending ? <Busy /> : "Save availability"}
+      </button>
+      {error && (
+        <div className="error" role="alert">
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}

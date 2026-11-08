@@ -1,0 +1,34 @@
+import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
+const credentials = JSON.parse(readFileSync('.local/development.json','utf8'));
+
+test('evidence, proposal rejection, audit and persistence', async ({page},info) => {
+  const errors:string[]=[];
+  page.on('pageerror',e=>errors.push(e.message));
+  await page.goto('/');
+  await page.getByLabel('Email address').fill('asha@demoworks.test');
+  await page.getByLabel('Password',{exact:true}).fill(credentials.demo);
+  await page.getByRole('button',{name:'Sign in',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Delivery overview'})).toBeVisible();
+  await page.getByRole('button',{name:'Replay demo event'}).click();
+  await page.getByRole('button',{name:'Replay event',exact:true}).click();
+  await expect(page.getByRole('heading',{name:'Risk center',exact:true})).toBeVisible();
+  await page.getByRole('button',{name:/LOGIN-102 · CI check failed/}).first().click();
+  await expect(page.getByRole('dialog')).toContainText('Replayed sample event');
+  await expect(page.getByRole('dialog')).toContainText('4 unfinished downstream tasks');
+  await page.getByRole('button',{name:'Use rule-based recovery'}).click();
+  await expect(page.getByRole('heading',{name:'Review recovery proposal'})).toBeVisible();
+  await expect(page.getByRole('dialog')).toContainText('Rule-based suggestion · no AI call');
+  await expect(page.getByRole('button',{name:'Close dialog'})).toBeFocused();
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.screenshot({path:`evidence/proposal-${info.project.name}.png`});
+  await page.getByRole('button',{name:'Reject proposal',exact:true}).click();
+  await expect(page.getByRole('dialog')).not.toBeVisible();
+  if(info.project.name==='mobile') await page.getByRole('button',{name:'Open navigation'}).click();
+  await page.getByRole('button',{name:'Audit Log',exact:true}).click();
+  await expect(page.locator('summary').filter({hasText:'Recovery plan for LOGIN-102 — rejected'}).first()).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('heading',{name:'Delivery overview'})).toBeVisible();
+  expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBeTruthy();
+  expect(errors).toEqual([]);
+});

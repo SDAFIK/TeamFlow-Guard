@@ -1,0 +1,54 @@
+name: TeamFlow validation
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci
+        working-directory: web
+      - run: npm run lint
+        working-directory: web
+      - run: npm run build
+        working-directory: web
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:18
+        env:
+          POSTGRES_PASSWORD: ci-ephemeral-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      DATABASE_URL: postgresql+psycopg://teamflow_app:ci-runtime-only@127.0.0.1:5432/teamflow
+      MIGRATION_DATABASE_URL: postgresql+psycopg://postgres:ci-ephemeral-only@127.0.0.1:5432/teamflow
+      TEST_DATABASE_URL: postgresql+psycopg://postgres:ci-ephemeral-only@127.0.0.1:5432/teamflow_test
+      DEMO_PASSWORD: ci-fixture-password-only
+      WEB_ORIGIN: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+      - run: pip install -r requirements.lock.txt
+        working-directory: api
+      - run: python ci_setup.py
+        working-directory: api
+      - run: python setup_local.py
+        working-directory: api
+      - run: python -m pytest -q
+        working-directory: api

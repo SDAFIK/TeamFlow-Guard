@@ -1,0 +1,89 @@
+# Phase progress
+
+## Current delivery — 8 November 2026
+
+User authorized subsequent phases, visual improvements, OpenAI integration and creation of a GitHub repository. The private repository is https://github.com/SDAFIK/TeamFlow-Guard. Historical phase entries below describe earlier states, not the current feature set.
+
+- Phases 02–03: editable status with optimistic versions and history; scoped acyclic dependencies and impact visualization; CI, blocker, review-delay and explicit-capacity rules; persisted source evidence and labeled replay.
+- Phase 04: OpenAI Responses adapter, strict typed action/evidence references, input/output/time/request bounds, failure isolation and run metadata implemented. Real provider execution is **not verified**: API key and model were absent at the latest configuration check. Rule recovery remains independently usable and clearly labeled.
+- Phase 05: before/after review, lead-only transactional approval, rejection, current-version checks, source-risk checks, combined reviewer-capacity validation, idempotency receipts, concurrent approval protection and append-only audit. Reordering records the actual shifted task positions as well as the requested change.
+- Phase 06: exact repository/workflow/task mapping, signed workflow-run ingestion, duplicate/conflicting delivery checks, out-of-order handling and source isolation. CLI sync reads GitHub without copying credentials into the app. Public webhook hosting is not enabled. Repository workflow is mapped to the demo release task, not falsely attributed to Login UI.
+- UI: refreshed shield wordmark, navy/teal dashboard, source-backed statistics, interactive dependency map, task board/list, risk detail, decision review, availability, audit and integration settings. Responsive native dialogs, keyboard focus, transitions and reduced-motion handling are implemented.
+- Database: migrated development data non-destructively from WIN1252 to UTF-8; row counts verified during copy; original database retained. `.env` is preserved on database startup.
+
+### Latest local verification
+
+| Check | Observed result |
+|---|---|
+| Backend tests | **60 passed**; one upstream Starlette/httpx deprecation warning. Includes 30 rule/graph cases, provider validation/failure cases, transactional decisions, capacities and signed GitHub ingestion. These are not 30 live-model evaluations. |
+| Alembic schema check | No new upgrade operations detected. Test-only upgrade/downgrade/upgrade included in backend suite. |
+| Browser flows | **6 passed** at 1440×1000 and 390×844. Authentication, role-sensitive controls, service failure/retry, filters, dialogs/Escape/focus restoration, replay/evidence, rule proposal/rejection/audit and refresh. No page errors or horizontal overflow in checked flows. |
+| Manual browser approval | Approved a local rule proposal; plan advanced from v1 to v2, audit persisted after reload, and failing CI stayed active. |
+| Visual QA | Reviewed desktop/mobile screenshots and corrected graph card overlap after task reordering. Modal screenshots use reduced motion to avoid transient capture artifacts. |
+| Production compiler | Webpack production compilation/typecheck/static generation passed. Local Turbopack CSS-worker startup failed; build script now explicitly uses supported webpack. |
+| Source exclusion | Staged source scanned against local credential values; no matches or ignored data artifacts found. `.env`, local credentials/database and traces remain ignored. |
+
+Artifacts: `evidence/overview-desktop.png`, `evidence/overview-mobile.png`, `evidence/proposal-desktop.png`, `evidence/proposal-mobile.png`. Walkthrough: `DEMO.md`.
+
+### Remaining scope and honest limits
+
+Phase 07 is partial: no live-model quality/cost evaluation, production load test, formal accessibility audit, pilot or hosted HTTPS deployment. No hosting provider/budget has been selected. Phase 08 optional technologies are deferred; Phase 09 has a local walkthrough but no recorded showcase or production backup/restore rehearsal. Full proposed route deep-links, editable proposal revisions/compensating rollback, owner reassignment and production onboarding are not delivered. New proposals can be authored through task/dependency controls; approved records are immutable through application routes.
+
+The source was locally reviewed for authentication, scope, before-value validation, transaction boundaries, evidence integrity and secret exclusion. No PR-specific Code Review connector report is claimed. GitHub Actions results and live sync must be checked after upload.
+
+## Phase 00 — 8 November 2026
+
+- Status: planning artifacts prepared; Phase 01 not started.
+- Inputs: six supplied Markdown files and two reference screenshots.
+- Observed: initially empty workspace; Git reports no repository; Node/npm/Python/Git discoverable; Docker/psql not found on PATH.
+- Outputs: PHASE_00_REVIEW.md and three static annotated SVG wireframes in design/.
+- Checks: input documents read; workspace inspected. No application exists to build, execute or test. SVG structure verified separately; visual/browser QA remains unperformed.
+- Open choices: Phase 01 approval, development PostgreSQL path, authentication approach. LLM and production hosting selection deferred to the phases that need them.
+- External changes: none.
+
+## Phase 01 — 8 November 2026
+
+- Authorization: user approved Phase 01 and selected a local development setup.
+- Status: foundation implemented and verified locally. Phase 02 has not started.
+- Git: initialized on `main`; files remain uncommitted for user review.
+- Stack: Next.js 16.4.5 / TypeScript / Tailwind CSS, FastAPI / Pydantic / SQLAlchemy / Alembic, workspace-local PostgreSQL 18.6, pwdlib Argon2 password hashing and database-backed opaque sessions.
+- Delivered: login/logout, eight-hour revocable sessions, same-origin protection, server-side project membership and lead settings checks, seven stored tasks and five fictional members, source-backed task counts, searchable/filterable read-only tasks, task dialog, team view, error retry, mobile navigation and keyboard focus handling.
+- Database: versioned initial migration; idempotent seed preserves existing records; separate runtime and migration roles; runtime role cannot update task/plan data. Local secrets and database files are ignored by Git.
+- Frontend scope: application at `/`; views are in-page navigation in this phase. Future risks/dependencies/decisions/audit controls are disabled and labeled with their phases. No fake risk or AI result is displayed.
+- Preview: http://localhost:3000. API health: http://127.0.0.1:8000/health/ready. Demo sign-in details: `.local/DEMO_LOGIN.txt` (local only, ignored by Git).
+
+### Observed verification
+
+| Command/check | Observed result |
+|---|---|
+| `python setup_local.py` in api with local venv | Migration, seed, runtime grants and OpenAPI export completed. |
+| `python -m pytest -q` in api with local venv | **10 passed** in 5.69 seconds. Initial run emitted dependency deprecation warnings; no test failures. |
+| Test migration upgrade → downgrade → upgrade | Passed on `teamflow_test` only; development data preserved. |
+| `python -m alembic check` in api | **No new upgrade operations detected.** |
+| `npm run contracts` | Generated `web/lib/api-schema.d.ts` from exported OpenAPI. |
+| `npm run lint` in web, final run | Exit 0, no findings. |
+| `npm run typecheck` in web | Exit 0. |
+| `npm run build` in web, final run | Exit 0; compiled, TypeScript checked, static page generation completed. |
+| Playwright on existing Chromium, 1440×1000 and 390×844 | **4 passed** in 25.6 seconds. Sign-in/out, bad credentials, role-restricted settings, service failure/retry, filters, task details, Escape/focus restoration, refresh and team view. No page errors in main flows, no horizontal viewport overflow. |
+| npm dependency audit after targeted minimatch override | **0 vulnerabilities** in both root and web dependency trees at verification time. |
+| Secret exclusion | `git check-ignore` confirms api/.env and local credential files are ignored. |
+| Visual inspection | Reviewed actual browser screenshots for desktop and mobile; fixed collapsed headline spacing; dev overlay removed. |
+
+Screenshots: `evidence/overview-desktop.png`, `evidence/overview-mobile.png`. Test traces and HTML reports are local ignored artifacts because they may include session information.
+
+### Fixes made during verification
+
+- Corrected the backend environment-file path before migration setup.
+- Resolved the published embedded-PostgreSQL version instead of retaining an unavailable version.
+- Corrected async-effect lint handling; documented the narrow lint exception for awaited request state updates.
+- Fixed browser test ambiguity caused by Next.js's separate route-announcement alert.
+- Fixed mobile headline spacing and added navigation focus trapping/Escape handling.
+- Updated the lint dependency's minimatch via a scoped override; lint/build still pass.
+
+### Review and limits
+
+Reviewed the new Phase 01 source against its approved scope, with emphasis on password/session handling, membership checks, error behavior, secret exclusion, database grants and fixture disclosure. No external PR exists for the Code Review connector to inspect. No external deployments, integrations, Figma writes, GitHub writes, model calls or messages were made.
+
+This is a local development foundation. Registration, invitations, password recovery, production HTTPS/secure-cookie configuration, hosting, operational cleanup and production abuse controls are not delivered. The static fixture uses fixed valid edges; editable DAG validation is Phase 02. No claim is made for risk detection, real AI reasoning, approval/audit or integration functionality. Formal accessibility auditing and production load testing remain later-phase work.
+
+Next phase, only after approval: task editing and validated dependency engine. Runtime LLM and hosting selection remain open until their respective phases.

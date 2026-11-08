@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="390" height="1260" viewBox="0 0 390 1260"><rect width="100%" height="100%" fill="#07121f"/>
+<text x="18" y="34" fill="#38d5cf" font-family="Arial, sans-serif" font-size="22">☰  TeamFlow Guard</text>
+<text x="18" y="65" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="15">RetailFlow Checkout · DEMO DATA</text>
+<text x="18" y="109" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="27">Delivery overview</text>
+<rect x="16" y="135" width="171" height="84" rx="12" fill="#102332" stroke="#284456"/>
+<text x="34" y="165" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">Risks</text>
+<text x="34" y="194" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Stored findings</text>
+<rect x="203" y="135" width="171" height="84" rx="12" fill="#102332" stroke="#284456"/>
+<text x="221" y="165" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">Blocked</text>
+<text x="221" y="194" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Task statuses</text>
+<rect x="16" y="233" width="171" height="84" rx="12" fill="#102332" stroke="#284456"/>
+<text x="34" y="263" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">Decisions</text>
+<text x="34" y="292" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Pending only</text>
+<rect x="203" y="233" width="171" height="84" rx="12" fill="#102332" stroke="#284456"/>
+<text x="221" y="263" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">Release</text>
+<text x="221" y="292" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Rule details</text>
+<rect x="16" y="338" width="358" height="231" rx="12" fill="#102332" stroke="#38d5cf"/>
+<text x="34" y="368" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">01 / Risk first</text>
+<text x="34" y="397" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Login CI failed</text>
+<text x="34" y="422" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Source ID · observed timestamp</text>
+<text x="34" y="447" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Downstream impact · exact task IDs</text>
+<text x="34" y="472" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14"></text>
+<text x="34" y="497" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">[ View evidence ]</text>
+<text x="34" y="522" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">[ Analyze recovery ]</text>
+<rect x="16" y="589" width="358" height="267" rx="12" fill="#102332" stroke="#284456"/>
+<text x="34" y="619" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">02 / Impact list</text>
+<text x="34" y="648" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Login · failed check</text>
+<text x="34" y="673" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">↓ Checkout · affected</text>
+<text x="34" y="698" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">↓ QA · affected</text>
+<text x="34" y="723" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">↓ Release · affected</text>
+<text x="34" y="748" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14"></text>
+<text x="34" y="773" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Catalog · independent</text>
+<text x="34" y="798" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">[ Open full graph ]</text>
+<rect x="16" y="876" width="358" height="158" rx="12" fill="#102332" stroke="#284456"/>
+<text x="34" y="906" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">03 / Pending decision</text>
+<text x="34" y="935" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Review evidence and field changes.</text>
+<text x="34" y="960" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">[ Review before / after ]</text>
+<text x="34" y="985" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">No changes before approval.</text>
+<text x="18" y="1077" fill="#38d5cf" font-family="Arial, sans-serif" font-size="20">Mobile annotation</text>
+<text x="18" y="1111" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">390 px · primary action before graph</text>
+<text x="18" y="1135" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Menu exposes all implemented routes.</text>
+<text x="18" y="1159" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Drawer becomes full-screen dialog.</text>
+<text x="18" y="1183" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Comparison stacks before/proposed values.</text>
+<text x="18" y="1207" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">44 px targets; visible keyboard focus.</text>
+<text x="18" y="1231" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Static design, not an implemented screen.</text>
+</svg>

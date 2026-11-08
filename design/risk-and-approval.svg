@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1000" viewBox="0 0 1440 1000"><rect width="100%" height="100%" fill="#07121f"/>
+<text x="25" y="42" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="30">Risk → recommendation drawer → approval modal</text>
+<text x="25" y="77" fill="#38d5cf" font-family="Arial, sans-serif" font-size="16">Static flow study · illustrative candidate, subject to capacity and version validation</text>
+<rect x="25" y="110" width="440" height="580" rx="12" fill="#102332" stroke="#284456"/>
+<text x="43" y="140" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">01 / Risk detail</text>
+<text x="43" y="169" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Login CI failed · severity + rule reason</text>
+<text x="43" y="194" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14"></text>
+<text x="43" y="219" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">OBSERVED</text>
+<text x="43" y="244" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Check ID, source URL, timestamp</text>
+<text x="43" y="269" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Task mapping: Login</text>
+<text x="43" y="294" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Freshness / missing evidence warning</text>
+<text x="43" y="319" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14"></text>
+<text x="43" y="344" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">IMPACT</text>
+<text x="43" y="369" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Login → Checkout → QA → Release</text>
+<text x="43" y="394" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Catalog remains independent</text>
+<text x="43" y="419" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14"></text>
+<text x="43" y="444" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">[ Open source ] [ Open task ]</text>
+<text x="43" y="469" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">[ Analyze and suggest recovery ]</text>
+<rect x="490" y="110" width="430" height="580" rx="12" fill="#102332" stroke="#38d5cf"/>
+<text x="508" y="140" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">02 / Recommendation drawer</text>
+<text x="508" y="169" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Analysis: pending / failed / complete</text>
+<text x="508" y="194" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14"></text>
+<text x="508" y="219" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">CITED EVIDENCE</text>
+<text x="508" y="244" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Source and task IDs open detail panels.</text>
+<text x="508" y="269" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14"></text>
+<text x="508" y="294" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">CANDIDATE</text>
+<text x="508" y="319" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Reassign qualified review if capacity allows.</text>
+<text x="508" y="344" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Move independent work earlier if feasible.</text>
+<text x="508" y="369" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14"></text>
+<text x="508" y="394" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">ASSUMPTIONS / ESTIMATED EFFECT</text>
+<text x="508" y="419" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Approval does not repair a failed check.</text>
+<text x="508" y="444" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14"></text>
+<text x="508" y="469" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">[ Edit draft ] [ Review changes ]</text>
+<text x="508" y="494" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">[ Close ] returns focus to Analyze</text>
+<rect x="945" y="110" width="470" height="580" rx="12" fill="#102332" stroke="#edb34e"/>
+<text x="963" y="140" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">03 / Before / after modal</text>
+<text x="963" y="169" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Proposal revision · base plan version</text>
+<text x="963" y="194" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14"></text>
+<text x="963" y="219" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">FIELD                 BEFORE → PROPOSED</text>
+<text x="963" y="244" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">PR reviewer         Nila → Sami</text>
+<text x="963" y="269" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Only if skills and available hours validate.</text>
+<text x="963" y="294" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14"></text>
+<text x="963" y="319" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Human decision · lead authorization</text>
+<text x="963" y="344" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">[ Approve &amp; apply ]</text>
+<text x="963" y="369" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">[ Reject proposal ] [ Cancel ]</text>
+<text x="963" y="394" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14"></text>
+<text x="963" y="419" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Stale version: regenerate; no silent apply.</text>
+<text x="963" y="444" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Success: new version + audit link.</text>
+<text x="963" y="469" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Reject: active plan stays unchanged.</text>
+<rect x="25" y="715" width="1390" height="145" rx="12" fill="#102332" stroke="#284456"/>
+<text x="43" y="745" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">States and accessibility</text>
+<text x="43" y="774" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Loading: preserve context, prevent repeated submissions. Error: keep draft and allow retry.</text>
+<text x="43" y="799" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Unauthorized: approval unavailable with explanation. Stale: retain readable diff, require fresh validation.</text>
+<text x="43" y="824" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Keyboard: focus trap within dialog, Escape closes, focus restoration. Mobile: one full-screen step at a time.</text>
+<text x="25" y="909" fill="#38d5cf" font-family="Arial, sans-serif" font-size="20">Review boundary: typed proposal → server authorization + version/constraint checks → transaction + audit</text>
+<text x="25" y="952" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="16">No live controls, application functionality, model calls or estimated performance claims are represented here.</text>
+</svg>

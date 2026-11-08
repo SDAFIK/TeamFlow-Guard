@@ -1,0 +1,755 @@
+@media (min-width: 1550px) {
+  main {
+    padding: 38px 40px;
+  }
+  .graph-canvas {
+    height: 340px;
+  }
+  .insight h2 {
+    font-size: 30px;
+  }
+  .stat strong {
+    font-size: 38px;
+  }
+}
+@media (max-width: 1200px) {
+  .sidebar {
+    width: 220px;
+    padding: 23px 12px 14px;
+  }
+  .brand {
+    font-size: 19px;
+    gap: 8px;
+  }
+  .brand-mark {
+    width: 34px;
+    height: 38px;
+  }
+  .main-shell {
+    margin-left: 220px;
+    width: calc(100% - 220px);
+  }
+  main {
+    padding: 27px 23px;
+  }
+  .topbar {
+    padding: 0 23px;
+  }
+  .overview-grid {
+    grid-template-columns: minmax(0, 1.4fr) minmax(270px, 1fr);
+    gap: 15px;
+  }
+  .stats {
+    gap: 12px;
+  }
+  .stat {
+    padding: 17px 15px;
+  }
+  .stat > div {
+    font-size: 11px;
+  }
+  .stat small {
+    font-size: 9px;
+  }
+  .insight {
+    padding: 20px;
+  }
+  .insight h2 {
+    font-size: 24px;
+  }
+  .insight-head {
+    gap: 7px;
+  }
+  .insight-head .section-kicker {
+    font-size: 7px;
+  }
+  .panel-head {
+    padding: 20px 18px 16px;
+  }
+  .kanban {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .kanban-column {
+    min-height: 230px;
+  }
+  .heading {
+    align-items: flex-start;
+  }
+  .heading-actions {
+    margin-top: 30px;
+  }
+  .heading-actions .secondary {
+    font-size: 11px;
+  }
+  .heading h1 {
+    font-size: 30px;
+  }
+  .context-line {
+    font-size: 10px;
+  }
+  .risk-row {
+    gap: 9px;
+  }
+  .risk-row strong {
+    font-size: 11px;
+  }
+  .risk-row p {
+    font-size: 9px;
+  }
+  .risk-row > .status {
+    font-size: 9px;
+  }
+  .risk-row > svg {
+    display: none;
+  }
+  .members-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .settings-grid {
+    grid-template-columns: 1fr;
+  }
+  .login-story {
+    padding: 40px;
+  }
+  .login-story h1 {
+    font-size: 40px;
+  }
+}
+@media (max-width: 1000px) {
+  .overview-grid {
+    grid-template-columns: 1fr;
+  }
+  .graph-canvas {
+    height: 330px;
+  }
+  .insight h2 br {
+    display: none;
+  }
+  .insight h2 {
+    font-size: 26px;
+  }
+  .insight > .primary {
+    margin-top: 20px;
+    width: fit-content;
+  }
+  .insight .insight-reason {
+    margin-bottom: 0;
+  }
+  .insight-head {
+    margin-bottom: 20px;
+  }
+  .insight-head .section-kicker {
+    font-size: 9px;
+  }
+  .insight-evidence {
+    max-width: 420px;
+  }
+  .lower-grid {
+    grid-template-columns: 1fr;
+  }
+  .stat > div svg {
+    display: none;
+  }
+  .heading {
+    flex-wrap: wrap;
+  }
+  .heading-actions {
+    margin-top: 0;
+  }
+  .context-line {
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .topbar-right .environment {
+    display: none;
+  }
+  .login-page {
+    grid-template-columns: 1fr;
+  }
+  .login-story {
+    min-height: auto;
+    padding: 30px;
+  }
+  .login-story > div:nth-child(2) {
+    margin-top: 35px;
+  }
+  .login-story h1 {
+    font-size: 38px;
+  }
+  .login-story > small,
+  .login-chain {
+    display: none;
+  }
+  .login-form-wrap {
+    padding: 40px 25px;
+  }
+}
+@media (max-width: 700px) {
+  .sidebar {
+    transform: translateX(-100%);
+    width: 255px;
+    transition: transform 0.2s;
+  }
+  .sidebar.open {
+    transform: translateX(0);
+  }
+  .sidebar-brand {
+    display: flex;
+    align-items: center;
+    padding: 0;
+  }
+  .sidebar-brand .brand {
+    font-size: 19px;
+  }
+  .mobile-close {
+    display: flex;
+    margin-left: auto;
+  }
+  .scrim {
+    display: block;
+    position: fixed;
+    inset: 0;
+    background: #020812c9;
+    border: 0;
+    z-index: 19;
+  }
+  .main-shell {
+    margin-left: 0;
+    width: 100%;
+  }
+  .topbar {
+    height: 64px;
+    padding: 0 14px;
+    gap: 9px;
+  }
+  .mobile-toggle {
+    display: flex;
+  }
+  .breadcrumb {
+    flex: 1;
+    min-width: 0;
+  }
+  .breadcrumb > span,
+  .breadcrumb > svg {
+    display: none;
+  }
+  .breadcrumb select {
+    width: 100%;
+    max-width: 100%;
+    font-size: 12px;
+  }
+  .topbar-right {
+    gap: 0;
+  }
+  .topbar-right .avatar-stack {
+    padding-left: 0;
+  }
+  .avatar-stack .avatar:not(:first-child),
+  .team-count {
+    display: none;
+  }
+  .avatar-stack .avatar {
+    margin: 0;
+    width: 29px;
+    height: 29px;
+  }
+  main {
+    padding: 24px 17px 20px;
+  }
+  .heading {
+    gap: 15px;
+    margin-bottom: 18px;
+  }
+  .heading h1 {
+    font-size: 29px;
+    letter-spacing: -0.8px;
+  }
+  .heading p {
+    font-size: 12px;
+  }
+  .eyebrow {
+    font-size: 9px;
+    letter-spacing: 1px;
+    gap: 8px;
+    margin-bottom: 13px;
+  }
+  .demo-badge {
+    font-size: 7px;
+    letter-spacing: 0.5px;
+  }
+  .heading-actions {
+    width: 100%;
+    flex-direction: row-reverse;
+    justify-content: flex-start;
+    gap: 9px;
+  }
+  .heading-actions .secondary {
+    font-size: 11px;
+    min-height: 42px;
+    flex: 1;
+  }
+  .refresh-button {
+    min-width: 42px;
+    min-height: 42px;
+  }
+  .context-line {
+    font-size: 9px;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .context-line > span + span {
+    padding-left: 12px;
+  }
+  .context-line > span:last-child {
+    border: 0;
+    padding-left: 0;
+    flex-basis: 100%;
+    color: #92a8bf;
+  }
+  .stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+    margin-bottom: 17px;
+  }
+  .stat {
+    padding: 16px 14px;
+  }
+  .stat > div {
+    font-size: 11px;
+  }
+  .stat > div svg {
+    display: block;
+    width: 17px;
+    height: 17px;
+  }
+  .stat strong {
+    font-size: 32px;
+    margin: 13px 0 11px;
+  }
+  .stat small {
+    font-size: 9px;
+    line-height: 1.6;
+  }
+  .stat small svg {
+    display: none;
+  }
+  .overview-grid,
+  .lower-grid {
+    gap: 17px;
+    margin-bottom: 17px;
+  }
+  .panel-head {
+    padding: 19px 17px 15px;
+  }
+  .panel-head h2 {
+    font-size: 18px;
+  }
+  .panel-head p {
+    font-size: 11px;
+  }
+  .section-kicker {
+    font-size: 8px;
+  }
+  .graph-canvas {
+    height: 265px;
+  }
+  .graph-panel.expanded .graph-canvas {
+    height: 360px;
+  }
+  .graph-caption {
+    font-size: 8px;
+    padding: 12px 15px;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+  .graph-alternative {
+    padding: 10px 15px;
+  }
+  .graph-alternative summary {
+    min-height: 32px;
+    display: flex;
+    align-items: center;
+    font-size: 11px;
+  }
+  .graph-alternative button {
+    min-height: 42px;
+  }
+  .insight {
+    padding: 22px;
+  }
+  .insight h2 {
+    font-size: 26px;
+  }
+  .insight > p {
+    font-size: 13px;
+  }
+  .insight .insight-reason {
+    font-size: 12px;
+  }
+  .insight-head .section-kicker {
+    font-size: 8px;
+  }
+  .insight > .primary {
+    width: 100%;
+    font-size: 12px;
+  }
+  .insight > .human-note {
+    font-size: 11px;
+  }
+  .risk-feed {
+    padding: 0 14px 12px;
+  }
+  .risk-row {
+    gap: 10px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    padding: 17px 0;
+  }
+  .risk-icon {
+    padding: 7px;
+  }
+  .risk-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+  .risk-row > div {
+    min-width: 190px;
+  }
+  .risk-row strong {
+    font-size: 12px;
+  }
+  .risk-row p {
+    font-size: 10px;
+  }
+  .risk-row > .status {
+    margin-left: 42px;
+    font-size: 10px;
+  }
+  .decision-list strong {
+    font-size: 12px;
+  }
+  .decision-list small {
+    font-size: 10px;
+    line-height: 1.6;
+  }
+  .decision-list {
+    padding: 0 16px 13px;
+  }
+  .empty {
+    padding: 25px 20px 30px;
+  }
+  .empty p {
+    font-size: 12px;
+  }
+  .filters,
+  .task-toolbar {
+    gap: 10px;
+    margin: 0 16px 20px;
+  }
+  .task-toolbar {
+    margin: 0 0 19px;
+  }
+  .search {
+    max-width: none;
+    width: 100%;
+    flex-basis: 100%;
+  }
+  .search input {
+    font-size: 14px;
+    min-height: 44px;
+  }
+  .segmented {
+    margin-left: auto;
+  }
+  .kanban {
+    grid-template-columns: 1fr;
+    gap: 17px;
+  }
+  .kanban-column {
+    min-height: 100px;
+    padding: 15px;
+  }
+  .kanban-column > h2 {
+    font-size: 14px;
+  }
+  .task-card {
+    padding: 17px;
+  }
+  .task-card h3 {
+    font-size: 15px;
+  }
+  .task-card p {
+    font-size: 12px;
+  }
+  .task-card footer {
+    font-size: 11px;
+  }
+  .task-card .mono {
+    font-size: 11px;
+  }
+  .task-list {
+    padding: 0 16px;
+  }
+  .task-list > button {
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .task-list .owner-name {
+    display: none;
+  }
+  .task-list > button > strong {
+    min-width: 140px;
+    font-size: 13px;
+  }
+  .task-list > button > .status {
+    margin-left: auto;
+  }
+  .task-list > button > svg {
+    display: none;
+  }
+  .section-actions {
+    flex-wrap: wrap;
+  }
+  .section-actions .human-note {
+    font-size: 11px;
+    flex-basis: 100%;
+  }
+  .section-actions .secondary {
+    width: 100%;
+  }
+  .selection-card {
+    padding: 17px;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .proposal-list {
+    padding: 0 16px 15px;
+  }
+  .proposal-list > button {
+    gap: 11px;
+    flex-wrap: wrap;
+  }
+  .proposal-list > button > div {
+    min-width: 190px;
+  }
+  .proposal-list > button > .status {
+    margin-left: 48px;
+  }
+  .proposal-list strong {
+    font-size: 13px;
+  }
+  .proposal-list p {
+    font-size: 10px;
+  }
+  .proposal-list > button > svg {
+    margin-left: auto;
+  }
+  .availability-form {
+    padding: 18px;
+    gap: 13px;
+  }
+  .availability-form > div:first-child {
+    flex-basis: 100%;
+  }
+  .availability-form h3 {
+    font-size: 15px;
+  }
+  .availability-form p {
+    font-size: 12px;
+  }
+  .availability-form > .secondary {
+    flex: 1;
+  }
+  .members-grid {
+    grid-template-columns: 1fr;
+    gap: 17px;
+  }
+  .member-card {
+    padding: 23px;
+  }
+  .member-card p {
+    font-size: 13px;
+  }
+  .member-footer {
+    font-size: 11px;
+  }
+  .privacy-note {
+    padding: 18px 5px;
+    align-items: flex-start;
+  }
+  .privacy-note svg {
+    flex-shrink: 0;
+  }
+  .privacy-note p {
+    font-size: 11px;
+  }
+  .audit-list {
+    padding: 0 16px 16px;
+  }
+  .audit-list summary {
+    gap: 10px;
+  }
+  .audit-icon {
+    padding: 7px;
+  }
+  .audit-list strong {
+    font-size: 12px;
+  }
+  .audit-list small {
+    font-size: 10px;
+    line-height: 1.6;
+  }
+  .settings-panel {
+    padding: 21px;
+  }
+  .integration-row {
+    flex-wrap: wrap;
+  }
+  .integration-row > div {
+    min-width: 200px;
+  }
+  .integration-row > .status {
+    margin-left: 37px;
+  }
+  .page-footer {
+    font-size: 8px;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+  .page-footer > span:last-child {
+    font-size: 8px;
+  }
+  .icon-button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+  .text-link {
+    min-height: 44px;
+  }
+  .primary,
+  .secondary {
+    min-height: 44px;
+  }
+  dialog {
+    padding: 21px;
+    max-height: 92vh;
+    max-width: calc(100% - 22px);
+    border-radius: 12px;
+  }
+  .dialog-head h2 {
+    font-size: 23px;
+  }
+  .dialog-meta {
+    font-size: 10px;
+    gap: 10px;
+  }
+  .field-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+  .field input,
+  .field select,
+  .field-grid input,
+  .field-grid select,
+  textarea {
+    font-size: 16px;
+  }
+  .review-grid {
+    grid-template-columns: 1fr;
+  }
+  .evidence-card {
+    padding: 17px;
+  }
+  .risk-title {
+    font-size: 18px;
+  }
+  .dialog-actions {
+    flex-direction: column;
+  }
+  .dialog-actions > button {
+    width: 100%;
+  }
+  .diff-header {
+    display: none;
+  }
+  .diff-row {
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+    padding: 17px;
+  }
+  .diff-row > div {
+    grid-column: 1/-1;
+  }
+  .diff-row > span:before {
+    content: "Before";
+    display: block;
+    font-size: 9px;
+    color: #849eb8;
+    margin-bottom: 8px;
+  }
+  .diff-row > strong:before {
+    content: "Proposed";
+    display: block;
+    font-size: 9px;
+    color: #93cdbb;
+    margin-bottom: 5px;
+  }
+  .diff-row > strong {
+    width: 100%;
+  }
+  .dialog-section > p {
+    font-size: 12px;
+  }
+  .login-story {
+    padding: 25px;
+  }
+  .login-story .brand {
+    font-size: 21px;
+  }
+  .login-story h1 {
+    font-size: 33px;
+  }
+  .login-story .eyebrow {
+    font-size: 8px;
+  }
+  .login-story > div:nth-child(2) {
+    margin-top: 25px;
+  }
+  .login-story p {
+    font-size: 12px;
+  }
+  .login-form-wrap {
+    padding: 30px 25px 45px;
+  }
+  .login-form h2 {
+    font-size: 23px;
+  }
+  .login-icon {
+    display: none;
+  }
+  .login-form input {
+    font-size: 16px;
+  }
+  .desktop-only {
+    display: none;
+  }
+  .login-form .primary {
+    font-size: 14px;
+  }
+  .trust-note {
+    margin-bottom: 15px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+  .stat:hover,
+  .task-card:hover {
+    transform: none;
+  }
+}

@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="1000" viewBox="0 0 1440 1000"><rect width="100%" height="100%" fill="#07121f"/>
+<text x="24" y="43" fill="#38d5cf" font-family="Arial, sans-serif" font-size="22">TeamFlow Guard</text>
+<text x="24" y="115" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="16">Overview</text>
+<text x="24" y="168" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="16">Risks</text>
+<text x="24" y="221" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="16">Tasks</text>
+<text x="24" y="274" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="16">Dependencies</text>
+<text x="24" y="327" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="16">Decisions</text>
+<text x="24" y="380" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="16">Team</text>
+<text x="24" y="433" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="16">Audit</text>
+<text x="24" y="486" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="16">Settings</text>
+<text x="245" y="38" fill="#38d5cf" font-family="Arial, sans-serif" font-size="16">01 / RetailFlow Checkout · DEMO DATA · static design</text>
+<text x="245" y="83" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="32">Delivery overview</text>
+<rect x="245" y="110" width="277" height="106" rx="12" fill="#102332" stroke="#284456"/>
+<text x="263" y="140" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">Active risks</text>
+<text x="263" y="169" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Computed from findings</text>
+<rect x="538" y="110" width="277" height="106" rx="12" fill="#102332" stroke="#284456"/>
+<text x="556" y="140" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">Blocked tasks</text>
+<text x="556" y="169" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Computed from task status</text>
+<rect x="831" y="110" width="277" height="106" rx="12" fill="#102332" stroke="#284456"/>
+<text x="849" y="140" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">Pending decisions</text>
+<text x="849" y="169" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Current pending proposals</text>
+<rect x="1124" y="110" width="277" height="106" rx="12" fill="#102332" stroke="#284456"/>
+<text x="1142" y="140" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">Release status</text>
+<text x="1142" y="169" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Rule explanation, no %</text>
+<rect x="245" y="238" width="755" height="360" rx="12" fill="#102332" stroke="#284456"/>
+<text x="263" y="268" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">02 / Dependency impact</text>
+<text x="263" y="297" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Select Login to highlight reachable successors.</text>
+<text x="263" y="322" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Illustrative fixture states below; no live data.</text>
+<rect x="265" y="370" width="164" height="100" rx="12" fill="#102332" stroke="#edb34e"/>
+<text x="283" y="400" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">Login</text>
+<text x="283" y="429" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">CI failed</text>
+<rect x="445" y="370" width="164" height="100" rx="12" fill="#102332" stroke="#edb34e"/>
+<text x="463" y="400" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">Checkout</text>
+<text x="463" y="429" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Affected</text>
+<rect x="625" y="370" width="164" height="100" rx="12" fill="#102332" stroke="#edb34e"/>
+<text x="643" y="400" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">QA</text>
+<text x="643" y="429" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Affected</text>
+<rect x="805" y="370" width="164" height="100" rx="12" fill="#102332" stroke="#edb34e"/>
+<text x="823" y="400" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">Release</text>
+<text x="823" y="429" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Affected</text>
+<text x="430" y="426" fill="#38d5cf" font-family="Arial, sans-serif" font-size="20">→</text>
+<text x="610" y="426" fill="#38d5cf" font-family="Arial, sans-serif" font-size="20">→</text>
+<text x="790" y="426" fill="#38d5cf" font-family="Arial, sans-serif" font-size="20">→</text>
+<rect x="265" y="495" width="270" height="75" rx="12" fill="#102332" stroke="#38d5cf"/>
+<text x="283" y="525" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">Catalog</text>
+<text x="283" y="554" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Independent · remains available</text>
+<rect x="1020" y="238" width="397" height="360" rx="12" fill="#102332" stroke="#38d5cf"/>
+<text x="1038" y="268" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">03 / Highest-priority risk</text>
+<text x="1038" y="297" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Login CI failed</text>
+<text x="1038" y="322" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Observed: source ID + timestamp</text>
+<text x="1038" y="347" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Impact: exact downstream task IDs</text>
+<text x="1038" y="372" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14"></text>
+<text x="1038" y="397" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">[ View evidence ]</text>
+<text x="1038" y="422" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">[ Analyze and suggest recovery ]</text>
+<text x="1038" y="447" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14"></text>
+<text x="1038" y="472" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Analysis creates a proposal only.</text>
+<rect x="245" y="620" width="755" height="213" rx="12" fill="#102332" stroke="#284456"/>
+<text x="263" y="650" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">04 / Risk feed</text>
+<text x="263" y="679" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">CI failure · linked check + task</text>
+<text x="263" y="704" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Review delay · threshold + PR evidence</text>
+<text x="263" y="729" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Capacity · voluntary availability only</text>
+<text x="263" y="754" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14"></text>
+<text x="263" y="779" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Select a row to inspect facts, assumptions and freshness.</text>
+<rect x="1020" y="620" width="397" height="213" rx="12" fill="#102332" stroke="#284456"/>
+<text x="1038" y="650" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="19">05 / Pending decisions</text>
+<text x="1038" y="679" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Proposal title + affected tasks</text>
+<text x="1038" y="704" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">Current plan version + source links</text>
+<text x="1038" y="729" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14"></text>
+<text x="1038" y="754" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="14">[ Review before / after ]</text>
+<text x="245" y="883" fill="#38d5cf" font-family="Arial, sans-serif" font-size="18">Hierarchy: project → source-backed state → impact → evidence → human decision</text>
+<text x="245" y="923" fill="#dfeaf3" font-family="Arial, sans-serif" font-size="16">Phase 01: stored project, tasks and team only. Later features display an explicit unavailable state.</text>
+<text x="245" y="959" fill="#94adbf" font-family="Arial, sans-serif" font-size="14">Static wireframe · 1440 px · all numbers and production data intentionally omitted</text>
+</svg>
