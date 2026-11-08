@@ -33,3 +33,5 @@ Keep admin credentials in the operator environment only. Take a Neon snapshot be
 ## Validation
 
 Docker is not installed in the current local workspace. GitHub Actions builds and smoke-tests the image on Ubuntu. The static export is also tested locally through FastAPI. These checks do not prove a live Render/Neon deployment; its URL and end-to-end results must be recorded after account connections are available.
+
+Verified: [GitHub Actions run 42479301037](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/42479301037) passed the image build, HTTP frontend/unauthenticated API smoke tests, frontend checks and backend suite. Local static-hosted browser verification passed all six flows at desktop/mobile sizes.

@@ -8,6 +8,7 @@
 - Static export build succeeded. **70 backend tests passed** (one upstream deprecation warning), including hosted configuration failures and static/API route isolation. **Six browser tests passed in 29.7 seconds** at 1440×1000 and 390×844 against FastAPI serving the exported app on temporary localhost:3100.
 - Docker is unavailable locally; GitHub Actions now builds and smoke-tests the image. The hosted bootstrap command is syntax-checked but cannot be exercised against Neon until connected. No live OpenAI calls were made; key/model remain absent.
 - Instructions and current free-tier limits: `deploy/README.md`. Free services can sleep or suspend at quotas; this is a demo hosting target. No production availability or backup/restore claim is made.
+- GitHub Actions [42479301037](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/42479301037) passed for source commit `b1cc0ab`: Docker image build/smoke test, frontend lint/build, and backend tests. Local lint also passes with generated export files excluded. The temporary test server was stopped; the normal localhost:3000 preview is retained.
 
 ## Current delivery — 8 November 2026
 
