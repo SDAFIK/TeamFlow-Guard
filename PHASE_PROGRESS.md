@@ -29,7 +29,15 @@ Artifacts: `evidence/overview-desktop.png`, `evidence/overview-mobile.png`, `evi
 
 Phase 07 is partial: no live-model quality/cost evaluation, production load test, formal accessibility audit, pilot or hosted HTTPS deployment. No hosting provider/budget has been selected. Phase 08 optional technologies are deferred; Phase 09 has a local walkthrough but no recorded showcase or production backup/restore rehearsal. Full proposed route deep-links, editable proposal revisions/compensating rollback, owner reassignment and production onboarding are not delivered. New proposals can be authored through task/dependency controls; approved records are immutable through application routes.
 
-The source was locally reviewed for authentication, scope, before-value validation, transaction boundaries, evidence integrity and secret exclusion. No PR-specific Code Review connector report is claimed. GitHub Actions results and live sync must be checked after upload.
+The source was locally reviewed for authentication, scope, before-value validation, transaction boundaries, evidence integrity and secret exclusion. No PR-specific Code Review connector report is claimed.
+
+### GitHub verification
+
+- Source commit `251657d` uploaded to private `SDAFIK/TeamFlow-Guard`.
+- GitHub Actions run [42464766720](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/42464766720) completed **successfully**: frontend lint/build and backend setup/migrations/tests ran on Ubuntu with PostgreSQL 18.
+- Local `sync_github.py` ingested that actual completed workflow as GitHub evidence for `REL-106`. A second sync returned “Workflow run already recorded,” verifying deduplication. No GitHub writes occur in the sync script.
+- Final browser rerun against the restarted API: **6 passed in 30.0 seconds**. Final desktop/mobile overview captures show one current replay signal; older replay events remain stored but superseded.
+- Live OpenAI remains unverified: both key and model settings were still absent at the final presence-only check. No provider credential was printed or committed.
 
 ## Phase 00 — 8 November 2026
 
