@@ -1,5 +1,14 @@
 # Phase progress
 
+## Free hosting preparation — 8 November 2026
+
+- User explicitly selected **free hosting only**. Prepared Render Free + Neon Free; no paid resources or upgrades authorized. Relevant integrations were discovered and offered, but neither account connection has been confirmed. No cloud resources or live URL exist yet.
+- Added a multi-stage Docker image: Next.js static export at build time, non-root FastAPI runtime serving UI and API from one origin. Runtime image excludes local secrets, database, migration scripts and test artifacts. `render.yaml` selects `plan: free`, requires runtime URL/origin inputs and disables automatic deploys.
+- Added HTTPS/secure-cookie/TLS/runtime-role configuration checks, response security headers, and rejection of migration/seed credentials in production. Hosted setup is an explicit operator command with distinct admin/runtime connections and new hosted demo credentials; it is not executed at app startup.
+- Static export build succeeded. **70 backend tests passed** (one upstream deprecation warning), including hosted configuration failures and static/API route isolation. **Six browser tests passed in 29.7 seconds** at 1440×1000 and 390×844 against FastAPI serving the exported app on temporary localhost:3100.
+- Docker is unavailable locally; GitHub Actions now builds and smoke-tests the image. The hosted bootstrap command is syntax-checked but cannot be exercised against Neon until connected. No live OpenAI calls were made; key/model remain absent.
+- Instructions and current free-tier limits: `deploy/README.md`. Free services can sleep or suspend at quotas; this is a demo hosting target. No production availability or backup/restore claim is made.
+
 ## Current delivery — 8 November 2026
 
 User authorized subsequent phases, visual improvements, OpenAI integration and creation of a GitHub repository. The private repository is https://github.com/SDAFIK/TeamFlow-Guard. Historical phase entries below describe earlier states, not the current feature set.

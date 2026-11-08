@@ -5,7 +5,8 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 
 ROOT = Path(__file__).resolve().parents[1]
-load_dotenv(ROOT / '.env')
+if os.getenv('APP_ENV') != 'production':
+    load_dotenv(ROOT / '.env')
 
 def database_url():
     url = os.environ.get('DATABASE_URL')

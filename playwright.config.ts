@@ -3,7 +3,7 @@ export default defineConfig({
   testDir: "./tests",
   workers: 1,
   use: {
-    baseURL: "http://localhost:3000",
+    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
     headless: true,
     launchOptions: { executablePath: process.env.PLAYWRIGHT_EXECUTABLE },
     trace: "retain-on-failure",

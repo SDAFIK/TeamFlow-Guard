@@ -6,6 +6,27 @@ on:
 permissions:
   contents: read
 jobs:
+  hosting-image:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t teamflow-hosting .
+      - name: Smoke test the single-service image
+        run: |
+          docker run -d --name teamflow-hosting -p 8080:8000 \
+            -e APP_ENV=production -e COOKIE_SECURE=true \
+            -e WEB_ORIGIN=https://example.onrender.com \
+            -e DATABASE_URL='postgresql+psycopg://teamflow_app:ci-only@db.invalid/teamflow?sslmode=require' \
+            teamflow-hosting
+          for attempt in $(seq 1 20); do
+            if curl -fsS http://localhost:8080/health/live; then break; fi
+            sleep 2
+          done
+          curl -fsS http://localhost:8080/ | grep -q 'TeamFlow'
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/me)" = '401'
+      - name: Container diagnostics
+        if: failure()
+        run: docker logs teamflow-hosting
   frontend:
     runs-on: ubuntu-latest
     steps:

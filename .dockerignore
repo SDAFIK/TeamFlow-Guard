@@ -1,0 +1,16 @@
+.git
+.local
+.venv
+**/node_modules
+**/.next
+**/.next-export
+**/out
+**/.env
+**/.env.*
+**/__pycache__
+**/.pytest_cache
+**/*.tsbuildinfo
+test-results
+playwright-report
+evidence
+design

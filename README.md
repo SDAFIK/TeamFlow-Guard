@@ -101,3 +101,9 @@ Production builds use the supported webpack compiler because the local Turbopack
 - [Embedded PostgreSQL package](https://www.npmjs.com/package/embedded-postgres).
 
 Only actual implemented packages and measured test evidence may be used in competition claims. No live model evaluation, retrieval system, productivity gain or deployed production service is claimed. See `PHASE_PROGRESS.md` for observed verification and `DEMO.md` for the local walkthrough.
+
+## Free hosting package
+
+The user selected free hosting. `Dockerfile` builds a static export of the same Next.js UI and serves it from FastAPI as one service. `render.yaml` explicitly selects Render Free; persistent PostgreSQL is planned on Neon Free. See [deployment steps](deploy/README.md). No live hosted service is claimed until its URL and end-to-end checks are recorded.
+
+Production startup requires an HTTPS origin, secure cookies and the restricted TLS database connection. Admin migration and seed credentials are rejected in the hosted runtime. Provisioning uses a separate ignored hosting environment file; local credentials/data are not uploaded. OpenAI remains optional and has separate API usage costs.

@@ -1,8 +1,11 @@
 import type { NextConfig } from "next";
+const staticExport = process.env.STATIC_EXPORT === "true";
 const config: NextConfig = {
+  ...(staticExport ? { output: "export" as const } : {}),
   devIndicators: false,
   turbopack: { root: process.cwd() },
   async rewrites() {
+    if (staticExport) return [];
     return [
       {
         source: "/api/:path*",
@@ -11,6 +14,7 @@ const config: NextConfig = {
     ];
   },
   async headers() {
+    if (staticExport) return [];
     return [
       {
         source: "/:path*",
@@ -23,4 +27,8 @@ const config: NextConfig = {
     ];
   },
 };
+if (staticExport) {
+  delete config.rewrites;
+  delete config.headers;
+}
 export default config;

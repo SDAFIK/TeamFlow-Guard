@@ -13,7 +13,9 @@ from .db import get_db
 from .models import User, Project, Membership, Task, PlanVersion, Session, LoginAttempt
 from .schemas import LoginInput, Person, ProjectSummary, Overview, TaskView, Member, Message
 from .security import passwords, DUMMY_HASH, COOKIE, digest, require_origin, current_user, membership
+from .deployment import validate_hosted_environment, mount_frontend
 
+validate_hosted_environment(os.environ)
 app = FastAPI(title='TeamFlow Guard', version='0.1.0')
 from .workflow import router as workflow_router
 app.include_router(workflow_router)
@@ -25,6 +27,10 @@ async def response_headers(request, call_next):
     response = await call_next(request)
     response.headers['Cache-Control'] = 'no-store'
     response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['Referrer-Policy'] = 'same-origin'
+    if os.getenv('APP_ENV') == 'production':
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000'
     return response
 
 def error(status, message, code):
@@ -116,3 +122,5 @@ def settings(project_id: UUID, user=Depends(current_user), db: DBSession = Depen
         raise HTTPException(403, 'Only project leads may view project settings')
     project = db.get(Project, project_id)
     return ProjectSummary(id=project.id, name=project.name, role=member.role)
+
+mount_frontend(app, os.getenv('WEB_DIST'))
