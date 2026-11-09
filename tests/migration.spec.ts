@@ -4,6 +4,10 @@ const fixture = JSON.parse(readFileSync(".local/hosted-demo.json", "utf8"));
 test("Supabase judge flow, routes, rejection, approval, persistence and viewer denial", async ({ page }, info) => {
   test.setTimeout(180_000);
   const errors: string[] = []; page.on("pageerror", e => errors.push(e.message));
+  if (process.env.TEAMFLOW_VERCEL_SHARE_FILE) {
+    const share = JSON.parse(readFileSync(process.env.TEAMFLOW_VERCEL_SHARE_FILE, 'utf8'));
+    await page.goto(share.url);
+  }
   await page.goto("/overview");
   await page.getByLabel("Email address").fill("asha@teamflow.demo");
   await page.getByLabel("Password", { exact: true }).fill(fixture.password);

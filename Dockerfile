@@ -11,7 +11,6 @@ WORKDIR /app
 ENV NODE_ENV=production HOSTNAME=0.0.0.0 PORT=3000 TEAMFLOW_BACKEND=supabase
 COPY --from=build --chown=node:node /build/.next/standalone ./
 COPY --from=build --chown=node:node /build/.next/static ./.next/static
-COPY --from=build --chown=node:node /build/public ./public
 USER node
 EXPOSE 3000
 CMD ["node", "server.js"]
