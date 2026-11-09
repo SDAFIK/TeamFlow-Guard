@@ -14,16 +14,17 @@ export default function Login({
     [password, setPassword] = useState(""),
     [error, setError] = useState(initialError),
     [busy, setBusy] = useState(false);
+  const [register,setRegister]=useState(false),[message,setMessage]=useState('');
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
     setError("");
     try {
-      await api("/auth/login", {
+      const result=await api<{message?:string}>(register?"/auth/register":"/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      await onLogin();
+      if(register)setMessage(result.message??'Check your email to confirm your account.');else await onLogin();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -66,7 +67,8 @@ export default function Login({
             <ShieldCheck size={28} />
           </span>
           <h2>Welcome to your workspace</h2>
-          <p>Sign in to TeamFlow Guard.</p>
+          <p>{register?'Create your account, then create or join a workspace.':'Sign in to TeamFlow Guard.'}</p>
+          {message&&<p role="status" className="success-banner">{message}</p>}
           {error && (
             <div className="error" role="alert">
               {error}
@@ -88,13 +90,15 @@ export default function Login({
             type="password"
             autoComplete="current-password"
             required
+            minLength={register?12:1}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
           <button className="primary" type="submit" disabled={busy}>
-            {busy ? "Signing in…" : "Sign in"}
+            {busy ? "Please wait…" : register?'Create account':"Sign in"}
             <ArrowRight size={17} />
           </button>
+          <button className="text-link" type="button" onClick={()=>{setRegister(!register);setError('');setMessage('');}}>{register?'Already have an account? Sign in':'New here? Create an account'}</button>
           <div className="login-note">
             <LockKeyhole size={17} />
             <span>

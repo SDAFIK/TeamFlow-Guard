@@ -16,7 +16,7 @@ export function candidates(state: State, taskId: string): ProposedAction[] {
 }
 export async function recovery(client: Client, state: State, riskId: string, mode: string, key: string) {
   if (state.role === "viewer") throw new HttpError(403, "Viewers cannot generate proposals.");
-  const risk = risksFor(state.tasks, state.edges, state.evidence, state.members, state.workspace.review_threshold_hours).find(r => r.id === riskId);
+  const risk = risksFor(state.tasks, state.edges, state.evidence, state.members, state.workspace.review_threshold_hours, new Date(), state.workspace.tracked_branch).find(r => r.id === riskId);
   if (!risk?.active || risk.stale_evidence) throw new HttpError(409, "Risk evidence is resolved or stale. Refresh the source first.");
   const task = state.tasks.find(t => t.id === risk.evidence.task_id)!;
   const options = candidates(state, task.id);

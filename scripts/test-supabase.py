@@ -21,6 +21,7 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
     try:
         db.execute("CREATE SCHEMA IF NOT EXISTS auth")
         db.execute("CREATE TABLE IF NOT EXISTS auth.users(id uuid primary key)")
+        db.execute("ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS email text, ADD COLUMN IF NOT EXISTS email_confirmed_at timestamptz")
         db.execute("CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$")
         db.execute("DO $$ BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; END $$")
         db.execute('GRANT USAGE ON SCHEMA public,auth TO authenticated,anon')
@@ -29,7 +30,7 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
             db.execute(file.read_text(encoding='utf-8'))
         passed.append('migration applies')
         w, other, owner, member, viewer, outsider, task, successor = [str(uuid4()) for _ in range(8)]
-        for who in (owner,member,viewer,outsider): db.execute('insert into auth.users values(%s)',(who,))
+        for who in (owner,member,viewer,outsider): db.execute('insert into auth.users(id,email,email_confirmed_at) values(%s,%s,now())',(who,who+'@example.test'))
         for wid in (w,other): db.execute("insert into public.tf_workspaces(id,name,is_demo) values(%s,'Isolated test',true)",(wid,))
         for wid,who,role in [(w,owner,'owner'),(w,member,'member'),(w,viewer,'viewer'),(other,outsider,'owner')]:
             db.execute('insert into public.tf_memberships(workspace_id,user_id,role,name,email) values(%s,%s,%s,%s,%s)',(wid,who,role,role,role+'@example.test'))
@@ -111,6 +112,39 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
         passed.append('archive retains history')
         identity(viewer)
         denied('viewer task creation denied',lambda:task_write('create',{}),'42501')
+        def workspace_write(op,body,wid=w):
+            return db.execute('select public.tf_workspace_write(%s,%s,%s::jsonb)',(wid,op,json.dumps(body))).fetchone()[0]
+        denied('viewer settings denied',lambda:workspace_write('settings',{}),'42501')
+        denied('viewer invitation denied',lambda:workspace_write('invite',{}),'42501')
+        identity(owner)
+        fresh=workspace_write('create',{'name':'Real workspace','display_name':'Owner'},None)
+        assert not fresh['is_demo']
+        assert db.execute('select public.tf_snapshot(%s)',(fresh['id'],)).fetchone()[0]['tasks']==[]
+        passed.append('new workspace starts empty and owned by creator')
+        settings={'name':'Renamed workspace','description':'Our work','tracked_branch':'release','review_threshold_hours':48,'base_plan_version':1}
+        changed=workspace_write('settings',settings,fresh['id'])
+        assert changed['review_threshold_hours']==48 and changed['plan_version']==2
+        passed.append('workspace settings persist and version')
+        denied('stale settings denied',lambda:workspace_write('settings',settings,fresh['id']),'40001')
+        invited=workspace_write('invite',{'email':outsider+'@example.test','role':'member','token_hash':'a'*64},fresh['id'])
+        assert 'token_hash' not in invited
+        denied('invite token hash cannot be read',lambda:db.execute('select token_hash from public.tf_invites'),'42501')
+        identity(viewer)
+        denied('invite bound to recipient email',lambda:workspace_write('join',{'token_hash':'a'*64,'display_name':'Wrong'},None),'42501')
+        identity(outsider)
+        joined=workspace_write('join',{'token_hash':'a'*64,'display_name':'Teammate'},None)
+        assert joined['id']==fresh['id']
+        assert workspace_write('join',{'token_hash':'a'*64,'display_name':'Teammate'},None)['id']==fresh['id']
+        passed.append('recipient joins once using invite')
+        denied('member cannot elevate own role',lambda:workspace_write('role',{'user_id':outsider,'role':'manager'},fresh['id']),'42501')
+        identity(owner)
+        workspace_write('role',{'user_id':outsider,'role':'manager'},fresh['id'])
+        passed.append('owner changes teammate role')
+        denied('owner cannot be demoted',lambda:workspace_write('role',{'user_id':owner,'role':'viewer'},fresh['id']),'42501')
+        invitation=workspace_write('invite',{'email':viewer+'@example.test','role':'viewer','token_hash':'b'*64},fresh['id'])
+        workspace_write('revoke_invite',{'invite_id':invitation['id']},fresh['id'])
+        identity(viewer)
+        denied('revoked invite cannot join',lambda:workspace_write('join',{'token_hash':'b'*64,'display_name':'Viewer'},None),'42501')
     finally:
         db.rollback()
 print(f'{len(passed)} SQL checks passed; all test changes rolled back.')

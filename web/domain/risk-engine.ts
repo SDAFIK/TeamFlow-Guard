@@ -28,12 +28,13 @@ export function detectRisk(e: EvidenceRecord, task: RiskTask, affected: number, 
   }
   return null;
 }
-export function risksFor(tasks: RiskTask[], edges: Edge[], evidence: EvidenceRecord[], members: Availability[], threshold = 24, now = new Date()) {
+export function risksFor(tasks: RiskTask[], edges: Edge[], evidence: EvidenceRecord[], members: Availability[], threshold = 24, now = new Date(), trackedBranch?: string) {
   return evidence.flatMap(e => {
     const task = tasks.find(t => t.id === e.task_id);
     if (!task) return [];
     const affected = downstream(tasks.map(t => t.id), edges, task.id).filter(id => tasks.find(t => t.id === id)?.status !== "done");
-    const finding = detectRisk(e, task, affected.length, members.find(m => m.id === task.owner_id), now, threshold);
+    const source=trackedBranch&&e.kind==='ci_failure'?{...e,payload:{...e.payload,tracked_branch:trackedBranch}}:e;
+    const finding = detectRisk(source, task, affected.length, members.find(m => m.id === task.owner_id), now, threshold);
     return [{ id: e.id, severity: finding?.severity ?? "low", reason: finding?.reason ?? "This source no longer meets the risk rule.", affected_task_ids: affected, active: Boolean(finding), evidence: e, stale_evidence: now.getTime() - Date.parse(e.observed_at) > 72 * 3_600_000 }];
   }).sort((a, b) => Number(b.active) - Number(a.active));
 }

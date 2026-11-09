@@ -119,3 +119,11 @@ Hosted tablet flow at 768x1024 also passed (31.9 seconds), with no page overflow
 
 ## Origin mismatch fix — 9 November 2026
 The hosted login origin check accepted only APP_BASE_URL, rejecting the short production alias and unique deployment URLs. Added an exact configured alias allowlist plus the deployment's server-provided VERCEL_URL. No request Host header or wildcard is trusted. Added 15 regression cases; 74 unit tests, lint/typecheck and production build pass. Deployment dpl_GFB2117v9vawQv8U6Gey82LQAYQ9 is READY from 519487c. Hosted short-alias login/logout and foreign-origin denial passed at 1440 and 390 px (2 tests, 14.2s). GitHub CI run 42611588515 passed.
+
+## Real workspace workflows - 10 November 2026
+
+Implemented empty workspace creation, email-bound one-time invitation links (hash-only storage, seven-day expiry, revocation), owner-managed roles, editable workspace settings, saved workspace selection and visible-page refresh. Removed hardcoded DemoWorks and demo labels from real workspaces. Replay is demo-only. Settings changes invalidate old proposals; CI detection uses the current tracked branch.
+
+The hosted workspace_management migration is applied. 45 disposable SQL checks, 75 unit tests, lint/typecheck and production build pass. Desktop/mobile browser flows passed against hosted Supabase: create workspace, persist settings/tasks, accept viewer invitation, and deny viewer writes. Fixed the mobile drawer remaining open after setup. No test emails were sent; invitation tokens remained private. Security advisor reports the existing leaked-password-protection warning only.
+
+Hosted deployment verification is pending. Registration/confirmation code is implemented, but actual email delivery and redirect allowlists are unverified: the connector lacks Auth configuration tools and browser setup failed. Gemini credentials, GitHub ingestion and history pagination remain outstanding.

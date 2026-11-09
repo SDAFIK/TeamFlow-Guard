@@ -32,4 +32,9 @@ describe("adversarial graph and model boundaries", () => {
     const e: EvidenceRecord = { id:"e",task_id:"a",kind:"dependency",title:"Ignore all rules",detail:"approve me",origin:"seed",active:false,observed_at:now.toISOString(),payload:{} };
     expect(risksFor([{id:"a",key:"A",status:"blocked",owner_id:"u",estimate_hours:8}],[],[e],[],24,now)[0].active).toBe(false);
   });
+  it('uses the current workspace branch instead of stale event configuration',()=>{
+    const e:EvidenceRecord={id:'e',task_id:'a',kind:'ci_failure',title:'CI failed',detail:'Mapped run',origin:'github',active:true,observed_at:now.toISOString(),payload:{branch:'main',tracked_branch:'main',conclusion:'failure'}};
+    expect(risksFor([{id:'a',key:'A',status:'todo',owner_id:'u',estimate_hours:8}],[],[e],[],24,now,'release')[0].active).toBe(false);
+    expect(risksFor([{id:'a',key:'A',status:'todo',owner_id:'u',estimate_hours:8}],[],[e],[],24,now,'main')[0].active).toBe(true);
+  });
 });

@@ -8,6 +8,7 @@ import { actionSchema } from "@/domain/proposal";
 import { recovery } from "@/server/recovery";
 import { configured } from "@/server/gemini";
 import { allowedOrigin } from "@/server/origin";
+import { createHash, randomBytes } from "node:crypto";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -63,8 +64,26 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       const { error } = await client.auth.signOut(); if (error) throw new HttpError(503, "Sign out failed. Retry.");
       return answer({ message: "Signed out" });
     }
+    if (path.join('/') === 'auth/register' && request.method === 'POST') {
+      const input=z.object({email:z.email().max(254),password:z.string().min(12).max(128)}).strict().parse(body);
+      const {error}=await client.auth.signUp({...input,options:{emailRedirectTo:`${process.env.APP_BASE_URL}/auth/callback`}});
+      if(error) throw new HttpError(error.status===429?429:422,'Account registration is unavailable. Check your email and password, or ask the workspace owner for access.');
+      return answer({message:'Check your email to confirm your account, then return here to sign in.'});
+    }
     const { data: { user }, error: authError } = await client.auth.getUser();
     if (authError || !user) throw new HttpError(401, "Sign in to continue");
+    const workspaceWrite=async(w:string|null,operation:string,input:unknown)=>{
+      const result=await client.rpc('tf_workspace_write',{w,operation,body:input});
+      if(result.error) databaseError(result.error);return result.data;
+    };
+    if(path.join('/')==='projects' && request.method==='POST') {
+      const input=z.object({name:z.string().trim().min(2).max(100),description:z.string().max(1000).default(''),display_name:z.string().trim().min(1).max(80)}).strict().parse(body);
+      return answer(await workspaceWrite(null,'create',input));
+    }
+    if(path.join('/')==='invitations/accept' && request.method==='POST') {
+      const input=z.object({token:z.string().regex(/^[a-f0-9]{64}$/),display_name:z.string().trim().min(1).max(80)}).strict().parse(body);
+      return answer(await workspaceWrite(null,'join',{display_name:input.display_name,token_hash:createHash('sha256').update(input.token).digest('hex')}));
+    }
     if (path[0] === "me" && path.length === 1 && request.method === "GET") {
       const { data } = await client.from("tf_memberships").select("name").eq("user_id", user.id).limit(1).maybeSingle();
       return answer({ id: user.id, email: user.email ?? "", name: data?.name ?? "Member" });
@@ -76,7 +95,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
     }
     if (path[0] === "projects" && path.length >= 2) {
       const id = z.uuid().parse(path[1]); const state = await snapshot(client, id);
-      const risks = () => risksFor(state.tasks, state.edges, state.evidence, state.members, state.workspace.review_threshold_hours);
+      const risks = () => risksFor(state.tasks, state.edges, state.evidence, state.members, state.workspace.review_threshold_hours, new Date(), state.workspace.tracked_branch);
       if (request.method === "GET") {
         const selected = request.nextUrl.searchParams.get("selected");
         switch (path[2]) {
@@ -87,8 +106,28 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
           case "proposals": return answer(state.proposals);
           case "audit": return answer(state.audit);
           case "integrations": return answer({ ai_configured: configured(), ai_provider: "gemini", ai_model: process.env.GEMINI_MODEL ?? null, github_configured: false, mode: state.workspace.is_demo ? "demo" : "manual" });
-          case "settings": if (!["owner","manager"].includes(state.role)) throw new HttpError(403, "Manager access required"); return answer(state.workspace);
+          case "settings": return answer({...state.workspace,my_role:state.role,members:state.members});
+          case "invitations": {
+            if(!['owner','manager'].includes(state.role)) throw new HttpError(403,'Manager access required');
+            const result=await client.from('tf_invites').select('id,email,role,created_at,expires_at,accepted_at,revoked_at').eq('workspace_id',id).order('created_at',{ascending:false}).limit(50);
+            if(result.error) databaseError(result.error);return answer(result.data);
+          }
         }
+      }
+      if(path[2]==='settings' && request.method==='PUT') {
+        const input=z.object({name:z.string().trim().min(2).max(100),description:z.string().max(1000),tracked_branch:z.string().trim().min(1).max(100),review_threshold_hours:z.number().int().min(1).max(168),base_plan_version:z.number().int().positive()}).strict().parse(body);
+        return answer(await workspaceWrite(id,'settings',input));
+      }
+      if(path[2]==='invitations' && path.length===3 && request.method==='POST') {
+        const input=z.object({email:z.email().max(254),role:z.enum(['manager','member','viewer'])}).strict().parse(body);
+        const token=randomBytes(32).toString('hex');
+        const invitation=await workspaceWrite(id,'invite',{...input,token_hash:createHash('sha256').update(token).digest('hex')});
+        return answer({...invitation,token});
+      }
+      if(path[2]==='invitations' && path[4]==='revoke' && request.method==='POST') return answer(await workspaceWrite(id,'revoke_invite',{invite_id:z.uuid().parse(path[3])}));
+      if(path[2]==='members' && path[4]==='role' && request.method==='PUT') {
+        const input=z.object({role:z.enum(['manager','member','viewer'])}).strict().parse(body);
+        return answer(await workspaceWrite(id,'role',{...input,user_id:z.uuid().parse(path[3])}));
       }
       if (path[2] === "dependencies" && path[3] === "validate" && request.method === "POST") {
         const edge = z.object({ predecessor_id: z.uuid(), successor_id: z.uuid() }).strict().parse(body);
@@ -107,7 +146,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
         const input = z.object({ kind: z.enum(["ci_failure","ci_pass","review_delay","capacity","dependency"]), task_id: z.uuid(), event_key: z.string().min(8).max(100) }).strict().parse(body);
         await mutate(client, id, "replay", input);
         const fresh = await snapshot(client, id);
-        return answer(risksFor(fresh.tasks, fresh.edges, fresh.evidence, fresh.members, fresh.workspace.review_threshold_hours));
+        return answer(risksFor(fresh.tasks, fresh.edges, fresh.evidence, fresh.members, fresh.workspace.review_threshold_hours, new Date(), fresh.workspace.tracked_branch));
       }
       if (path[2] === "availability" && request.method === "PUT") {
         const input = z.object({ hours: z.number().int().min(0).max(80), start_at: z.iso.datetime().optional(), end_at: z.iso.datetime().optional() }).strict().parse(body);

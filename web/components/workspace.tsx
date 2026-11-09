@@ -41,6 +41,7 @@ import {
 } from "@/lib/api";
 import Login from "./login";
 import { TaskManager } from "./task-manager";
+import { WorkspaceSetup, WorkspaceSettings } from './workspace-management';
 import DependencyMap from "./dependency-map";
 import { Brand, Badge, Busy, Empty, Modal, statusLabels } from "./ui";
 import {
@@ -116,6 +117,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
     [notice, setNotice] = useState(""),
     [menu, setMenu] = useState(false);
   const [manageTask, setManageTask] = useState<string | null>(null);
+  const [workspaceSetup,setWorkspaceSetup]=useState(pathname==='/join');
   const [taskId, setTaskId] = useState<string | null>(null),
     [riskId, setRiskId] = useState<string | null>(initialRiskId ?? null),
     [proposalId, setProposalId] = useState<string | null>(initialProposalId ?? null),
@@ -129,8 +131,10 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
     try {
       const me = await api<Person>("/me");
       const list = await api<Project[]>("/projects");
-      const target = id ?? list[0]?.id;
+      const saved=localStorage.getItem(`teamflow.workspace.${me.id}`);
+      const target = id ?? (list.some(p=>p.id===saved)?saved:undefined) ?? list[0]?.id;
       if (target) {
+        localStorage.setItem(`teamflow.workspace.${me.id}`,target);
         const base = `/projects/${target}`;
         const [overview, g, r, p, a, i] = await Promise.all([
           api<Overview>(base + "/dashboard"),
@@ -166,6 +170,13 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
+  useEffect(()=>{
+    if(!user||!data||taskId||proposalId||manageTask||workspaceSetup||view==='settings')return;
+    const update=()=>{if(document.visibilityState==='visible')void load(data.project.id);};
+    const timer=window.setInterval(update,20_000);
+    window.addEventListener('focus',update);
+    return()=>{window.clearInterval(timer);window.removeEventListener('focus',update);};
+  },[user,data,taskId,proposalId,manageTask,workspaceSetup,view,load]);
   useEffect(() => {
     if (!menu) return;
     const previous = document.activeElement as HTMLElement;
@@ -296,13 +307,14 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
           </button>
         </div>
         <div className="workspace-switch">
-          <span className="workspace-emblem">D</span>
+          <span className="workspace-emblem">{data?.project.name[0]??'T'}</span>
           <div>
-            <strong>DemoWorks</strong>
+            <strong>{data?.project.name??'Your workspace'}</strong>
             <small>Delivery workspace</small>
           </div>
           <ChevronRight size={15} />
         </div>
+        <button className="nav-item" onClick={()=>{setMenu(false);setWorkspaceSetup(true);}}><Plus size={19}/>Create or join workspace</button>
         <span className="nav-label">WORKSPACE</span>
         <nav aria-label="Main navigation">
           {navigation.map((item) => (
@@ -426,17 +438,14 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
             </div>
           )}
           {!data || !graph || !integrations ? (
-            <Empty
-              title="No project available"
-              description="Ask your workspace lead for project access."
-            />
+            <section className="panel settings-panel"><h1>Start your team’s workspace</h1><p>Create an empty workspace for your real work, or accept an invitation from a teammate.</p><button className="primary" onClick={()=>setWorkspaceSetup(true)}>Create or join workspace</button></section>
           ) : (
             <>
               <div className="heading">
                 <div>
                   <div className="eyebrow">
                     {data.project.name.toUpperCase()}
-                    <span className="demo-badge">DEMO WORKSPACE</span>
+                    {data.is_demo&&<span className="demo-badge">DEMO WORKSPACE</span>}
                   </div>
                   <h1>{titles[view][0]}</h1>
                   <p>{titles[view][1]}</p>
@@ -451,7 +460,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                   >
                     <RefreshCw size={18} />
                   </button>
-                  {lead && (
+                  {lead && data.is_demo && (
                     <button className="secondary" onClick={() => setDemo(true)}>
                       <Play size={15} />
                       Replay demo event
@@ -1076,6 +1085,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                 )}
                 {view === "settings" && (
                   <div className="settings-grid">
+                    {integrations.ai_provider==='gemini'&&<WorkspaceSettings key={data.project.id} id={data.project.id} onSaved={refresh}/>}
                     <section className="panel settings-panel">
                       <span className="section-kicker">CONNECTIONS</span>
                       <h2>Intelligence & evidence</h2>
@@ -1128,7 +1138,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                       <h2>{data.project.name}</h2>
                       <dl>
                         <dt>Environment</dt>
-                        <dd>Local development</dd>
+                        <dd>{data.is_demo?'Isolated demo':'Team workspace'}</dd>
                         <dt>Your role</dt>
                         <dd>{data.project.role}</dd>
                         <dt>Plan version</dt>
@@ -1137,7 +1147,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                         <dd>{data.members.length}</dd>
                       </dl>
                       <p className="field-help">
-                        Hosting and production access are configured separately.
+                        Changes are saved to your workspace and recorded in the audit log.
                       </p>
                     </section>
                   </div>
@@ -1173,6 +1183,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
           }}
         />
       )}
+      {workspaceSetup&&<WorkspaceSetup displayName={user.name} onClose={()=>setWorkspaceSetup(false)} onSaved={async id=>{await load(id);router.push('/overview');}}/>}
       {manageTask && data && <TaskManager data={data} task={data.tasks.find(t => t.id === manageTask)} onClose={() => setManageTask(null)} onSaved={refresh} />}
       {currentRisk && data && integrations && (
         <RiskDialog
