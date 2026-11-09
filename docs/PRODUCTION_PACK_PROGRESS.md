@@ -9,12 +9,14 @@ Architecture: Next.js route handlers authenticate through Supabase; RLS scopes r
 Screen tree: /login, /overview, /risks, /tasks, /dependencies, /decisions, /capacity, /audit, /settings. Preserve navy/teal shell, mobile menu, graph/list and review dialogs. Navigation must survive reload and Back.
 
 ## Sequence and proof required
-- [ ] Routed shell, desktop/mobile screenshots and browser tests.
-- [ ] Supabase schema, six-member fixture, roles and RLS isolation tests.
-- [ ] Task/dependency mutations and four evidence-grounded risk detectors.
-- [ ] Gemini schema validation, bounds, idempotency and fallback.
+- [x] Routed shell, desktop/mobile screenshots and browser tests.
+- [x] Supabase schema, six-member fixture, roles and RLS isolation tests.
+- [x] Task/dependency mutations and four evidence-grounded risk detectors.
+- [x] Gemini schema validation, bounds, idempotency and fallback.
 - [ ] Atomic approval, rejection, audit, stale/concurrent/role-denied tests.
 - [ ] Demo reset, quality gates and competition evidence.
 - [ ] Connected free hosting, live AI and deployed smoke tests.
 
 Top risks: tenant isolation regression; duplicate/partial approvals; fixture/live confusion; unavailable provider credentials; broken UI contracts during migration. No deployed or live Gemini claim yet. The pack's pasted Phase-00-only prompt is reference text and does not override the current implementation request.
+
+Verified 59 unit tests (40 detector cases and 19 graph/model/adapter checks), 33 SQL authorization/transaction checks, and 70 preserved backend tests. Desktop/mobile browser flows passed against hosted Supabase. Deployment f5c0fef is READY on Vercel in Singapore; hosted desktop/mobile workflows and health checks pass. CI run 42610433451 is green. Live Gemini remains unverified. See MIGRATION_RUNBOOK.md for explicit larger-product gaps.
