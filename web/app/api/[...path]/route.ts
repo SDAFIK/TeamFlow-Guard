@@ -7,6 +7,7 @@ import { downstream, validateGraph } from "@/domain/graph";
 import { actionSchema } from "@/domain/proposal";
 import { recovery } from "@/server/recovery";
 import { configured } from "@/server/gemini";
+import { allowedOrigin } from "@/server/origin";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -42,8 +43,12 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
   }
   try {
     if (!["GET", "HEAD"].includes(request.method)) {
-      const allowed = process.env.APP_BASE_URL ?? "http://localhost:3000";
-      if (request.headers.get("origin") !== allowed) throw new HttpError(403, "Request origin is not allowed");
+      if (!allowedOrigin(request.headers.get("origin"), {
+        APP_BASE_URL: process.env.APP_BASE_URL,
+        APP_ALLOWED_ORIGINS: process.env.APP_ALLOWED_ORIGINS,
+        VERCEL: process.env.VERCEL,
+        VERCEL_URL: process.env.VERCEL_URL,
+      })) throw new HttpError(403, "Request origin is not allowed");
     }
     if (path.join("/") === "health") return answer({ message: "alive" });
     const client = await supabaseServer();
