@@ -27,12 +27,14 @@ export function TaskDialog({
   onClose,
   onSaved,
   userId,
+  onManage,
 }: {
   task: Task;
   data: Overview;
   onClose: () => void;
   onSaved: () => Promise<void>;
   userId: string;
+  onManage?: () => void;
 }) {
   const [status, setStatus] = useState(task.status),
     [note, setNote] = useState(""),
@@ -40,8 +42,9 @@ export function TaskDialog({
     [error, setError] = useState("");
   const [reviewer, setReviewer] = useState(task.reviewer_id ?? ""),
     [priority, setPriority] = useState(task.priority);
+  const [owner, setOwner] = useState(task.owner_id), [due, setDue] = useState("");
   const canEdit =
-    task.status !== "done" &&
+    data.project.role !== "viewer" && task.status !== "done" &&
     (data.project.role === "lead" || task.owner_id === userId);
   async function save() {
     setPending(true);
@@ -63,6 +66,8 @@ export function TaskDialog({
     setPending(true);
     setError("");
     const actions: Action[] = [];
+    if (onManage && owner !== task.owner_id) actions.push({task_id:task.id,field:"owner_id",before:task.owner_id,after:owner});
+    if (onManage && due) actions.push({task_id:task.id,field:"due_at",before:task.due_at ?? null,after:new Date(due).toISOString()});
     if (reviewer && reviewer !== task.reviewer_id)
       actions.push({
         task_id: task.id,
@@ -96,6 +101,7 @@ export function TaskDialog({
   }
   return (
     <Modal title={task.title} onClose={onClose}>
+      {onManage && <button className="secondary" onClick={onManage}>Edit task details</button>}
       <div className="dialog-meta">
         <span className="mono">{task.key}</span>
         <Badge value={task.status} />
@@ -160,6 +166,7 @@ export function TaskDialog({
       )}
       <div className="dialog-section">
         <h3>Propose a plan change</h3>
+        {onManage && <div className="form-grid"><label>Proposed owner<select value={owner} onChange={e=>setOwner(e.target.value)}>{data.members.filter(m=>m.role!=="viewer").map(m=><option key={m.id} value={m.id}>{m.name}</option>)}</select></label><label>Proposed due date (your timezone)<input type="datetime-local" value={due} onChange={e=>setDue(e.target.value)}/></label><p className="field-help">Current due date: {task.due_at ? new Date(task.due_at).toLocaleString() : "Not set"}</p></div>}
         <p>Review and priority changes require lead approval.</p>
         <div className="field-grid">
           <label>
@@ -171,7 +178,7 @@ export function TaskDialog({
             >
               <option value="">No reviewer assigned</option>
               {data.members
-                .filter((m) => m.role === "lead" || m.role === "reviewer")
+                .filter((m) => m.role !== "viewer")
                 .map((m) => (
                   <option key={m.id} value={m.id}>
                     {m.name} · {m.available_hours}h available
@@ -196,9 +203,9 @@ export function TaskDialog({
           className="secondary"
           disabled={
             pending ||
-            task.status === "done" ||
+            data.project.role === "viewer" || task.status === "done" ||
             ((!reviewer || reviewer === task.reviewer_id) &&
-              priority === task.priority)
+              priority === task.priority && owner === task.owner_id && !due)
           }
           onClick={propose}
         >
@@ -213,12 +220,14 @@ export function RiskDialog({
   risk,
   tasks,
   integrations,
+  readOnly = false,
   onClose,
   onProposal,
 }: {
   risk: Risk;
   tasks: Task[];
   integrations: Integrations;
+  readOnly?: boolean;
   onClose: () => void;
   onProposal: (p: Proposal) => Promise<void>;
 }) {
@@ -230,7 +239,7 @@ export function RiskDialog({
     try {
       const result = await api<Proposal>(
         `/risks/${risk.id}/analyze?mode=${mode}`,
-        { method: "POST" },
+        { method: "POST", headers: { "Idempotency-Key": crypto.randomUUID() } },
       );
       await onProposal(result);
     } catch (e) {
@@ -244,12 +253,13 @@ export function RiskDialog({
       <div className="dialog-meta">
         <Badge value={risk.severity} />
         <span className="source-tag">
-          {risk.evidence.origin === "replay"
-            ? "Replayed sample event"
+          {["replay", "seed"].includes(risk.evidence.origin)
+            ? "Labeled sample event"
             : "Observed project event"}
         </span>
       </div>
       <h3 className="risk-title">{risk.evidence.title}</h3>
+      <a className="text-link" href={`/risks/${risk.id}`}>Open risk permalink</a>
       <p>{risk.reason}</p>
       {error && (
         <div className="error" role="alert">
@@ -308,21 +318,21 @@ export function RiskDialog({
       <div className="dialog-actions">
         <button
           className="primary"
-          disabled={!!pending || !risk.active || !integrations.ai_configured}
-          onClick={() => analyze("openai")}
+          disabled={readOnly || !!pending || !risk.active || !integrations.ai_configured}
+          onClick={() => analyze(integrations.ai_provider ?? "gemini")}
         >
-          {pending === "openai" ? (
+          {pending === (integrations.ai_provider ?? "gemini") ? (
             <Busy text="Analyzing evidence…" />
           ) : (
             <>
               <Sparkles size={17} />
-              Analyze with OpenAI
+              Analyze with {integrations.ai_provider === "gemini" ? "Gemini" : "OpenAI"}
             </>
           )}
         </button>
         <button
           className="secondary"
-          disabled={!!pending || !risk.active}
+          disabled={readOnly || !!pending || !risk.active}
           onClick={() => analyze("rules")}
         >
           {pending === "rules" ? <Busy /> : "Use rule-based recovery"}
@@ -330,7 +340,7 @@ export function RiskDialog({
       </div>
       {!integrations.ai_configured && (
         <p className="field-help">
-          OpenAI is not configured yet. Rule-based recovery is available and
+          AI is not configured yet. Rule-based recovery is available and
           will be explicitly labeled.
         </p>
       )}
@@ -357,7 +367,7 @@ export function ProposalDialog({
     !proposal.stale;
   function display(action: Action, value: string | number | null) {
     if (value === null) return "Not assigned";
-    if (action.field === "reviewer_id")
+    if (action.field === "reviewer_id" || action.field === "owner_id")
       return data.members.find((m) => m.id === value)?.name ?? String(value);
     if (action.field === "dependency")
       return data.tasks.find((t) => t.id === value)?.title ?? String(value);
@@ -389,8 +399,8 @@ export function ProposalDialog({
       <div className="dialog-meta">
         <Badge value={proposal.stale ? "stale" : proposal.status} />
         <span>
-          {proposal.source === "openai"
-            ? "OpenAI analysis"
+          {["openai", "gemini"].includes(proposal.source)
+            ? `${proposal.source === "gemini" ? "Gemini" : "OpenAI"} analysis`
             : proposal.source === "rules"
               ? "Rule-based suggestion · no AI call"
               : "Team proposal"}
@@ -398,6 +408,7 @@ export function ProposalDialog({
         <span>Based on plan v{proposal.base_plan_version}</span>
       </div>
       <h3 className="risk-title">{proposal.title}</h3>
+      <a className="text-link" href={`/decisions/${proposal.id}`}>Open proposal permalink</a>
       <p>{proposal.explanation}</p>
       {error && (
         <div className="error" role="alert">
@@ -568,11 +579,15 @@ export function AvailabilityForm({
   member,
   projectId,
   onSaved,
+  dated = false,
 }: {
   member: Member;
   projectId: string;
   onSaved: () => Promise<void>;
+  dated?: boolean;
 }) {
+  const [start, setStart] = useState(() => new Date().toISOString().slice(0,10));
+  const [end, setEnd] = useState(() => new Date(Date.now()+2*86400000).toISOString().slice(0,10));
   const [hours, setHours] = useState(member.available_hours),
     [pending, setPending] = useState(false),
     [error, setError] = useState("");
@@ -582,7 +597,7 @@ export function AvailabilityForm({
     try {
       await api(`/projects/${projectId}/availability`, {
         method: "PUT",
-        body: JSON.stringify({ hours }),
+        body: JSON.stringify({ hours, ...(dated ? {start_at:new Date(start+"T00:00:00").toISOString(),end_at:new Date(end+"T00:00:00").toISOString()} : {}) }),
       });
       await onSaved();
     } catch (e) {
@@ -595,7 +610,7 @@ export function AvailabilityForm({
     <div className="availability-form">
       <div>
         <h3>Your available hours</h3>
-        <p>Voluntary availability for the current planning period.</p>
+        <p>Voluntary planning availability. No private reason is collected.</p>
       </div>
       <label className="sr-only" htmlFor="hours">
         Available hours
@@ -610,11 +625,12 @@ export function AvailabilityForm({
       />
       <button
         className="secondary"
-        disabled={pending || hours === member.available_hours}
+        disabled={pending || (!dated && hours === member.available_hours) || (dated && (!start || !end || end <= start))}
         onClick={save}
       >
         {pending ? <Busy /> : "Save availability"}
       </button>
+      {dated && <><label>From (your timezone)<input type="date" value={start} onChange={e=>setStart(e.target.value)}/></label><label>Until (exclusive)<input type="date" value={end} onChange={e=>setEnd(e.target.value)}/></label></>}
       {error && (
         <div className="error" role="alert">
           {error}

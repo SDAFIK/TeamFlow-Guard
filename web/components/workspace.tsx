@@ -1,4 +1,5 @@
 "use client";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   LayoutDashboard,
@@ -39,6 +40,7 @@ import {
   type Integrations,
 } from "@/lib/api";
 import Login from "./login";
+import { TaskManager } from "./task-manager";
 import DependencyMap from "./dependency-map";
 import { Brand, Badge, Busy, Empty, Modal, statusLabels } from "./ui";
 import {
@@ -96,7 +98,11 @@ const titles: Record<View, [string, string]> = {
   ],
 };
 
-export default function Workspace() {
+export default function Workspace({ initialRiskId, initialProposalId }: { initialRiskId?: string; initialProposalId?: string } = {}) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const routeView = pathname.split("/")[1];
+  const view: View = routeView === "capacity" ? "team" : Object.hasOwn(titles, routeView) ? routeView as View : "overview";
   const [user, setUser] = useState<Person | null>(null),
     [projects, setProjects] = useState<Project[]>([]),
     [data, setData] = useState<Overview | null>(null),
@@ -105,14 +111,14 @@ export default function Workspace() {
     [proposals, setProposals] = useState<Proposal[]>([]),
     [audit, setAudit] = useState<Audit[]>([]),
     [integrations, setIntegrations] = useState<Integrations | null>(null);
-  const [view, setView] = useState<View>("overview"),
-    [busy, setBusy] = useState(true),
+  const [busy, setBusy] = useState(true),
     [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [menu, setMenu] = useState(false);
+  const [manageTask, setManageTask] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null),
-    [riskId, setRiskId] = useState<string | null>(null),
-    [proposalId, setProposalId] = useState<string | null>(null),
+    [riskId, setRiskId] = useState<string | null>(initialRiskId ?? null),
+    [proposalId, setProposalId] = useState<string | null>(initialProposalId ?? null),
     [dependencyDialog, setDependencyDialog] = useState(false),
     [demo, setDemo] = useState(false);
   const [query, setQuery] = useState(""),
@@ -199,7 +205,7 @@ export default function Workspace() {
     await load(data?.project.id, graph?.selected_task_id ?? undefined);
   }
   function navigate(next: View) {
-    setView(next);
+    router.push(next === "team" ? "/capacity" : `/${next}`);
     setMenu(false);
     setQuery("");
     setFilter("all");
@@ -222,7 +228,7 @@ export default function Workspace() {
       setUser(null);
       setData(null);
       setMenu(false);
-      setView("overview");
+      router.push("/login");
     } catch (e) {
       setError((e as Error).message);
     }
@@ -254,7 +260,7 @@ export default function Workspace() {
         ? r.active
         : filter === "resolved"
           ? !r.active
-          : r.active && r.severity === filter) &&
+          : r.active && (r.severity === filter || r.evidence.kind === filter)) &&
       `${r.evidence.title} ${r.reason}`
         .toLowerCase()
         .includes(query.toLowerCase()),
@@ -381,7 +387,7 @@ export default function Workspace() {
           <div className="topbar-right">
             <span className="environment">
               <i />
-              Local workspace
+              {integrations?.ai_provider === "gemini" ? "Supabase workspace" : "Local workspace"}
             </span>
             <div className="avatar-stack">
               {data?.members.slice(0, 3).map((m, i) => (
@@ -555,7 +561,7 @@ export default function Workspace() {
                               <div>
                                 <strong>Source evidence attached</strong>
                                 <small>
-                                  {activeRisks[0].evidence.origin === "replay"
+                                  {["seed", "replay"].includes(activeRisks[0].evidence.origin)
                                     ? "Replayed sample · "
                                     : ""}
                                   {activeRisks[0].affected_task_ids.length}{" "}
@@ -712,6 +718,10 @@ export default function Workspace() {
                         <option value="high">High severity</option>
                         <option value="medium">Medium severity</option>
                         <option value="resolved">Resolved risks</option>
+                        <option value="ci_failure">CI failures</option>
+                        <option value="dependency">Dependency cascades</option>
+                        <option value="review_delay">PR review delays</option>
+                        <option value="capacity">Voluntary capacity</option>
                       </select>
                     </div>
                     <div className="risk-feed">
@@ -733,6 +743,7 @@ export default function Workspace() {
                 )}
                 {view === "tasks" && (
                   <>
+                    {lead && integrations?.ai_provider === "gemini" && <div className="section-actions"><button className="primary" onClick={() => setManageTask("new")}>Create task</button></div>}
                     <div className="task-toolbar">
                       <SearchInput
                         value={query}
@@ -855,6 +866,7 @@ export default function Workspace() {
                       </div>
                       <button
                         className="secondary"
+                        disabled={data.project.role === "viewer"}
                         onClick={() => setDependencyDialog(true)}
                       >
                         <Plus size={16} />
@@ -933,8 +945,8 @@ export default function Workspace() {
                                 {p.actions.length} changes ·{" "}
                                 {p.source === "rules"
                                   ? "Rule-based suggestion"
-                                  : p.source === "openai"
-                                    ? "OpenAI analysis"
+                                  : ["openai", "gemini"].includes(p.source)
+                                    ? `${p.source === "gemini" ? "Gemini" : "OpenAI"} analysis`
                                     : "Team proposal"}{" "}
                                 · Plan v{p.base_plan_version}
                               </p>
@@ -956,8 +968,9 @@ export default function Workspace() {
                 )}
                 {view === "team" && (
                   <>
-                    {data.members.find((m) => m.id === user.id) && (
+                    {data.project.role !== "viewer" && data.members.find((m) => m.id === user.id) && (
                       <AvailabilityForm
+                        dated={integrations?.ai_provider === "gemini"}
                         key={data.as_of}
                         member={data.members.find((m) => m.id === user.id)!}
                         projectId={data.project.id}
@@ -1069,7 +1082,7 @@ export default function Workspace() {
                       <div className="integration-row">
                         <Sparkles size={23} />
                         <div>
-                          <strong>OpenAI API</strong>
+                          <strong>{integrations?.ai_provider === "gemini" ? "Gemini API" : "OpenAI API"}</strong>
                           <p>
                             {integrations.ai_configured
                               ? integrations.ai_model
@@ -1148,6 +1161,7 @@ export default function Workspace() {
       {currentTask && data && (
         <TaskDialog
           task={currentTask}
+          onManage={lead && integrations?.ai_provider === "gemini" ? () => {setTaskId(null);setManageTask(currentTask.id);} : undefined}
           data={data}
           userId={user.id}
           onClose={() => setTaskId(null)}
@@ -1159,11 +1173,13 @@ export default function Workspace() {
           }}
         />
       )}
+      {manageTask && data && <TaskManager data={data} task={data.tasks.find(t => t.id === manageTask)} onClose={() => setManageTask(null)} onSaved={refresh} />}
       {currentRisk && data && integrations && (
         <RiskDialog
           risk={currentRisk}
           tasks={data.tasks}
           integrations={integrations}
+          readOnly={data.project.role === "viewer"}
           onClose={() => setRiskId(null)}
           onProposal={async (p) => {
             await refresh();

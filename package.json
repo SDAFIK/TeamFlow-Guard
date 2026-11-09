@@ -3,6 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "lint": "npm --prefix web run lint",
+    "typecheck": "npm --prefix web run typecheck",
+    "test": "npm --prefix web test",
     "db": "node scripts/database.mjs",
     "dev": "npm --prefix web run dev",
     "build": "npm --prefix web run build",
@@ -13,6 +16,7 @@
     "@playwright/test": "^1.58.0",
     "embedded-postgres": "18.6.0-beta.19",
     "openapi-typescript": "^7.10.1",
-    "prettier": "^3.9.10"
+    "prettier": "^3.9.10",
+    "supabase": "3.0.0"
   }
 }

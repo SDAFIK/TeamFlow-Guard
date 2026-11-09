@@ -17,7 +17,7 @@ class Person(BaseModel):
 class ProjectSummary(BaseModel):
     id: UUID
     name: str
-    role: Literal['lead','contributor','reviewer']
+    role: Literal['lead','contributor','reviewer','viewer']
 
 class Member(Person):
     role: str
@@ -37,6 +37,7 @@ class TaskView(BaseModel):
     reviewer_id: UUID | None
     priority: str
     estimate_hours: int
+    due_at: datetime | None = None
 
 class Overview(BaseModel):
     project: ProjectSummary
@@ -73,7 +74,7 @@ class GraphView(BaseModel):
 class Action(BaseModel):
     model_config = ConfigDict(extra='forbid')
     task_id: UUID
-    field: Literal['reviewer_id','priority','position','dependency']
+    field: Literal['reviewer_id','priority','position','dependency','owner_id','due_at']
     before: str | int | None
     after: str | int
 

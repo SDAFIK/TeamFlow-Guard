@@ -35,6 +35,8 @@ def validate_actions(db, project_id, actions):
     for action in actions:
         task = by_id.get(str(action['task_id']))
         field = action['field']; before = action['before']; after = action['after']
+        if field not in ('reviewer_id','priority','position','dependency'):
+            raise HTTPException(422, 'This action is only supported by the migrated backend')
         if not task: raise HTTPException(422, 'Proposal references an unavailable task')
         if task.status == 'done': raise HTTPException(422, 'Completed tasks cannot be changed by a proposal')
         if (str(task.id),field) in seen: raise HTTPException(422, 'Duplicate changes to the same task field')

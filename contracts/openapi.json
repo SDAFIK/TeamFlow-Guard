@@ -885,7 +885,9 @@
               "reviewer_id",
               "priority",
               "position",
-              "dependency"
+              "dependency",
+              "owner_id",
+              "due_at"
             ],
             "title": "Field"
           },
@@ -1445,7 +1447,8 @@
             "enum": [
               "lead",
               "contributor",
-              "reviewer"
+              "reviewer",
+              "viewer"
             ],
             "title": "Role"
           }
@@ -1718,6 +1721,18 @@
           "estimate_hours": {
             "type": "integer",
             "title": "Estimate Hours"
+          },
+          "due_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due At"
           }
         },
         "type": "object",

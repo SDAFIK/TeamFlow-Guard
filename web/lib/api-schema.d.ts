@@ -377,7 +377,7 @@ export interface components {
              * Field
              * @enum {string}
              */
-            field: "reviewer_id" | "priority" | "position" | "dependency";
+            field: "reviewer_id" | "priority" | "position" | "dependency" | "owner_id" | "due_at";
             /** Before */
             before: string | number | null;
             /** After */
@@ -609,7 +609,7 @@ export interface components {
              * Role
              * @enum {string}
              */
-            role: "lead" | "contributor" | "reviewer";
+            role: "lead" | "contributor" | "reviewer" | "viewer";
         };
         /** ProposalInput */
         ProposalInput: {
@@ -720,6 +720,8 @@ export interface components {
             priority: string;
             /** Estimate Hours */
             estimate_hours: number;
+            /** Due At */
+            due_at?: string | null;
         };
         /** ValidationError */
         ValidationError: {

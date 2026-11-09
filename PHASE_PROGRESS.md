@@ -105,3 +105,13 @@ Reviewed the new Phase 01 source against its approved scope, with emphasis on pa
 This is a local development foundation. Registration, invitations, password recovery, production HTTPS/secure-cookie configuration, hosting, operational cleanup and production abuse controls are not delivered. The static fixture uses fixed valid edges; editable DAG validation is Phase 02. No claim is made for risk detection, real AI reasoning, approval/audit or integration functionality. Formal accessibility auditing and production load testing remain later-phase work.
 
 Next phase, only after approval: task editing and validated dependency engine. Runtime LLM and hosting selection remain open until their respective phases.
+## Production-pack migration — 9 November 2026
+
+User approved Supabase/Gemini/Vercel migration and free hosting. Dedicated Supabase project `iqsbbmwwayepeqwuxscg` is active; Vercel Hobby project `teamflow-guard` is created. Existing databases and legacy API are preserved.
+
+Implemented routed dashboard/navigation, six-person labeled fixture, Supabase Auth and RLS, task create/edit/archive, dated availability, four deterministic risk detectors, bounded Gemini adapter, human-approved plan changes, durable receipts and append-only audit. Direct RPC validation rejects missing action fields/values and decisions. New migrations have been applied to the isolated hosted project.
+
+Observed checks: 52 domain/structured-output tests, 33 disposable-database SQL checks, 70 legacy backend tests, lint/typecheck and production Next build all pass. Hosted Supabase browser flows pass at 1440x900 and 390x844, including task management, proposal deep-link reload, rejection preserving tasks, approval persistence and viewer denial. Screenshots are under evidence/supabase-*.png. SQL tests roll back; browser tests intentionally retain auditable demo decisions. Supabase advisor reports no RLS warning and one warning for disabled leaked-password protection.
+
+Live Gemini is unverified because credentials are absent. Vercel deployment is in progress. Broader pack gaps and reproducible seed instructions are recorded in docs/MIGRATION_RUNBOOK.md; do not describe the entire production pack as finished yet.
+

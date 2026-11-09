@@ -11,22 +11,14 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: docker build -t teamflow-hosting .
-      - name: Smoke test the single-service image
+      - name: Verify missing credentials fail safely
         run: |
-          docker run -d --name teamflow-hosting -p 8080:8000 \
-            -e APP_ENV=production -e COOKIE_SECURE=true \
-            -e WEB_ORIGIN=https://example.onrender.com \
-            -e DATABASE_URL='postgresql+psycopg://teamflow_app:ci-only@db.invalid/teamflow?sslmode=require' \
-            teamflow-hosting
+          docker run -d --name teamflow-hosting -p 8080:3000 teamflow-hosting
           for attempt in $(seq 1 20); do
-            if curl -fsS http://localhost:8080/health/live; then break; fi
+            if curl -fsS http://localhost:8080/; then break; fi
             sleep 2
           done
-          curl -fsS http://localhost:8080/ | grep -q 'TeamFlow'
-          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/me)" = '401'
-      - name: Container diagnostics
-        if: failure()
-        run: docker logs teamflow-hosting
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/api/me)" = '503'
   frontend:
     runs-on: ubuntu-latest
     steps:
@@ -39,6 +31,8 @@ jobs:
       - run: npm ci
         working-directory: web
       - run: npm run lint
+        working-directory: web
+      - run: npm test
         working-directory: web
       - run: npm run build
         working-directory: web
@@ -73,3 +67,5 @@ jobs:
         working-directory: api
       - run: python -m pytest -q
         working-directory: api
+
+      - run: python scripts/test-supabase.py

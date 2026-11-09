@@ -4,7 +4,7 @@ services:
     runtime: docker
     plan: free
     region: singapore
-    dockerfilePath: ./Dockerfile
+    dockerfilePath: ./deploy/legacy-Dockerfile
     healthCheckPath: /health/ready
     autoDeployTrigger: off
     envVars:
@@ -16,3 +16,4 @@ services:
         sync: false
       - key: DATABASE_URL
         sync: false
+

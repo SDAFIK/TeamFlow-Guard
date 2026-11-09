@@ -1,5 +1,22 @@
 # TeamFlow Guard
 
+The current release uses Next.js route handlers, Supabase Auth/Postgres with RLS, and an optional Gemini recovery adviser. Vercel Hobby is the selected host. The previous FastAPI/PostgreSQL implementation and its local data remain preserved below.
+
+## Current release
+
+- Run `npm ci`, `npm --prefix web ci`, copy `web/.env.example` to `web/.env.local`, configure Supabase, then `npm run dev`.
+- Open http://localhost:3000. Hosted demo accounts: `asha@teamflow.demo` (owner) and `jordan@teamflow.demo` (viewer). Their separate, generated password is stored only in `.local/HOSTED_DEMO_LOGIN.txt`.
+- The six-person Checkout Launch workspace is fictional and visibly labeled. GitHub ingestion is not connected in this migrated release.
+- Gemini requires `GEMINI_API_KEY` and `GEMINI_MODEL`. Without them, use the explicitly labeled rule-based suggestion; no live AI claim is made.
+- Tasks, dependencies, dated availability, risks, proposals and audits persist in Supabase. Protected plan changes require an owner/manager decision. Approval does not repair CI.
+- `npm test`, `npm run lint`, `npm run typecheck`, `npm run build` check the frontend. `python scripts/test-supabase.py` uses only the disposable local test database and rolls back all changes. Set `TEAMFLOW_E2E=supabase` for hosted-data browser tests.
+- Migrations are ordered under `supabase/migrations`. Runtime uses a publishable key plus the signed-in user's session, never a service-role key.
+
+See [migration evidence](docs/PRODUCTION_PACK_PROGRESS.md) and [release runbook](docs/MIGRATION_RUNBOOK.md). The original deployment files are preserved under `deploy/legacy-*`; they are not the current deployment target.
+
+## Preserved legacy local release
+
+
 Local delivery workspace: Next.js/TypeScript frontend, FastAPI/Pydantic API, PostgreSQL persistence, Argon2 passwords and revocable database sessions. The core workflow runs without external service accounts. OpenAI analysis and GitHub evidence are optional integrations.
 
 ## Open the running application
