@@ -58,7 +58,7 @@ export default function Login({
             </span>
           </div>
         </div>
-        <small>LOCAL DEVELOPMENT · DEMO WORKSPACE</small>
+        <small>TEAMFLOW GUARD · HUMAN-APPROVED DELIVERY</small>
       </div>
       <div className="login-form-wrap">
         <form onSubmit={submit} className="login-form">
@@ -77,7 +77,7 @@ export default function Login({
             id="email"
             type="email"
             autoComplete="username"
-            placeholder="asha@demoworks.test"
+            placeholder="you@example.com"
             required
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -98,9 +98,9 @@ export default function Login({
           <div className="login-note">
             <LockKeyhole size={17} />
             <span>
-              Local demo accounts are created during setup.
+              Demo accounts are provisioned by the workspace owner.
               <br />
-              Use the password saved in your local credentials file.
+              Use the sign-in details provided for your workspace.
             </span>
           </div>
         </form>

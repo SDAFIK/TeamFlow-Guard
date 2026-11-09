@@ -2,7 +2,7 @@ import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 const fixture = JSON.parse(readFileSync(".local/hosted-demo.json", "utf8"));
 test("Supabase judge flow, routes, rejection, approval, persistence and viewer denial", async ({ page }, info) => {
-  test.setTimeout(180_000);
+  test.setTimeout(process.env.TEAMFLOW_VERCEL_SHARE_FILE ? 360_000 : 180_000);
   const errors: string[] = []; page.on("pageerror", e => errors.push(e.message));
   if (process.env.TEAMFLOW_VERCEL_SHARE_FILE) {
     const share = JSON.parse(readFileSync(process.env.TEAMFLOW_VERCEL_SHARE_FILE, 'utf8'));

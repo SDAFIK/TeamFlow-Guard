@@ -3,6 +3,7 @@ export default defineConfig({
   testDir: "./tests",
   testMatch: process.env.TEAMFLOW_E2E === "supabase" ? "migration.spec.ts" : ["foundation.spec.ts", "recovery.spec.ts"],
   workers: 1,
+  expect: { timeout: process.env.TEAMFLOW_VERCEL_SHARE_FILE ? 30_000 : 5_000 },
   use: {
     baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://localhost:3000",
     headless: true,

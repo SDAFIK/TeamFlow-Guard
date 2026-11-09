@@ -1,0 +1,16 @@
+import { beforeEach, afterEach, expect, it, vi } from "vitest";
+vi.mock("server-only", () => ({}));
+const mocks=vi.hoisted(()=>({generateContent:vi.fn()}));
+vi.mock("@google/genai",()=>({GoogleGenAI:class { models={generateContent:mocks.generateContent}; }}));
+import { generate } from "./gemini";
+const id="11111111-1111-4111-8111-111111111111";
+const candidate={title:"Recovery",explanation:"Review the evidence",evidence_ids:[id],action_indices:[0],assumptions:['Impact is uncertain'],requires_human_approval:true};
+beforeEach(()=>{vi.stubEnv('GEMINI_API_KEY','test-placeholder');vi.stubEnv('GEMINI_MODEL','test-model');mocks.generateContent.mockReset();});
+afterEach(()=>vi.unstubAllEnvs());
+it('does not call a provider without configuration',async()=>{vi.stubEnv('GEMINI_API_KEY','');await expect(generate({},[id],1)).rejects.toMatchObject({status:503});expect(mocks.generateContent).not.toHaveBeenCalled();});
+it('bounds the evidence before sending it',async()=>{await expect(generate({text:'a'.repeat(24001)},[id],1)).rejects.toMatchObject({status:422});expect(mocks.generateContent).not.toHaveBeenCalled();});
+it('accepts only a completed grounded response',async()=>{mocks.generateContent.mockResolvedValue({candidates:[{finishReason:'STOP'}],text:JSON.stringify(candidate),usageMetadata:{totalTokenCount:42}});const result=await generate({},[id],1);expect(result.candidate).toEqual(candidate);expect(result.usage).toEqual({totalTokenCount:42});});
+it('reports quota exhaustion without a fabricated proposal',async()=>{mocks.generateContent.mockRejectedValue({status:429,message:'private provider detail'});await expect(generate({},[id],1)).rejects.toMatchObject({status:429,message:'Gemini quota reached. Retry later or use a rule-based suggestion.'});});
+it('fails closed on an interrupted response',async()=>{mocks.generateContent.mockResolvedValue({candidates:[{finishReason:'MAX_TOKENS'}],text:JSON.stringify(candidate)});await expect(generate({},[id],1)).rejects.toMatchObject({status:503});});
+it('fails closed on invented evidence',async()=>{mocks.generateContent.mockResolvedValue({candidates:[{finishReason:'STOP'}],text:JSON.stringify(candidate)});await expect(generate({},[],1)).rejects.toMatchObject({status:503});});
+it('sanitizes timeout and network failures',async()=>{mocks.generateContent.mockRejectedValue(new Error('provider secret detail'));await expect(generate({},[id],1)).rejects.toMatchObject({status:503,message:'No safe Gemini proposal is available. Retry or use a rule-based suggestion.'});});
