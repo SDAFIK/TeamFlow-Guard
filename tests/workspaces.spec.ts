@@ -3,9 +3,13 @@ import {readFileSync} from 'node:fs';
 const fixture=JSON.parse(readFileSync('.local/hosted-demo.json','utf8'));
 test('create real workspace, persist tasks/settings, invite teammate and enforce access',async({page},info)=>{
  test.setTimeout(240_000);
+ page.setDefaultTimeout(30_000);
+ page.setDefaultNavigationTimeout(45_000);
+ console.info('Workspace flow: opening deployment');
  if(process.env.TEAMFLOW_VERCEL_SHARE_FILE)await page.goto(JSON.parse(readFileSync(process.env.TEAMFLOW_VERCEL_SHARE_FILE,'utf8')).url);
  async function login(email:string){await page.goto('/overview');await page.getByLabel('Email address').fill(email);await page.getByLabel('Password',{exact:true}).fill(fixture.password);await page.getByRole('button',{name:'Sign in',exact:true}).click();await expect(page.getByRole('heading',{name:'Delivery overview'})).toBeVisible({timeout:60000});}
  await login('asha@teamflow.demo');
+ console.info('Workspace flow: authenticated');
  const origin=new URL(page.url()).origin;
  const workspaceName=`Workflow verification ${info.project.name}`;
  const projects=await (await page.request.get('/api/projects')).json();
@@ -22,8 +26,9 @@ test('create real workspace, persist tasks/settings, invite teammate and enforce
  await expect(page.getByText('DEMO WORKSPACE',{exact:true})).toHaveCount(0);
  await expect(page.getByRole('button',{name:'Replay demo event'})).toHaveCount(0);
  await page.goto('/settings');
+ console.info('Workspace flow: editing settings');
  await expect(page.getByLabel('Workspace name',{exact:true})).toHaveValue(workspaceName);
- await page.getByLabel('Description',{exact:true}).fill('Real editable workspace, verified through the browser.');
+ await page.getByRole('textbox',{name:'Description',exact:true}).fill('Real editable workspace, verified through the browser.');
  await page.getByLabel('PR review alert after (hours)').fill('36');
  await page.getByRole('button',{name:'Save workspace settings',exact:true}).click();
  await expect(page.getByText('Workspace settings saved. Risk rules use these values immediately.')).toBeVisible();

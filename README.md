@@ -4,6 +4,8 @@ The current release uses Next.js route handlers, Supabase Auth/Postgres with RLS
 
 ## Current release
 
+After signing in, choose **Create or join workspace** to start an empty workspace or accept an email-bound invitation link. Settings lets owners/managers rename the workspace and configure the tracked branch and PR-review threshold; owners can manage teammate roles. Tasks and decisions persist, and the selected workspace survives navigation/reload. Real workspaces have no seeded counts or demo replay controls.
+
 - Run `npm ci`, `npm --prefix web ci`, copy `web/.env.example` to `web/.env.local`, configure Supabase, then `npm run dev`.
 - Open http://localhost:3000. Hosted demo accounts: `asha@teamflow.demo` (owner) and `jordan@teamflow.demo` (viewer). Their separate, generated password is stored only in `.local/HOSTED_DEMO_LOGIN.txt`.
 - The six-person Checkout Launch workspace is fictional and visibly labeled. GitHub ingestion is not connected in this migrated release.
