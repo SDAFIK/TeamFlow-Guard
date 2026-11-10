@@ -5,6 +5,7 @@ Every change, including schema/role scaffolding, rolls back at the end.
 """
 import json
 import os
+import runpy
 from pathlib import Path
 from uuid import uuid4
 import psycopg
@@ -145,6 +146,24 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
         workspace_write('revoke_invite',{'invite_id':invitation['id']},fresh['id'])
         identity(viewer)
         denied('revoked invite cannot join',lambda:workspace_write('join',{'token_hash':'b'*64,'display_name':'Viewer'},None),'42501')
+        db.execute('reset role')
+        prepare_sync = runpy.run_path(str(ROOT/'scripts/prepare-github-sync.py'))['prepare']
+        def sync(runs):
+            sql, _ = prepare_sync(w,'T-1','example/repo',"Build ' $sync$",runs)
+            # Keep the existing test transaction; no commit from operator SQL is allowed here.
+            assert sql.startswith('begin;\n') and sql.endswith('commit;\n')
+            db.execute(sql[len('begin;\n'):-len('commit;\n')])
+        run={'id':101,'run_attempt':1,'name':"Build ' $sync$",'status':'completed','conclusion':'failure','updated_at':'2026-11-10T01:00:00Z','head_branch':'main'}
+        sync([run]);sync([run])
+        assert db.execute("select count(*) from public.tf_evidence where workspace_id=%s and origin='github'",(w,)).fetchone()[0]==1
+        passed.append('GitHub import deduplicates run attempts and safely quotes source text')
+        sync([{**run,'id':102,'conclusion':'success','updated_at':'2026-11-10T02:00:00Z'}])
+        sync([{**run,'id':99,'updated_at':'2026-11-09T02:00:00Z'}])
+        assert db.execute("select kind from public.tf_evidence where workspace_id=%s and origin='github' and active",(w,)).fetchone()[0]=='ci_pass'
+        passed.append('older GitHub failures cannot reactivate after a newer passing check')
+        sync([{**run,'id':103,'head_branch':'feature','updated_at':'2026-11-10T03:00:00Z'}])
+        assert db.execute("select count(*) from public.tf_evidence where workspace_id=%s and origin='github' and active",(w,)).fetchone()[0]==2
+        passed.append('GitHub branches retain independent current evidence')
     finally:
         db.rollback()
 print(f'{len(passed)} SQL checks passed; all test changes rolled back.')

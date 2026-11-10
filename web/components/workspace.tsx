@@ -40,6 +40,7 @@ import {
   type Integrations,
 } from "@/lib/api";
 import Login from "./login";
+import { AuditHistory } from "./audit-history";
 import { TaskManager } from "./task-manager";
 import { WorkspaceSetup, WorkspaceSettings } from './workspace-management';
 import DependencyMap from "./dependency-map";
@@ -1033,7 +1034,8 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                     </div>
                   </>
                 )}
-                {view === "audit" && (
+                {view === "audit" && integrations.ai_provider === 'gemini' && <AuditHistory key={data.project.id} workspace={data.project.id}/>}
+                {view === "audit" && integrations.ai_provider !== 'gemini' && (
                   <section className="panel">
                     <div className="panel-head">
                       <div>
@@ -1113,14 +1115,14 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                           <strong>GitHub</strong>
                           <p>
                             {integrations.github_configured
-                                ? "Repository mapping ready. Local sync reads workflow evidence."
+                                ? "Workflow evidence imported by an operator. Sync is manual; check source timestamps."
                               : "No live repository connection. Demo events are labeled."}
                           </p>
                         </div>
                         <Badge
                           value={
                             integrations.github_configured
-                                ? "configured"
+                                ? "manual sync"
                               : "not connected"
                           }
                         />

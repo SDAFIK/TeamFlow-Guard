@@ -1,7 +1,7 @@
 import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests",
-  testMatch: process.env.TEAMFLOW_E2E === "workspaces" ? "workspaces.spec.ts" : process.env.TEAMFLOW_E2E === "origins" ? "origins.spec.ts" : process.env.TEAMFLOW_E2E === "supabase" ? "migration.spec.ts" : ["foundation.spec.ts", "recovery.spec.ts"],
+  testMatch: process.env.TEAMFLOW_E2E === "history" ? "history.spec.ts" : process.env.TEAMFLOW_E2E === "workspaces" ? "workspaces.spec.ts" : process.env.TEAMFLOW_E2E === "origins" ? "origins.spec.ts" : process.env.TEAMFLOW_E2E === "supabase" ? "migration.spec.ts" : ["foundation.spec.ts", "recovery.spec.ts"],
   workers: 1,
   expect: { timeout: process.env.TEAMFLOW_VERCEL_SHARE_FILE ? 30_000 : 5_000 },
   use: {
