@@ -1,5 +1,12 @@
 # Phase progress
 
+## Stage 2 — user journey and product UX hardening, 11 November 2026
+
+- Reworked role-aware overview priority, trustworthy task progress, task/due-date attention order, dependency validation feedback, empty graph/list guidance, task archiving confirmation, workspace settings and invitation/role administration. Added final-layer responsive navy/teal design refinements; fixed missing shared form-grid styling seen on the previous hosted site.
+- Frontend checks in this local source: **110 Vitest tests**, ESLint, TypeScript, and production Next.js build passed. Domain tests cover graph conflicts, contextual next action and due-state classification. Mocked Gemini failure/grounding tests passed; no live model call was attempted.
+- Added `scripts/ux-smoke.cjs` for mock-browser scenarios at 1440px and 390px. Its execution was attempted, but Chromium could not launch because the execution sandbox denied a browser socket; **do not count it as passed**. Live Supabase persistence, role permissions and cross-user sessions were not verified in this session because credentials are not included in the source-only archive.
+- No cloud writes or deployments. Remaining release gates and commands: `docs/UX_STAGE2_RELEASE_NOTES.md`.
+
 ## Free hosting preparation — 8 November 2026
 
 - User explicitly selected **free hosting only**. Prepared Render Free + Neon Free; no paid resources or upgrades authorized. Relevant integrations were discovered and offered, but neither account connection has been confirmed. No cloud resources or live URL exist yet.
@@ -139,3 +146,22 @@ Gemini key/model presence checks remain false. Supabase Auth configuration remai
 Follow-up: the unsandboxed production build passed. Added operator-only GitHub CLI import using the existing login without copying credentials. Imported 16 actual completed TeamFlow validation runs into the existing hosted REL-106 mapping; two current workflow/branch streams remain active. Settings explicitly labels imported evidence as manual sync. Public webhooks and continuous automatic sync remain unconfigured. 48 disposable SQL checks pass, including duplicate attempts, safe SQL quoting, out-of-order checks and branch isolation; all test changes rolled back. No hosted plan or task fields were changed by the import.
 
 Release verification: commit 6eb56d4 deployed READY as dpl_3maBLCkb2aVtkGmQsFWnYrLqxAZJ to https://teamflow-guard.vercel.app. Hosted desktop/mobile history and GitHub evidence tests both passed (26.4s); CI 42855258545 passed frontend, backend and Docker jobs. Final lint/typecheck/build passed. Gemini settings still absent at the latest presence-only check; user is saving the local environment configuration. No live model output is claimed.
+
+## Gemini provider failure diagnosis - 10 November 2026
+
+Reproduced the reported generic error with the user's configured Gemini model. A bounded fictional SDK request returned HTTP 503 / UNAVAILABLE with high-demand information for gemini-3.8-flash. One retry through localhost also returned 503; task data and plan version remained unchanged. No successful live Gemini proposal is claimed. Updated sanitized error mapping to distinguish provider unavailability, credentials/access, missing model and rejected request from invalid generated output; provider error text/secrets are never sent to the UI. 83 unit tests and two desktop/mobile browser regressions passed (22.1s). Full frontend checks are completing. The model and free-only constraints are unchanged.
+
+Credential maintenance: user requested an owner demo password change; Supabase sign-in and localhost login returned success. Private per-account credential storage and fixture/test consumers now preserve the viewer's separate existing password. No credential values are recorded here or in source.
+
+## First-run UX and task creation — 11 November 2026 (local working copy)
+
+- Source: the newer TeamFlow Guard ZIP provided by the user through a Drive sharing link. The working copy excludes Git history, dependency installs, build output, local database data, login files and environment secrets. This working copy is **not deployed or pushed**.
+- Added a premium first-visit screen with separate create/join actions, a data-backed real-workspace setup checklist, a responsive layout and reduced-motion behavior. An existing but unavailable workspace now shows retry guidance instead of falsely showing an empty-account welcome.
+- Improved task creation with a suggested editable ID, standard form validation, clearer descriptions and a visible success confirmation after creation/edit/archive. The server continues to enforce key uniqueness and authorization.
+- Baseline on extracted source: 88 unit tests passed, lint passed, TypeScript passed and production build passed.
+- After onboarding: 92 unit tests passed, lint passed, TypeScript passed and production build passed.
+- After task creation improvements: **95 unit tests passed**, ESLint passed and TypeScript passed; production build passed. No database schema or API change was required.
+- Local Chromium could not start because the execution sandbox denied its socket; an escalation request was also rejected. **Desktop/mobile visual browser QA and hosted end-to-end persistence remain unverified in this work environment.** The temporary visual QA route was removed before packaging.
+- No hosted Supabase data, Gemini model, GitHub branch, Vercel deployment or other remote service was modified.
+
+Next: manually review the new layouts at 1440px/390px and run a fresh-workspace scenario on an isolated development project, then continue the broader UX and provider reliability gates in `docs/PRODUCT_UX_RELEASE_PLAN.md`.

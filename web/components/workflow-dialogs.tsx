@@ -17,8 +17,12 @@ import {
   type Proposal,
   type Action,
   type Integrations,
+  type Graph,
 } from "@/lib/api";
+import { dependencyFeedback } from "@/domain/dependency-feedback";
 import { Modal, Badge, Busy, statusLabels } from "./ui";
+import { JourneySteps } from './journey-steps';
+import type { RecoveryOption } from '@/domain/recovery-options';
 
 type Member = Overview["members"][number];
 export function TaskDialog({
@@ -46,6 +50,7 @@ export function TaskDialog({
   const canEdit =
     data.project.role !== "viewer" && task.status !== "done" &&
     (data.project.role === "lead" || task.owner_id === userId);
+  const needsBlockerNote = status === "blocked" && !note.trim() && task.status !== "blocked";
   async function save() {
     setPending(true);
     setError("");
@@ -108,6 +113,7 @@ export function TaskDialog({
         <span>Version {task.version}</span>
       </div>
       <p className="dialog-description">{task.description}</p>
+      {task.due_at && <p className="field-help">Target deadline: {new Date(task.due_at).toLocaleString()}</p>}
       {error && (
         <div className="error" role="alert">
           {error}
@@ -147,12 +153,14 @@ export function TaskDialog({
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="What is preventing this task from moving forward?"
+            required={task.status !== "blocked"}
           />
+          <small className="field-help">Give teammates enough context to understand the blocker. No private details are required.</small>
         </label>
       )}
       <button
         className="primary"
-        disabled={!canEdit || status === task.status || pending}
+        disabled={!canEdit || status === task.status || needsBlockerNote || pending}
         onClick={save}
       >
         {pending ? <Busy /> : "Save status"}
@@ -176,7 +184,7 @@ export function TaskDialog({
               value={reviewer}
               onChange={(e) => setReviewer(e.target.value)}
             >
-              <option value="">No reviewer assigned</option>
+              {!task.reviewer_id && <option value="">No reviewer assigned</option>}
               {data.members
                 .filter((m) => m.role !== "viewer")
                 .map((m) => (
@@ -204,7 +212,7 @@ export function TaskDialog({
           disabled={
             pending ||
             data.project.role === "viewer" || task.status === "done" ||
-            ((!reviewer || reviewer === task.reviewer_id) &&
+            ((reviewer === (task.reviewer_id ?? "")) &&
               priority === task.priority && owner === task.owner_id && !due)
           }
           onClick={propose}
@@ -233,12 +241,20 @@ export function RiskDialog({
 }) {
   const [pending, setPending] = useState(""),
     [error, setError] = useState("");
-  async function analyze(mode: string) {
+  const [stage,setStage]=useState<'understand'|'compare'>('understand');
+  const [options,setOptions]=useState<RecoveryOption[]>([]);
+  async function compare() {
+    if(integrations.ai_provider!=='gemini'){await analyze('rules');return;}
+    setPending('options');setError('');
+    try { const result=await api<{options:RecoveryOption[]}>(`/risks/${risk.id}/recovery-options`);setOptions(result.options);setStage('compare'); }
+    catch(e){setError((e as Error).message);}finally{setPending('');}
+  }
+  async function analyze(mode: string, strategy?: string) {
     setPending(mode);
     setError("");
     try {
       const result = await api<Proposal>(
-        `/risks/${risk.id}/analyze?mode=${mode}`,
+        `/risks/${risk.id}/analyze?mode=${mode}${strategy?`&strategy=${encodeURIComponent(strategy)}`:''}`,
         { method: "POST", headers: { "Idempotency-Key": crypto.randomUUID() } },
       );
       await onProposal(result);
@@ -249,7 +265,8 @@ export function RiskDialog({
     }
   }
   return (
-    <Modal title="Risk evidence & recovery" onClose={onClose} wide>
+    <Modal title={stage==='understand'?"Risk evidence & recovery":"Compare recovery options"} onClose={onClose} wide>
+      <JourneySteps current={stage==='understand'?0:1}/>
       <div className="dialog-meta">
         <Badge value={risk.severity} />
         <span className="source-tag">
@@ -266,14 +283,14 @@ export function RiskDialog({
           {error}
         </div>
       )}
-      <div className="review-grid">
+      {stage==='understand'&&<div className="review-grid">
         <section className="evidence-card">
           <span className="section-kicker">OBSERVED EVIDENCE</span>
           <h3>
             <FileText size={18} />
             Source record
           </h3>
-          <p>{risk.evidence.detail}</p>
+          <p>{risk.evidence.detail || 'A task status change produced this signal. Review the current task and its dependencies.'}</p>
           <dl>
             <dt>Source ID</dt>
             <dd className="mono">{risk.evidence.id}</dd>
@@ -307,7 +324,13 @@ export function RiskDialog({
             )}
           </div>
         </section>
-      </div>
+      </div>}
+      {stage==='compare'&&<section aria-label="Recovery alternatives">
+        <p>These choices come from plan constraints and reported availability. Compare the tradeoffs, then review one change. AI can explain and select from the same allowed actions.</p>
+        <div className="recovery-options">{options.map(option=><article className="recovery-option" key={option.id}><span className="section-kicker">RULE-BASED OPTION</span><h3>{option.title}</h3><p>{option.effect}</p><p className="option-tradeoff"><strong>Tradeoff:</strong> {option.tradeoff}</p><button className="secondary" aria-label={`Review ${option.title}`} disabled={readOnly||!!pending} onClick={()=>analyze('rules',option.id)}>Review this option<ArrowRight size={16}/></button></article>)}</div>
+        {!options.length&&<p className="warning">No feasible change is available. Keep the current plan and discuss the constraint with your team.</p>}
+        <button className="text-link" disabled={!!pending} onClick={()=>setStage('understand')}>Back to evidence & impact</button>
+      </section>}
       <div className="human-note">
         <ShieldCheck size={18} />
         <span>
@@ -316,6 +339,8 @@ export function RiskDialog({
         </span>
       </div>
       <div className="dialog-actions">
+        {stage==='understand'&&<button className="primary" disabled={!!pending||!risk.active||risk.stale_evidence} onClick={()=>void compare()}>{pending==='options'?<Busy text="Checking options…"/>:<>Compare recovery options<ArrowRight size={17}/></>}</button>}
+        {stage==='compare'&&<>
         <button
           className="primary"
           disabled={readOnly || !!pending || !risk.active || !integrations.ai_configured}
@@ -335,8 +360,9 @@ export function RiskDialog({
           disabled={readOnly || !!pending || !risk.active}
           onClick={() => analyze("rules")}
         >
-          {pending === "rules" ? <Busy /> : "Use rule-based recovery"}
+          {pending === "rules" ? <Busy /> : "Review combined rule-based plan"}
         </button>
+        </>}
       </div>
       {!integrations.ai_configured && (
         <p className="field-help">
@@ -350,13 +376,15 @@ export function RiskDialog({
 export function ProposalDialog({
   proposal,
   data,
+  sourceRisk,
   onClose,
   onDecided,
 }: {
   proposal: Proposal;
   data: Overview;
+  sourceRisk?: Risk;
   onClose: () => void;
-  onDecided: () => Promise<void>;
+  onDecided: (decision: string) => Promise<void>;
 }) {
   const [pending, setPending] = useState(""),
     [error, setError] = useState("");
@@ -372,8 +400,16 @@ export function ProposalDialog({
     if (action.field === "dependency")
       return data.tasks.find((t) => t.id === value)?.title ?? String(value);
     if (action.field === "position") return `Position ${Number(value) + 1}`;
+    if (action.field === "due_at") {
+      const date = new Date(String(value));
+      return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString();
+    }
     return String(value);
   }
+  const fieldName: Record<Action["field"], string> = {
+    reviewer_id: "PR reviewer", owner_id: "Task owner", due_at: "Target deadline",
+    priority: "Priority", dependency: "Required predecessor", position: "Task sequence",
+  };
   async function decide(decision: string) {
     setPending(decision);
     setError("");
@@ -386,7 +422,7 @@ export function ProposalDialog({
           base_plan_version: proposal.base_plan_version,
         }),
       });
-      await onDecided();
+      await onDecided(decision);
       onClose();
     } catch (e) {
       setError((e as Error).message);
@@ -396,6 +432,7 @@ export function ProposalDialog({
   }
   return (
     <Modal title="Review recovery proposal" onClose={onClose} wide>
+      <JourneySteps current={2}/>
       <div className="dialog-meta">
         <Badge value={proposal.stale ? "stale" : proposal.status} />
         <span>
@@ -410,6 +447,7 @@ export function ProposalDialog({
       <h3 className="risk-title">{proposal.title}</h3>
       <a className="text-link" href={`/decisions/${proposal.id}`}>Open proposal permalink</a>
       <p>{proposal.explanation}</p>
+      {sourceRisk&&<details className="proposal-evidence"><summary>Evidence behind this proposal</summary><p><strong>{sourceRisk.evidence.title}</strong></p><p>{sourceRisk.reason}</p><p>{sourceRisk.evidence.origin==='seed'||sourceRisk.evidence.origin==='replay'?'Labeled sample evidence':'Observed project evidence'} · {new Date(sourceRisk.evidence.observed_at).toLocaleString()}</p><span className="mono">{sourceRisk.id}</span></details>}
       {error && (
         <div className="error" role="alert">
           {error}
@@ -432,7 +470,7 @@ export function ProposalDialog({
           <div className="diff-row" key={i}>
             <div>
               <b>{data.tasks.find((t) => t.id === a.task_id)?.title}</b>
-              <small>{a.field === "reviewer_id" ? "Reviewer" : a.field === "position" ? "Task order" : a.field}</small>
+              <small>{fieldName[a.field]}</small>
             </div>
             <span>{display(a, a.before)}</span>
             <strong>{display(a, a.after)}</strong>
@@ -487,23 +525,29 @@ export function ProposalDialog({
           it.
         </p>
       )}
+      {proposal.status !== "pending" && <p className="field-help">This proposal was already {proposal.status}. Its recorded decision is preserved in the audit log.</p>}
     </Modal>
   );
 }
 export function DependencyDialog({
   data,
+  graph,
   onClose,
   onSaved,
 }: {
   data: Overview;
+  graph: Graph;
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
+  const candidates = data.tasks.filter((task) => task.status !== "done");
   const [before, setBefore] = useState(data.tasks[0]?.id ?? ""),
-    [after, setAfter] = useState(data.tasks[1]?.id ?? ""),
+    [after, setAfter] = useState(candidates.find((task) => task.id !== data.tasks[0]?.id)?.id ?? ""),
     [error, setError] = useState(""),
     [pending, setPending] = useState(false);
+  const guidance = dependencyFeedback(data.tasks.map(t=>t.id), graph.edges, before, after);
   async function submit() {
+    if (guidance || pending) return;
     setPending(true);
     setError("");
     try {
@@ -537,8 +581,7 @@ export function DependencyDialog({
   return (
     <Modal title="Propose a dependency" onClose={onClose}>
       <p>
-        The predecessor must finish before the dependent task. Cycles and
-        cross-project links are rejected.
+        Show which task must finish first. This creates a proposal for a team lead to review; it does not change the plan yet.
       </p>
       {error && (
         <div className="error" role="alert">
@@ -548,7 +591,7 @@ export function DependencyDialog({
       <div className="field-grid">
         <label>
           Predecessor
-          <select value={before} onChange={(e) => setBefore(e.target.value)}>
+          <select value={before} onChange={(e) => setBefore(e.target.value)} disabled={pending}>
             {data.tasks.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.title}
@@ -558,9 +601,9 @@ export function DependencyDialog({
         </label>
         <label>
           Dependent task
-          <select value={after} onChange={(e) => setAfter(e.target.value)}>
-            {data.tasks
-              .filter((t) => t.status !== "done")
+          <select value={after} onChange={(e) => setAfter(e.target.value)} disabled={pending}>
+            <option value="">Choose a task…</option>
+            {candidates
               .map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.title}
@@ -569,9 +612,13 @@ export function DependencyDialog({
           </select>
         </label>
       </div>
-      <button className="primary" disabled={pending} onClick={submit}>
+      <div className="dependency-preview" aria-live="polite">
+        {guidance ? <p className="field-help">{guidance}</p> : <p><strong>{data.tasks.find(t=>t.id===before)?.title}</strong> must finish before <strong>{data.tasks.find(t=>t.id===after)?.title}</strong>.</p>}
+        <small>Cycle checks run here for immediate feedback and again on the server.</small>
+      </div>
+      <div className="dialog-actions"><button className="primary" disabled={pending || Boolean(guidance)} onClick={submit}>
         {pending ? <Busy /> : "Validate & create proposal"}
-      </button>
+      </button><button className="secondary" disabled={pending} onClick={onClose}>Cancel</button></div>
     </Modal>
   );
 }

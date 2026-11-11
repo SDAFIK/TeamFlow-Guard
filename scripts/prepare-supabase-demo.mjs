@@ -23,7 +23,7 @@ const w = quote(fixture.workspace);
 const sql = ["begin;", `insert into public.tf_workspaces(id,name,description,is_demo,fixture_label) values(${w},'Checkout Launch','A six-person fictional release workspace.',true,'Sample sprint · fictional evidence') on conflict do nothing;`];
 for (const [name,role,specialty] of people) {
   const id = quote(fixture.people[name]), email = quote(name.toLowerCase()+"@teamflow.demo");
-  const hash = quote(await bcrypt.hash(fixture.password,12));
+  const hash = quote(await bcrypt.hash(fixture.passwords?.[name.toLowerCase()+"@teamflow.demo"] ?? fixture.password,12));
   sql.push(`insert into auth.users(instance_id,id,aud,role,email,encrypted_password,email_confirmed_at,confirmation_token,recovery_token,email_change_token_new,email_change,raw_app_meta_data,raw_user_meta_data,created_at,updated_at) values('00000000-0000-0000-0000-000000000000',${id},'authenticated','authenticated',${email},${hash},now(),'','','','','{"provider":"email","providers":["email"]}','{}',now(),now()) on conflict(id) do nothing;`);
   sql.push(`insert into auth.identities(provider_id,user_id,identity_data,provider,created_at,updated_at) values(${id},${id},jsonb_build_object('sub',${id},'email',${email},'email_verified',true),'email',now(),now()) on conflict(provider_id,provider) do nothing;`);
   sql.push(`insert into public.tf_memberships(workspace_id,user_id,role,name,email,specialty,available_hours,availability_start,availability_end) values(${w},${id},${quote(role)},${quote(name)},${email},${quote(specialty)},${name==='Nila'?4:40},now(),now()+interval '2 days') on conflict do nothing;`);
@@ -39,5 +39,5 @@ for (const [kind,key,title,detail,payload] of [
 ]) sql.push(`insert into public.tf_evidence(workspace_id,task_id,source_key,kind,title,detail,origin,payload) values(${w},${quote(fixture.tasks[key])},${quote('seed:'+kind)},${quote(kind)},${quote(title)},${quote(detail)},'seed',${payload}) on conflict do nothing;`);
 sql.push("commit;");
 writeFileSync(".local/hosted-demo.sql",sql.join("\n"));
-writeFileSync(".local/HOSTED_DEMO_LOGIN.txt",`Hosted isolated fictional workspace\nManager: asha@teamflow.demo\nViewer: jordan@teamflow.demo\nPassword: ${fixture.password}\nNever commit this file.\n`);
+writeFileSync(".local/HOSTED_DEMO_LOGIN.txt",`Hosted isolated fictional workspace\nManager: asha@teamflow.demo\nViewer: jordan@teamflow.demo\nManager password: ${fixture.passwords?.["asha@teamflow.demo"] ?? fixture.password}\nViewer password: ${fixture.passwords?.["jordan@teamflow.demo"] ?? fixture.password}\nNever commit this file.\n`);
 console.log("Prepared isolated six-person hosted fixture. Credentials saved privately in .local/HOSTED_DEMO_LOGIN.txt.");

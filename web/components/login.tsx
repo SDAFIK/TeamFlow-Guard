@@ -38,24 +38,23 @@ export default function Login({
         <div>
           <span className="eyebrow">LESS GUESSWORK. MORE CLARITY.</span>
           <h1>
-            Good delivery starts
+            Detect delivery risks.
             <br />
-            with a shared plan.
+            Recover with confidence.
           </h1>
           <p>
-            A focused workspace for your team, your tasks,
-            <br className="desktop-only" /> and the decisions that move work
-            forward.
+            Understand which tasks are affected, compare recovery options,
+            and approve a plan your team can act on. Evidence informs. Your team decides.
           </p>
           <div className="login-chain">
             <span>
               <Check size={17} />
-              Shared context
+              Evidence & impact
             </span>
             <ArrowRight size={16} />
             <span>
               <Users size={17} />
-              Human decisions
+              Human-approved recovery
             </span>
           </div>
         </div>

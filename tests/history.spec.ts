@@ -6,7 +6,7 @@ test('browse persisted history without duplicates and reject invalid cursors', a
   if (process.env.TEAMFLOW_VERCEL_SHARE_FILE) await page.goto(JSON.parse(readFileSync(process.env.TEAMFLOW_VERCEL_SHARE_FILE, 'utf8')).url);
   await page.goto('/audit');
   await page.getByLabel('Email address').fill('asha@teamflow.demo');
-  await page.getByLabel('Password', { exact: true }).fill(fixture.password);
+  await page.getByLabel('Password', { exact: true }).fill(fixture.passwords?.['asha@teamflow.demo'] ?? fixture.password);
   await page.getByRole('button', { name: 'Sign in', exact: true }).click();
   await expect(page.getByLabel('Project', { exact: true })).toBeVisible({ timeout: 60000 });
   const projects = await (await page.request.get('/api/projects')).json();

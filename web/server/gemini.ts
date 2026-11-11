@@ -24,6 +24,10 @@ export async function generate(context: object, ids: string[], candidateCount: n
     return { candidate, usage: response.usageMetadata ?? {}, latency_ms: Date.now() - start };
   } catch (error) {
     const status = (error as { status?: number }).status;
+    if (status === 503) throw new HttpError(503, "Gemini is temporarily unavailable or busy. Retry shortly, or use a rule-based suggestion.");
+    if (status === 401 || status === 403) throw new HttpError(503, "Gemini rejected the API credentials or access. Check the server's Gemini key and model permissions.");
+    if (status === 404) throw new HttpError(503, "The configured Gemini model is unavailable. Check GEMINI_MODEL on the server.");
+    if (status === 400) throw new HttpError(503, "Gemini rejected the analysis request. Check the model configuration and request compatibility.");
     throw new HttpError(status === 429 ? 429 : 503, status === 429 ? "Gemini quota reached. Retry later or use a rule-based suggestion." : "No safe Gemini proposal is available. Retry or use a rule-based suggestion.");
   }
 }

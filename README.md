@@ -2,6 +2,10 @@
 
 The current release uses Next.js route handlers, Supabase Auth/Postgres with RLS, and an optional Gemini recovery adviser. Vercel Hobby is the selected host. The previous FastAPI/PostgreSQL implementation and its local data remain preserved below.
 
+**Stage 3 premium interface pass (11 November 2026):** All major screens now share a consistent responsive design layer, with clearer dashboard hierarchy, a saved-data task-status breakdown, mobile swipeable Kanban, stronger visual states and narrow-phone sign-in adjustments. Code tests and production build passed; full authenticated browser QA still needs a configured test sign-in. See [design delivery notes](docs/UX_STAGE3_DESIGN.md).
+
+**Stage 2 UX update (11 November 2026):** The local source includes clearer onboarding and dashboard priorities, task/dependency safeguards, safer teammate-role changes, improved responsive forms and visual design. See [release notes and honest verification limits](docs/UX_STAGE2_RELEASE_NOTES.md). After `npm ci`, `npm --prefix web ci`, and starting the built frontend on port 3100, `npm run test:ux-mock` runs isolated desktop/mobile browser checks; real Supabase collaboration tests still require separately configured test credentials.
+
 ## Current release
 
 After signing in, choose **Create or join workspace** to start an empty workspace or accept an email-bound invitation link. Settings lets owners/managers rename the workspace and configure the tracked branch and PR-review threshold; owners can manage teammate roles. Tasks and decisions persist, and the selected workspace survives navigation/reload. Real workspaces have no seeded counts or demo replay controls.

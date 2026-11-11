@@ -10,6 +10,7 @@ import { configured } from "@/server/gemini";
 import { allowedOrigin } from "@/server/origin";
 import { createHash, randomBytes } from "node:crypto";
 import { auditPage } from "@/server/audit-page";
+import { buildRecoveryOptions } from "@/domain/recovery-options";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -168,11 +169,20 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       if(path[2] === "edit" && !input.title) throw new HttpError(422,"Title is required");
       const result=await client.rpc("tf_task_write",{w:await scopedWorkspace(client,"tf_tasks",taskId),operation:path[2],body:{...input,task_id:taskId}});if(result.error) databaseError(result.error);return answer(result.data);
     }
+    if (path[0] === "risks" && path[2] === "recovery-options" && path.length === 3 && request.method === "GET") {
+      const riskId = z.uuid().parse(path[1]);
+      const state = await snapshot(client, await scopedWorkspace(client, "tf_evidence", riskId));
+      const risk = risksFor(state.tasks,state.edges,state.evidence,state.members,state.workspace.review_threshold_hours,new Date(),state.workspace.tracked_branch).find(r=>r.id===riskId);
+      if (!risk?.active || risk.stale_evidence) throw new HttpError(409,"Risk evidence is resolved or stale. Refresh the source first.");
+      return answer({ options: buildRecoveryOptions(state.tasks,state.edges,state.members,risk.evidence.task_id,risk.evidence.kind), plan_version: state.workspace.plan_version });
+    }
     if (path[0] === "risks" && path[2] === "analyze" && request.method === "POST") {
       const riskId = z.uuid().parse(path[1]); const id = await scopedWorkspace(client, "tf_evidence", riskId);
       const mode = request.nextUrl.searchParams.get("mode") ?? "gemini";
       if (!["gemini","rules"].includes(mode)) throw new HttpError(422, "Unknown analysis mode");
-      return answer(await recovery(client, await snapshot(client, id), riskId, mode, request.headers.get("Idempotency-Key") ?? ""));
+      const strategy = request.nextUrl.searchParams.get('strategy') ?? undefined;
+      if (strategy && (mode !== 'rules' || !['coverage','priority','sequence'].includes(strategy))) throw new HttpError(422,'Invalid recovery choice');
+      return answer(await recovery(client, await snapshot(client, id), riskId, mode, request.headers.get("Idempotency-Key") ?? "", strategy));
     }
     if (path[0] === "proposals" && path[2] === "decision" && request.method === "POST") {
       const proposalId = z.uuid().parse(path[1]);

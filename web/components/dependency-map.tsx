@@ -12,7 +12,7 @@ import {
 } from "@xyflow/react";
 import { GitBranch, ArrowUpRight } from "lucide-react";
 import type { Graph, Risk, Task } from "@/lib/api";
-import { Badge } from "./ui";
+import { Badge, statusLabels } from "./ui";
 import "@xyflow/react/dist/style.css";
 
 type TaskNode = Node<{ task: Task; flag: string; reverse: boolean }, "task">;
@@ -121,7 +121,9 @@ export default function DependencyMap({
           </button>
         )}
       </div>
-      <div className="graph-canvas">
+      {graph.nodes.length === 0 ? (
+        <div className="graph-empty"><GitBranch size={30}/><h3>No tasks to connect yet</h3><p>Add your first task. The dependency map will show saved tasks and their connections.</p></div>
+      ) : <div className="graph-canvas">
         <ReactFlow
           nodes={nodes}
           edges={edges}
@@ -138,7 +140,7 @@ export default function DependencyMap({
           <Background color="#263849" gap={22} size={1} />
           <Controls showInteractive={false} />
         </ReactFlow>
-      </div>
+      </div>}
       <div className="graph-caption">
         <span>
           <GitBranch size={15} />
@@ -147,11 +149,11 @@ export default function DependencyMap({
         <span>
           {graph.selected_task_id
             ? `${graph.downstream_ids.length} downstream tasks`
-            : "Select any task to explore"}
+            : graph.edges.length === 0 ? "No links yet — propose a dependency to begin" : "Select any task to explore"}
         </span>
       </div>
-      <details className="graph-alternative">
-        <summary>Accessible task list</summary>
+      <details className="graph-alternative" open={expanded ? true : undefined}>
+        <summary>Task list and impact details</summary>
         <div>
           {graph.nodes.map((t) => (
             <button
@@ -159,8 +161,8 @@ export default function DependencyMap({
               onClick={() => onSelect(t.id)}
               aria-pressed={graph.selected_task_id === t.id}
             >
-              {t.key} · {t.title}
-              {graph.downstream_ids.includes(t.id) ? " · downstream" : ""}
+              {t.key} · {t.title} · {statusLabels[t.status] ?? t.status}
+              {graph.selected_task_id === t.id ? " · selected" : graph.downstream_ids.includes(t.id) ? " · downstream" : ""}
             </button>
           ))}
         </div>

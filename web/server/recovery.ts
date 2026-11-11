@@ -1,28 +1,21 @@
 import "server-only";
 import { createHash } from "node:crypto";
-import type { ProposedAction } from "@/domain/proposal";
 import { risksFor } from "@/domain/risk-engine";
 import { type Client, type State, mutate, snapshot, HttpError, databaseError } from "./state";
 import { generate, PROMPT_VERSION } from "./gemini";
-export function candidates(state: State, taskId: string): ProposedAction[] {
-  const task = state.tasks.find(t => t.id === taskId)!;
-  const actions: ProposedAction[] = [];
-  const reviewer = state.members.find(m => m.role !== "viewer" && m.id !== task.owner_id && m.id !== task.reviewer_id && m.available_hours >= 2 + state.tasks.filter(t => t.reviewer_id === m.id && t.status !== "done").length * 2);
-  if (reviewer) actions.push({ task_id: task.id, field: "reviewer_id", before: task.reviewer_id, after: reviewer.id });
-  if (task.priority !== "critical") actions.push({ task_id: task.id, field: "priority", before: task.priority, after: "critical" });
-  const independent = state.tasks.find(t => t.id !== taskId && t.status !== "done" && t.position > 0 && !state.edges.some(e => e.successor_id === t.id));
-  if (independent) actions.push({ task_id: independent.id, field: "position", before: independent.position, after: 0 });
-  return actions;
-}
-export async function recovery(client: Client, state: State, riskId: string, mode: string, key: string) {
+import { buildRecoveryOptions } from "@/domain/recovery-options";
+export async function recovery(client: Client, state: State, riskId: string, mode: string, key: string, strategy?: string) {
   if (state.role === "viewer") throw new HttpError(403, "Viewers cannot generate proposals.");
   const risk = risksFor(state.tasks, state.edges, state.evidence, state.members, state.workspace.review_threshold_hours, new Date(), state.workspace.tracked_branch).find(r => r.id === riskId);
   if (!risk?.active || risk.stale_evidence) throw new HttpError(409, "Risk evidence is resolved or stale. Refresh the source first.");
   const task = state.tasks.find(t => t.id === risk.evidence.task_id)!;
-  const options = candidates(state, task.id);
+  const alternatives = buildRecoveryOptions(state.tasks, state.edges, state.members, task.id, risk.evidence.kind);
+  const selected = strategy ? alternatives.find(option => option.id === strategy) : undefined;
+  if (strategy && !selected) throw new HttpError(409, "This option is no longer available. Refresh the recovery choices.");
+  const options = selected?.actions ?? alternatives.flatMap(option => option.actions);
   if (!options.length) throw new HttpError(422, "No feasible change found. Review the plan manually.");
   const context = { risk: risk.reason, task: { id: task.id, key: task.key, title: task.title }, evidence: [{ id: risk.evidence.id, origin: risk.evidence.origin, title: risk.evidence.title, detail: risk.evidence.detail.slice(0, 1500), observed_at: risk.evidence.observed_at }], candidates: options };
-  let body = { title: `Recovery plan for ${task.key}`, explanation: risk.reason, source: "rules", base_plan_version: state.workspace.plan_version, actions: options, evidence_ids: [riskId], risk_id: riskId, assumptions: ["Rule-based suggestion; no AI request was made.", "Plan changes do not repair CI or guarantee delivery dates.", "Reviewer allocation assumes two hours per review."] };
+  let body = { title: selected?.title ?? `Recovery plan for ${task.key}`, explanation: selected ? `${risk.reason} ${selected.effect}` : risk.reason, source: "rules", base_plan_version: state.workspace.plan_version, actions: options, evidence_ids: [riskId], risk_id: riskId, assumptions: ["Rule-based suggestion; no AI request was made.", "Plan changes do not repair CI or guarantee delivery dates.", ...(selected ? [selected.tradeoff] : alternatives.map(option => option.tradeoff))] };
   let runId: string | undefined;
   if (mode === "gemini") {
     if (key.length < 8) throw new HttpError(422, "A generation idempotency key is required.");
