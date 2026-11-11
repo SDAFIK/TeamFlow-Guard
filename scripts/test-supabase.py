@@ -146,6 +146,46 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
         workspace_write('revoke_invite',{'invite_id':invitation['id']},fresh['id'])
         identity(viewer)
         denied('revoked invite cannot join',lambda:workspace_write('join',{'token_hash':'b'*64,'display_name':'Viewer'},None),'42501')
+        # Stage 4: public GitHub linking is a versioned, audited, role-gated RPC.
+        # All effects stay in this disposable transaction and are rolled back below.
+        def github_link(workspace, repository, version):
+            return db.execute(
+                'select public.tf_github_link(%s,%s,%s)',
+                (workspace, repository, version)
+            ).fetchone()[0]
+        identity(viewer)
+        denied('viewer GitHub link denied',
+               lambda:github_link(w,'example/public-repo',1),'42501')
+        identity(member)
+        denied('member GitHub link denied',
+               lambda:github_link(w,'example/public-repo',1),'42501')
+        identity(outsider)
+        denied('cross-workspace GitHub link denied',
+               lambda:github_link(w,'example/public-repo',1),'42501')
+        identity(owner)
+        v=db.execute('select plan_version from public.tf_workspaces where id=%s',(w,)).fetchone()[0]
+        linked=github_link(w,'example/public-repo',v)
+        assert linked['github_repository']=='example/public-repo' and linked['plan_version']==v+1
+        assert db.execute("select count(*) from public.tf_audit where workspace_id=%s and kind='workspace.github'",(w,)).fetchone()[0]==1
+        passed.append('owner links repository and writes audit entry')
+        assert github_link(w,'example/public-repo',v+1)['plan_version']==v+1
+        passed.append('same GitHub link is idempotent')
+        denied('stale GitHub plan version denied',
+               lambda:github_link(w,'example/another-repo',v),'40001')
+        denied('invalid GitHub slug denied',
+               lambda:github_link(w,'https://evil.example/repo',v+1),'22023')
+        assert github_link(w,None,v+1)['github_repository'] is None
+        assert db.execute("select count(*) from public.tf_audit where workspace_id=%s and kind='workspace.github'",(w,)).fetchone()[0]==2
+        passed.append('owner disconnects repository with audit and version')
+        identity(outsider)
+        fv=db.execute('select plan_version from public.tf_workspaces where id=%s',(fresh['id'],)).fetchone()[0]
+        assert github_link(fresh['id'],'team/public',fv)['plan_version']==fv+1
+        passed.append('manager GitHub link allowed for own workspace')
+        db.execute('reset role')
+        db.execute("select set_config('request.jwt.claim.sub','',true)")
+        db.execute('set local role anon')
+        denied('anonymous GitHub link denied',
+               lambda:github_link(w,'example/public-repo',v+2),'42501')
         db.execute('reset role')
         prepare_sync = runpy.run_path(str(ROOT/'scripts/prepare-github-sync.py'))['prepare']
         def sync(runs):
