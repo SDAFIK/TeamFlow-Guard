@@ -1,9 +1,10 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { Check, ClipboardCopy, LockKeyhole, MailPlus, ShieldCheck, Users } from "lucide-react";
+import { Check, ClipboardCopy, LockKeyhole, MailPlus, Send, ShieldCheck, Users } from "lucide-react";
 import { api } from "@/lib/api";
 import { Busy } from "./ui";
+import { GithubConnection } from "./github-connection";
 
 type Role = "owner" | "manager" | "member" | "viewer";
 type Member = { id: string; name: string; email: string; role: Role };
@@ -31,6 +32,7 @@ export function WorkspaceSettings({ id, onSaved }: { id: string; onSaved: () => 
   const [email, setEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<Exclude<Role, "owner">>("member");
   const [link, setLink] = useState("");
+  const [invitedEmail, setInvitedEmail] = useState("");
   const [roleChange, setRoleChange] = useState<{ id: string; name: string; role: Exclude<Role, "owner"> } | null>(null);
   const [refreshedAt, setRefreshedAt] = useState(0);
 
@@ -167,13 +169,14 @@ export function WorkspaceSettings({ id, onSaved }: { id: string; onSaved: () => 
           <div className="invite-panel">
             <div className="settings-section-header">
               <h3><MailPlus size={19}/> Invite a teammate</h3>
-              <p>Generate a private invitation for one email address. It expires in seven days. TeamFlow Guard does not send the email automatically.</p>
+              <p>Invite someone by their email address. A private link is bound to that email and expires in seven days. You can send it using your own email app.</p>
             </div>
             <form className="form-grid" onSubmit={event => {
               event.preventDefault();
               void perform(async () => {
                 const result = await api<{token:string}>(`/projects/${id}/invitations`, {method:"POST",body:JSON.stringify({email,role:inviteRole})});
                 setLink(`${window.location.origin}/join#${result.token}`);
+                setInvitedEmail(email.trim());
                 setEmail("");
               }, "Invitation created. Copy and share the private link securely.");
             }}>
@@ -192,6 +195,7 @@ export function WorkspaceSettings({ id, onSaved }: { id: string; onSaved: () => 
             {link && <div className="invitation-link">
               <label>Private invitation link<input readOnly value={link} onFocus={event => event.target.select()} aria-describedby="invitation-help"/></label>
               <button className="primary" onClick={() => void navigator.clipboard.writeText(link).then(() => setNotice("Invitation link copied.")).catch(() => setError("Clipboard is unavailable. Select the link and copy it manually."))}><ClipboardCopy size={16}/> Copy link</button>
+              <a className="secondary invite-email-action" href={`mailto:${encodeURIComponent(invitedEmail)}?subject=${encodeURIComponent("Join my TeamFlow Guard workspace")}&body=${encodeURIComponent(`I've invited you to join our TeamFlow Guard workspace. Sign in using ${invitedEmail}, then open this private invitation link (expires in seven days):\n\n${link}\n\nPlease don't forward it.`)}`}><Send size={16}/> Open email draft</a>
               <p id="invitation-help">Only send this to the invited email owner. The link is shown until you leave the page.</p>
             </div>}
             {invites.length > 0 && <div className="pending-invitations"><h3>Recent invitations</h3>
@@ -209,6 +213,7 @@ export function WorkspaceSettings({ id, onSaved }: { id: string; onSaved: () => 
         {error && <p className="error" role="alert">{error}</p>}
         {notice && <p className="success-banner" role="status"><Check size={16}/>{notice}</p>}
       </section>
+      <GithubConnection workspaceId={id} planVersion={settings.plan_version} canManage={manager} onChanged={async () => { await load(); await onSaved(); }}/>
     </>
   );
 }

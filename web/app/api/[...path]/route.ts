@@ -11,6 +11,7 @@ import { allowedOrigin } from "@/server/origin";
 import { createHash, randomBytes } from "node:crypto";
 import { auditPage } from "@/server/audit-page";
 import { buildRecoveryOptions } from "@/domain/recovery-options";
+import { recentPublicRuns, verifyPublicRepository } from "@/server/github-public";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -110,8 +111,18 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
           case "risks": return answer(risks());
           case "proposals": return answer(state.proposals);
           case "audit": return answer(state.audit);
-          case "integrations": return answer({ ai_configured: configured(), ai_provider: "gemini", ai_model: process.env.GEMINI_MODEL ?? null, github_configured: state.evidence.some(e => e.origin === 'github'), mode: state.workspace.is_demo ? "demo" : "manual" });
+          case "integrations": return answer({ ai_configured: configured(), ai_provider: "gemini", ai_model: process.env.GEMINI_MODEL ?? null, github_configured: Boolean(state.workspace.github_repository) || state.evidence.some(e => e.origin === 'github'), github_repository: state.workspace.github_repository, github_evidence_imported: state.evidence.some(e => e.origin === 'github'), mode: state.workspace.is_demo ? "demo" : "manual" });
           case "settings": return answer({...state.workspace,my_role:state.role,members:state.members});
+          case "github": {
+            const repository = state.workspace.github_repository;
+            if (!repository) return answer({ connected: false, repository: null, runs: [], warning: null });
+            try {
+              const runs = await recentPublicRuns(repository, state.workspace.tracked_branch);
+              return answer({ connected: true, repository, runs, warning: null });
+            } catch {
+              return answer({ connected: true, repository, runs: [], warning: "GitHub activity is temporarily unavailable. Your workspace link is unchanged." });
+            }
+          }
           case "invitations": {
             if(!['owner','manager'].includes(state.role)) throw new HttpError(403,'Manager access required');
             const result=await client.from('tf_invites').select('id,email,role,created_at,expires_at,accepted_at,revoked_at').eq('workspace_id',id).order('created_at',{ascending:false}).limit(50);
@@ -122,6 +133,21 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       if(path[2]==='settings' && request.method==='PUT') {
         const input=z.object({name:z.string().trim().min(2).max(100),description:z.string().max(1000),tracked_branch:z.string().trim().min(1).max(100),review_threshold_hours:z.number().int().min(1).max(168),base_plan_version:z.number().int().positive()}).strict().parse(body);
         return answer(await workspaceWrite(id,'settings',input));
+      }
+      if (path[2] === "github" && path.length === 3 && request.method === "POST") {
+        if (!['owner', 'manager'].includes(state.role)) throw new HttpError(403, "Manager access required");
+        const input = z.object({ repository: z.string().min(3).max(160).nullable(), base_plan_version: z.number().int().positive() }).strict().parse(body);
+        let repository: string | null = null;
+        if (input.repository !== null) {
+          try { repository = await verifyPublicRepository(input.repository); }
+          catch (cause) {
+            const message = (cause as Error).message;
+            throw new HttpError(message.includes('right now') || (cause as Error).name === 'TimeoutError' ? 503 : 422, message);
+          }
+        }
+        const result = await client.rpc("tf_github_link", { w: id, repo: repository, expected_version: input.base_plan_version });
+        if (result.error) databaseError(result.error);
+        return answer({ repository: result.data.github_repository, plan_version: result.data.plan_version });
       }
       if(path[2]==='invitations' && path.length===3 && request.method==='POST') {
         const input=z.object({email:z.email().max(254),role:z.enum(['manager','member','viewer'])}).strict().parse(body);

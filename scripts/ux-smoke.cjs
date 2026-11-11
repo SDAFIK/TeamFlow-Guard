@@ -20,7 +20,7 @@ const firstTask = {
 
 function model(role) {
   const store = {
-    role, version: 1, tasks: [firstTask], edges: [], proposals: [], audit: [],
+    role, version: 1, tasks: [firstTask], edges: [], proposals: [], audit: [], githubRepo:null,
     members: [
       {id:OWNER,name:"Asha (mock)",email:"asha@example.invalid",role:role==="viewer"?"viewer":"lead",specialty:"Product",available_hours:24},
       {id:OTHER,name:"Jin (mock)",email:"jin@example.invalid",role:"contributor",specialty:"Frontend",available_hours:20},
@@ -65,6 +65,16 @@ async function mockApi(page, state) {
     if (pathname === `${base}/settings` && method==="GET") return json({
       ...state.settings,plan_version:state.version,members:state.members.map(m=>({...m,role:m.id===OWNER?state.settings.my_role:"member"})),
     });
+    if (pathname === `${base}/github` && method==="GET") return json({
+      connected:!!state.githubRepo,repository:state.githubRepo,warning:null,
+      runs:state.githubRepo?[{id:99,name:"Validation (simulated)",status:"completed",conclusion:"success",html_url:`https://github.com/${state.githubRepo}/actions/runs/99`,created_at:"2026-11-10T12:00:00Z"}]:[],
+    });
+    if (pathname === `${base}/github` && method==="POST") {
+      if (state.role === "viewer") return json({message:"Manager access required"},403);
+      state.githubRepo=input.repository?.replace("https://github.com/", "") ?? null;
+      state.version++;
+      return json({repository:state.githubRepo,plan_version:state.version});
+    }
     if (pathname === `${base}/settings` && method==="PUT") {
       if (state.role==="viewer") return json({message:"Manager access required"},403);
       Object.assign(state.settings,input);
@@ -150,15 +160,23 @@ async function run(viewport, role="lead") {
       await page.getByLabel("Teammate email").fill("new.person@example.invalid");
       await page.getByRole("button",{name:"Generate invitation link"}).click();
       await page.getByRole("textbox",{name:"Private invitation link"}).waitFor();
+      const emailDraft = page.getByRole("link",{name:"Open email draft"});
+      assert.match(await emailDraft.getAttribute("href"),/^mailto:/,"invitation offers a real email draft");
+      await page.getByLabel("Repository URL or owner/name").fill("SDAFIK/TeamFlow-Guard");
+      await page.getByRole("button",{name:"Link repository"}).click();
+      await page.getByText("Public GitHub repository linked",{exact:true}).waitFor();
+      await page.getByText("Validation (simulated)").waitFor();
+      assert.equal(state.githubRepo,"SDAFIK/TeamFlow-Guard","GitHub link persisted in the simulated workspace");
     } else {
       assert.equal(await page.getByRole("button",{name:"Generate invitation link"}).count(),0,"viewer cannot invite");
+      assert.equal(await page.getByRole("button",{name:"Link repository"}).count(),0,"viewer cannot link repositories");
     }
     const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1);
     assert.equal(overflow,false,`horizontal overflow at ${label}`);
     assert.deepEqual(failures,[],`client errors at ${label}`);
     fs.mkdirSync("evidence",{recursive:true});
     await page.screenshot({path:path.join("evidence",`ux-mock-${label}.png`),fullPage:true});
-    console.log(`PASS ${label}: workspace → tasks → dependencies → team/permissions; no overflow or page errors`);
+    console.log(`PASS ${label}: simulated tasks, dependencies, email invites, public GitHub link and team permissions; no overflow or page errors`);
   } finally {await browser.close();}
 }
 
