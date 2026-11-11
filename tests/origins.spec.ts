@@ -9,7 +9,7 @@ test('hosted alias supports login and logout while rejecting foreign origins',as
   }
   await page.goto('/overview');
   await page.getByLabel('Email address').fill('asha@teamflow.demo');
-  await page.getByLabel('Password',{exact:true}).fill(fixture.password);
+  await page.getByLabel('Password',{exact:true}).fill(fixture.passwords?.['asha@teamflow.demo'] ?? fixture.password);
   await page.getByRole('button',{name:'Sign in',exact:true}).click();
   await expect(page.getByRole('heading',{name:'Delivery overview'})).toBeVisible({timeout:60000});
   const denied=await page.request.post('/api/auth/logout',{headers:{Origin:'https://unrelated.vercel.app'}});

@@ -1,0 +1,217 @@
+.onboard-welcome,
+.onboard-checklist {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid #2e5960;
+  border-radius: 20px;
+  background:
+    radial-gradient(ellipse at 12% 8%, #174c51 0, transparent 48%),
+    linear-gradient(125deg, #0d2331 4%, #101b2b 57%, #0d1a28);
+  box-shadow: 0 22px 65px #030b1580, inset 0 1px #a3f8e718;
+}
+
+.onboard-welcome {
+  display: grid;
+  grid-template-columns: minmax(0, 1.12fr) minmax(300px, 0.88fr);
+  align-items: center;
+  gap: clamp(24px, 5vw, 80px);
+  padding: clamp(28px, 5vw, 70px);
+  min-height: 560px;
+}
+
+.onboard-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #70e5d3;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.45;
+  letter-spacing: 2px;
+}
+
+.onboard-welcome h1 {
+  max-width: 720px;
+  margin: 20px 0 22px;
+  font-size: clamp(36px, 4.4vw, 60px);
+  line-height: 1.06;
+  letter-spacing: -2.2px;
+  font-weight: 750;
+  text-wrap: balance;
+}
+
+.onboard-welcome-copy > p:not(.onboard-privacy) {
+  max-width: 570px;
+  font-size: clamp(15px, 1.2vw, 17px);
+  line-height: 1.8;
+  color: #b9ccdd;
+}
+
+.onboard-welcome-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.onboard-welcome-actions button,
+.onboard-checklist-intro > button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 11px;
+  min-height: 49px;
+  padding: 0 18px;
+  font-weight: 700;
+  border-radius: 10px;
+}
+
+.onboard-welcome-actions .primary,
+.onboard-checklist-intro > .primary {
+  box-shadow: 0 9px 32px #23d0b72b;
+}
+
+.onboard-welcome-actions button:hover:not(:disabled),
+.onboard-checklist-intro > button:hover:not(:disabled) {
+  transform: translateY(-2px);
+}
+
+.onboard-privacy {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  max-width: 520px;
+  margin-top: 26px;
+  color: #a7c3c7;
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+.onboard-privacy svg { flex: none; margin-top: 2px; color: #64d9c9; }
+
+.onboard-preview {
+  padding: clamp(22px, 3vw, 34px);
+  border: 1px solid #476b79;
+  border-radius: 16px;
+  background: #091724c7;
+  box-shadow: 0 20px 80px #02081266, inset 0 1px #d9fcf70d;
+}
+
+.onboard-preview-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 1.7px;
+  color: #9db9ca;
+}
+
+.onboard-preview-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #4ce4cd;
+  box-shadow: 0 0 18px #4ce4cd80;
+}
+
+.onboard-preview ol { list-style: none; padding: 14px 0 0; margin: 0; }
+
+.onboard-preview li {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 17px 0;
+  border-bottom: 1px solid #294353;
+}
+
+.onboard-preview-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 49px;
+  height: 49px;
+  border-radius: 13px;
+  background: #183b42;
+  border: 1px solid #2f6768;
+  color: #67e5d2;
+}
+
+.onboard-preview li strong,
+.onboard-checklist-steps li strong { display: block; font-size: 14px; font-weight: 700; }
+.onboard-preview li small,
+.onboard-checklist-steps li small { display: block; margin-top: 7px; font-size: 12px; line-height: 1.5; color: #9eb9ca; }
+.onboard-preview > p { margin-top: 18px; font-size: 12px; color: #a8bece; }
+
+.onboard-checklist {
+  display: grid;
+  grid-template-columns: minmax(0, 0.85fr) minmax(340px, 1.15fr);
+  gap: clamp(25px, 4vw, 58px);
+  padding: clamp(22px, 3.8vw, 40px);
+  margin-bottom: 25px;
+}
+
+.onboard-checklist h2 {
+  margin: 14px 0 10px;
+  font-size: clamp(23px, 2.2vw, 30px);
+  font-weight: 730;
+  line-height: 1.2;
+  text-wrap: balance;
+}
+
+.onboard-checklist-intro > p { max-width: 520px; font-size: 13px; color: #b7ced9; }
+
+.onboard-progress-label { display: flex; justify-content: space-between; gap: 12px; margin: 23px 0 9px; font-size: 11px; }
+.onboard-progress-label strong { color: #d6f5ef; }
+.onboard-progress-label span { color: #9db6c9; }
+
+.onboard-progress { height: 7px; border-radius: 999px; overflow: hidden; background: #24414b; }
+.onboard-progress > span { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, #31cdbb, #90f0d9); transition: width 350ms ease; }
+.onboard-checklist-intro .onboard-next-note { margin: 20px 0 15px; font-size: 12px; }
+
+.onboard-checklist-steps { display: grid; gap: 10px; list-style: none; padding: 0; margin: 0; }
+.onboard-checklist-steps li {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  border: 1px solid #34505d;
+  border-radius: 12px;
+  padding: 15px 16px;
+  background: #0d1e2bc9;
+  min-width: 0;
+  transition: background 180ms ease, border-color 180ms ease;
+}
+.onboard-checklist-steps li.is-complete { border-color: #346d66; background: #102e32b3; }
+.onboard-step-status { display: grid; flex: none; place-items: center; width: 43px; height: 43px; border-radius: 12px; background: #193448; color: #a2c6e5; }
+.is-complete .onboard-step-status { background: #19584f; color: #86f8e1; }
+.onboard-checklist-steps li > div { flex: 1; min-width: 0; }
+.onboard-step-count { color: #8fa7bd; font-size: 10px; letter-spacing: 1px; white-space: nowrap; }
+.is-complete .onboard-step-count { color: #6ae0c9; }
+
+@media (max-width: 1100px) {
+  .onboard-welcome { grid-template-columns: 1fr; min-height: 0; }
+  .onboard-preview { max-width: 700px; }
+  .onboard-checklist { grid-template-columns: 1fr; }
+}
+
+@media (max-width: 560px) {
+  .onboard-welcome { padding: 26px 20px; border-radius: 14px; }
+  .onboard-welcome h1 { font-size: clamp(33px, 9vw, 41px); letter-spacing: -1.4px; }
+  .onboard-welcome-actions { align-items: stretch; flex-direction: column; }
+  .onboard-welcome-actions button,
+  .onboard-checklist-intro > button { width: 100%; }
+  .onboard-preview { padding: 20px; }
+  .onboard-checklist { padding: 22px 18px; border-radius: 14px; }
+  .onboard-checklist-steps li { gap: 11px; padding: 12px; }
+  .onboard-step-count { font-size: 9px; }
+  .onboard-step-status { width: 38px; height: 38px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .onboard-welcome-actions button,
+  .onboard-checklist-intro > button,
+  .onboard-progress > span { transition: none; }
+  .onboard-welcome-actions button:hover:not(:disabled),
+  .onboard-checklist-intro > button:hover:not(:disabled) { transform: none; }
+}

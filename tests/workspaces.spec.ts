@@ -7,7 +7,7 @@ test('create real workspace, persist tasks/settings, invite teammate and enforce
  page.setDefaultNavigationTimeout(45_000);
  console.info('Workspace flow: opening deployment');
  if(process.env.TEAMFLOW_VERCEL_SHARE_FILE)await page.goto(JSON.parse(readFileSync(process.env.TEAMFLOW_VERCEL_SHARE_FILE,'utf8')).url);
- async function login(email:string){await page.goto('/overview');await page.getByLabel('Email address').fill(email);await page.getByLabel('Password',{exact:true}).fill(fixture.password);await page.getByRole('button',{name:'Sign in',exact:true}).click();await expect(page.getByRole('heading',{name:'Delivery overview'})).toBeVisible({timeout:60000});}
+ async function login(email:string){await page.goto('/overview');await page.getByLabel('Email address').fill(email);await page.getByLabel('Password',{exact:true}).fill(fixture.passwords?.[email] ?? fixture.password);await page.getByRole('button',{name:'Sign in',exact:true}).click();await expect(page.getByRole('heading',{name:'Delivery overview'})).toBeVisible({timeout:60000});}
  await login('asha@teamflow.demo');
  console.info('Workspace flow: authenticated');
  const origin=new URL(page.url()).origin;

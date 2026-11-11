@@ -41,8 +41,13 @@ import {
 } from "@/lib/api";
 import Login from "./login";
 import { AuditHistory } from "./audit-history";
+import { EmptyWorkspaceWelcome, WorkspaceChecklist } from "./onboarding";
+import { getDeliveryFocus, getDeliveryProgress } from "@/domain/delivery-guidance";
+import { dueState, sortTasksByAttention } from "@/domain/task-attention";
+import { JourneySteps } from './journey-steps';
 import { TaskManager } from "./task-manager";
-import { WorkspaceSetup, WorkspaceSettings } from './workspace-management';
+import { WorkspaceSetup } from './workspace-management';
+import { WorkspaceSettings } from './workspace-settings';
 import DependencyMap from "./dependency-map";
 import { Brand, Badge, Busy, Empty, Modal, statusLabels } from "./ui";
 import {
@@ -118,7 +123,9 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
     [notice, setNotice] = useState(""),
     [menu, setMenu] = useState(false);
   const [manageTask, setManageTask] = useState<string | null>(null);
+  const [receipt,setReceipt]=useState<{title:string;decision:string;workspace:string;proposal:string}|null>(null);
   const [workspaceSetup,setWorkspaceSetup]=useState(pathname==='/join');
+  const [setupMode,setSetupMode]=useState<'create'|'join'>(pathname==='/join'?'join':'create');
   const [taskId, setTaskId] = useState<string | null>(null),
     [riskId, setRiskId] = useState<string | null>(initialRiskId ?? null),
     [proposalId, setProposalId] = useState<string | null>(initialProposalId ?? null),
@@ -216,6 +223,11 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
     setBusy(true);
     await load(data?.project.id, graph?.selected_task_id ?? undefined);
   }
+  function openWorkspaceSetup(mode:'create'|'join'='create') {
+    setSetupMode(mode);
+    setWorkspaceSetup(true);
+    setMenu(false);
+  }
   function navigate(next: View) {
     router.push(next === "team" ? "/capacity" : `/${next}`);
     setMenu(false);
@@ -253,19 +265,18 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
       </div>
     );
   if (!user) return <Login onLogin={() => load()} initialError={error} />;
-  const activeRisks = risks.filter((r) => r.active),
+  const activeRisks = risks.filter((r) => r.active).sort((a,b)=>Number(a.stale_evidence)-Number(b.stale_evidence)||b.affected_task_ids.length-a.affected_task_ids.length||({high:3,medium:2,low:1}[b.severity]??0)-({high:3,medium:2,low:1}[a.severity]??0)),
     pending = proposals.filter((p) => p.status === "pending"),
     ready = pending.filter((p) => !p.stale);
   const lead = data?.project.role === "lead";
   const currentTask = data?.tasks.find((t) => t.id === taskId),
     currentRisk = risks.find((r) => r.id === riskId),
     currentProposal = proposals.find((p) => p.id === proposalId);
-  const shownTasks =
-    data?.tasks.filter(
+  const shownTasks = sortTasksByAttention(data?.tasks.filter(
       (t) =>
         (filter === "all" || t.status === filter) &&
         `${t.title} ${t.key}`.toLowerCase().includes(query.toLowerCase()),
-    ) ?? [];
+    ) ?? []);
   const shownRisks = risks.filter(
     (r) =>
       (filter === "all"
@@ -278,6 +289,36 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
         .includes(query.toLowerCase()),
   );
   const person = (id: string | null) => data?.members.find((m) => m.id === id);
+  const focus = data && graph ? getDeliveryFocus({
+    role: data.project.role,
+    tasks: data.tasks.length,
+    connections: graph.edges.length,
+    activeRisks: activeRisks.length,
+    pendingDecisions: ready.length,
+  }) : null;
+  const progress = getDeliveryProgress({ total: data?.counts.total ?? 0, done: data?.counts.done ?? 0 });
+  function openFocus() {
+    if (!focus) return;
+    switch (focus.kind) {
+      case "decision":
+        if (ready[0]) setProposalId(ready[0].id);
+        break;
+      case "risk":
+        if (activeRisks[0]) setRiskId(activeRisks[0].id);
+        break;
+      case "create-task":
+        setManageTask("new");
+        break;
+      case "connect-tasks":
+        setDependencyDialog(true);
+        break;
+      case "view-dependencies":
+        navigate("dependencies");
+        break;
+      default:
+        navigate("tasks");
+    }
+  }
   return (
     <div className="shell">
       <a href="#main" className="skip">
@@ -307,15 +348,15 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
             <X />
           </button>
         </div>
-        <div className="workspace-switch">
+        <button className="workspace-switch" onClick={() => openWorkspaceSetup('create')} aria-label="Create or join another workspace">
           <span className="workspace-emblem">{data?.project.name[0]??'T'}</span>
           <div>
             <strong>{data?.project.name??'Your workspace'}</strong>
             <small>Delivery workspace</small>
           </div>
           <ChevronRight size={15} />
-        </div>
-        <button className="nav-item" onClick={()=>{setMenu(false);setWorkspaceSetup(true);}}><Plus size={19}/>Create or join workspace</button>
+        </button>
+        <button className="nav-item" onClick={()=>openWorkspaceSetup()}><Plus size={19}/>New / join workspace</button>
         <span className="nav-label">WORKSPACE</span>
         <nav aria-label="Main navigation">
           {navigation.map((item) => (
@@ -400,9 +441,9 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
           <div className="topbar-right">
             <span className="environment">
               <i />
-              {integrations?.ai_provider === "gemini" ? "Supabase workspace" : "Local workspace"}
+              {data?.is_demo ? "Labeled demo" : "Saved workspace"}
             </span>
-            <div className="avatar-stack">
+            {data && data.members.length > 0 && <div className="avatar-stack">
               {data?.members.slice(0, 3).map((m, i) => (
                 <span
                   key={m.id}
@@ -412,10 +453,8 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                   {m.name[0]}
                 </span>
               ))}
-              <span className="team-count">
-                +{Math.max(0, (data?.members.length ?? 0) - 3)}
-              </span>
-            </div>
+              {data.members.length > 3 && <span className="team-count">+{data.members.length - 3}</span>}
+            </div>}
           </div>
         </header>
         <main id="main" tabIndex={-1} aria-busy={busy}>
@@ -439,7 +478,15 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
             </div>
           )}
           {!data || !graph || !integrations ? (
-            <section className="panel settings-panel"><h1>Start your team’s workspace</h1><p>Create an empty workspace for your real work, or accept an invitation from a teammate.</p><button className="primary" onClick={()=>setWorkspaceSetup(true)}>Create or join workspace</button></section>
+            projects.length ? (
+              <section className="panel settings-panel" aria-label="Workspace unavailable">
+                <h1>We couldn&apos;t open this workspace.</h1>
+                <p>Your projects are still listed. Retry loading the selected workspace; no changes have been made.</p>
+                <button className="primary" disabled={busy} onClick={refresh}>Retry workspace</button>
+              </section>
+            ) : (
+              <EmptyWorkspaceWelcome onCreate={()=>openWorkspaceSetup('create')} onJoin={()=>openWorkspaceSetup('join')} />
+            )
           ) : (
             <>
               <div className="heading">
@@ -478,8 +525,73 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                 <span>{data.fixture_label}</span>
               </div>
               <div className="view-content" key={view}>
+                {receipt&&receipt.workspace===data.project.id&&<section className="panel recovery-receipt" aria-label="Recovery decision recorded">
+                  <JourneySteps current={3}/><h2>{receipt.decision==='approve'?'Approved plan saved':'Proposal rejected — plan unchanged'}</h2><p>{receipt.title}</p><p>The decision is recorded in your workspace history. {receipt.decision==='approve'?'Check the updated task assignments and follow up on the source signal.':'No proposed changes were applied.'}</p>
+                  <div className="dialog-actions"><button className="primary" onClick={()=>{setReceipt(null);navigate('tasks');}}>View current plan</button><button className="secondary" onClick={()=>{setReceipt(null);navigate('audit');}}>View decision history</button><button className="text-link" onClick={()=>setReceipt(null)}>Dismiss receipt</button></div>
+                </section>}
                 {view === "overview" && (
                   <>
+                    {!data.is_demo && !activeRisks.length && (data.tasks.length < 2 || data.members.length < 2 || graph.edges.length === 0) && (
+                      <WorkspaceChecklist
+                        workspaceName={data.project.name}
+                        snapshot={{ tasks: data.tasks.length, members: data.members.length, connections: graph.edges.length }}
+                        canManage={lead}
+                        onCreateTask={()=>setManageTask('new')}
+                        onInviteTeam={()=>navigate('settings')}
+                        onConnectWork={()=>setDependencyDialog(true)}
+                        onOpenTasks={()=>navigate('tasks')}
+                        onOpenTeam={()=>navigate('team')}
+                        onOpenDependencies={()=>navigate('dependencies')}
+                        onOpenRisks={()=>navigate('risks')}
+                      />
+                    )}
+                    <section className="recovery-focus" aria-label="Your next action">
+                      <div className="recovery-focus-copy">
+                        <span className="section-kicker">{focus?.eyebrow}</span>
+                        <h2>{focus?.heading}</h2>
+                        <p>{focus?.description}</p>
+                        <div className="dialog-actions">
+                          <button className="primary" onClick={openFocus}>{focus?.action}<ArrowRight size={17}/></button>
+                          {ready.length > 0 && <button className="secondary" onClick={() => navigate("decisions")}>Open decision inbox</button>}
+                          {lead && data.is_demo && <button className="text-link" onClick={() => setDemo(true)}>Try a labeled demo scenario</button>}
+                        </div>
+                      </div>
+                      <div className="journey-explainer">
+                        <JourneySteps current={focus?.kind === "decision" ? 2 : 0}/>
+                        <p>Evidence starts the conversation. Your team reviews the impact. <strong>Only people approve changes.</strong></p>
+                      </div>
+                    </section>
+                    <section className="delivery-progress-panel" aria-label="Task completion progress">
+                      <div>
+                        <span className="section-kicker">LIVE PLAN PROGRESS</span>
+                        <h2>{progress.caption}</h2>
+                        <p>Based on saved task statuses. This is not a release-success forecast.</p>
+                      </div>
+                      <div className="delivery-progress-visual">
+                        <strong>{progress.percentage}%</strong>
+                        <div className="delivery-progress-track" role="progressbar" aria-label="Completed tasks" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress.percentage}>
+                          <span style={{width: `${progress.percentage}%`}}/>
+                        </div>
+                        {data.counts.total > 0 && (
+                          <div className="status-mix">
+                            <div className="status-mix-track" role="img" aria-label={Object.entries(statusLabels).map(([status, label]) => `${label}: ${data.counts[status] ?? 0}`).join(", ")}>
+                              {Object.keys(statusLabels).map((status) => (
+                                <span
+                                  key={status}
+                                  className={status}
+                                  style={{ width: `${Math.max(0, data.counts[status] ?? 0) / data.counts.total * 100}%` }}
+                                />
+                              ))}
+                            </div>
+                            <ul className="status-mix-legend" aria-label="Task breakdown">
+                              {Object.entries(statusLabels).map(([status, label]) => (
+                                <li key={status}><span className={`dot ${status}`} aria-hidden="true" />{label} · {data.counts[status] ?? 0}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+                      </div>
+                    </section>
                     <section className="stats" aria-label="Delivery statistics">
                       {[
                         {
@@ -602,19 +714,24 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                             </p>
                             <div className="readiness-line">
                               <Check size={17} />
-                              Dependency graph connected
+                              {graph.edges.length > 0 ? `${graph.edges.length} dependency connections saved` : "No dependency connections yet"}
                             </div>
                             <div className="readiness-line">
                               <Check size={17} />
                               Human approval enforced
                             </div>
-                            {lead && (
+                            {lead && data.is_demo && (
                               <button
                                 className="primary"
                                 onClick={() => setDemo(true)}
                               >
                                 <Play size={16} />
                                 Explore a demo scenario
+                              </button>
+                            )}
+                            {!data.is_demo && graph.edges.length === 0 && data.tasks.length >= 2 && (
+                              <button className="primary" onClick={() => setDependencyDialog(true)}>
+                                <GitBranch size={16} /> Connect your tasks
                               </button>
                             )}
                           </>
@@ -670,7 +787,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                         </div>
                         {pending.length ? (
                           <div className="decision-list">
-                            {pending.slice(0, 3).map((p) => (
+                            {[...ready,...pending.filter(p=>p.stale)].slice(0, 3).map((p) => (
                               <button
                                 key={p.id}
                                 onClick={() => setProposalId(p.id)}
@@ -745,15 +862,20 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                     </div>
                     {!shownRisks.length && (
                       <Empty
-                        title="No matching risks"
-                        description="Try another filter, or replay a labeled demo event to explore the workflow."
-                      />
+                        title={activeRisks.length || query || filter !== 'all' ? "No matching risk signals" : "No active risk signals"}
+                        description={activeRisks.length || query || filter !== 'all' ? "Try a different search or risk filter." : "A risk appears only when observed evidence meets a documented rule."}
+                      >
+                        {(query || filter !== 'all') && <button className="secondary" onClick={()=>{setQuery('');setFilter('all');}}>Clear risk filters</button>}
+                      </Empty>
                     )}
                   </section>
                 )}
                 {view === "tasks" && (
                   <>
-                    {lead && integrations?.ai_provider === "gemini" && <div className="section-actions"><button className="primary" onClick={() => setManageTask("new")}>Create task</button></div>}
+                    <div className="task-intro">
+                      <div><span className="section-kicker">YOUR TEAM&apos;S PLAN</span><h2>{data.tasks.length} saved {data.tasks.length === 1 ? "task" : "tasks"}</h2><p>Open a card to update status or propose a change. Work requiring attention appears first in each column.</p></div>
+                      {lead && integrations.ai_provider === "gemini" && <button className="primary" onClick={() => setManageTask("new")}><Plus size={17}/> Create task</button>}
+                    </div>
                     <div className="task-toolbar">
                       <SearchInput
                         value={query}
@@ -798,6 +920,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                         </button>
                       )}
                     </div>
+                    {board && <p className="mobile-board-hint">Swipe left or right to see all four columns. Switch to List for a compact task view.</p>}
                     {board ? (
                       <div className="kanban">
                         {Object.entries(statusLabels).map(([status, label]) => (
@@ -830,11 +953,15 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                                   <p>{t.description}</p>
                                   <footer>
                                     <span className="avatar small">
-                                      {person(t.owner_id)?.name[0]}
+                                      {person(t.owner_id)?.name[0] ?? "?"}
                                     </span>
-                                    <span>{person(t.owner_id)?.name}</span>
+                                    <span>{person(t.owner_id)?.name ?? "Unassigned"}</span>
                                     <span>{t.estimate_hours}h</span>
                                   </footer>
+                                  {t.due_at && <div className={`task-due ${dueState(t.due_at, t.status)}`}>
+                                    {dueState(t.due_at, t.status) === "overdue" ? "Overdue · " : "Due · "}
+                                    <time dateTime={t.due_at}>{new Date(t.due_at).toLocaleDateString(undefined, {month:"short",day:"numeric",year:"numeric"})}</time>
+                                  </div>}
                                 </button>
                               ))}
                             {!shownTasks.some((t) => t.status === status) && (
@@ -860,9 +987,12 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                     )}
                     {!shownTasks.length && (
                       <Empty
-                        title="No matching tasks"
-                        description="Try another title or clear your filters."
-                      />
+                        title={data.tasks.length ? "No tasks match these filters" : "Your task board is empty"}
+                        description={data.tasks.length ? "Clear the search or status filter to see all saved work." : "Create a task with an owner to begin tracking real delivery work."}
+                      >
+                        {data.tasks.length ? <button className="secondary" onClick={() => {setQuery("");setFilter("all");}}>Clear filters</button>
+                          : lead && integrations.ai_provider === "gemini" ? <button className="primary" onClick={() => setManageTask("new")}><Plus size={17}/> Create first task</button> : null}
+                      </Empty>
                     )}
                   </>
                 )}
@@ -876,13 +1006,14 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                       </div>
                       <button
                         className="secondary"
-                        disabled={data.project.role === "viewer"}
+                        disabled={data.project.role === "viewer" || data.tasks.length < 2}
                         onClick={() => setDependencyDialog(true)}
                       >
                         <Plus size={16} />
                         Propose dependency
                       </button>
                     </div>
+                    {data.tasks.length < 2 && <p className="field-help">Add at least two tasks before proposing a dependency.</p>}
                     <DependencyMap
                       graph={graph}
                       risks={risks}
@@ -970,9 +1101,11 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                       (p) => filter === "all" || p.status === filter,
                     ).length && (
                       <Empty
-                        title="Your queue is clear"
-                        description="Open a risk to generate a proposal, or propose a change from a task."
-                      />
+                        title={proposals.length ? "No proposals with this status" : "No proposals yet"}
+                        description={proposals.length ? "Switch the status filter to view other decisions." : "Open a risk to explore recovery options, or propose a protected change from a task."}
+                      >
+                        {proposals.length > 0 ? <button className="secondary" onClick={()=>setFilter('all')}>Show all proposals</button> : <button className="secondary" onClick={()=>navigate('risks')}>Open Risk Center</button>}
+                      </Empty>
                     )}
                   </section>
                 )}
@@ -1087,7 +1220,15 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                 )}
                 {view === "settings" && (
                   <div className="settings-grid">
-                    {integrations.ai_provider==='gemini'&&<WorkspaceSettings key={data.project.id} id={data.project.id} onSaved={refresh}/>}
+                    {integrations.ai_provider === 'gemini' ? (
+                      <WorkspaceSettings key={data.project.id} id={data.project.id} onSaved={refresh}/>
+                    ) : (
+                      <section className="panel settings-panel">
+                        <span className="section-kicker">LOCAL PROJECT</span>
+                        <h2>Workspace details</h2>
+                        <p>This legacy local project uses its original configuration. Team roles, invitations and tracked-branch rules can be managed in a TeamFlow Guard online workspace.</p>
+                      </section>
+                    )}
                     <section className="panel settings-panel">
                       <span className="section-kicker">CONNECTIONS</span>
                       <h2>Intelligence & evidence</h2>
@@ -1185,10 +1326,11 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
           }}
         />
       )}
-      {workspaceSetup&&<WorkspaceSetup displayName={user.name} onClose={()=>setWorkspaceSetup(false)} onSaved={async id=>{await load(id);router.push('/overview');}}/>}
-      {manageTask && data && <TaskManager data={data} task={data.tasks.find(t => t.id === manageTask)} onClose={() => setManageTask(null)} onSaved={refresh} />}
+      {workspaceSetup&&<WorkspaceSetup displayName={user.name} initialMode={setupMode} onClose={()=>setWorkspaceSetup(false)} onSaved={async id=>{await load(id);router.push('/overview');}}/>}
+      {manageTask && data && <TaskManager data={data} task={data.tasks.find(t => t.id === manageTask)} onClose={() => setManageTask(null)} onSaved={async action=>{await refresh();setNotice(action==='created'?'Task created and saved to your workspace.':action==='archived'?'Task archived. Your audit history is preserved.':'Task details saved.');}} />}
       {currentRisk && data && integrations && (
         <RiskDialog
+          key={currentRisk.id}
           risk={currentRisk}
           tasks={data.tasks}
           integrations={integrations}
@@ -1205,18 +1347,21 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
         <ProposalDialog
           proposal={currentProposal}
           data={data}
+          sourceRisk={risks.find(r=>r.id===currentProposal.risk_id)}
           onClose={() => setProposalId(null)}
-          onDecided={async () => {
+          onDecided={async (decision) => {
             await refresh();
+            setReceipt({title:currentProposal.title,decision,workspace:data.project.id,proposal:currentProposal.id});
             setNotice(
               "Decision recorded. The current plan and audit log are up to date.",
             );
           }}
         />
       )}
-      {dependencyDialog && data && (
+      {dependencyDialog && data && graph && (
         <DependencyDialog
           data={data}
+          graph={graph}
           onClose={() => setDependencyDialog(false)}
           onSaved={async () => {
             await refresh();
@@ -1231,7 +1376,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
           data={data}
           onClose={() => setDemo(false)}
           onReplay={async (kind, task) => {
-            await api(`/projects/${data.project.id}/demo-events`, {
+            const updatedRisks=await api<Risk[]>(`/projects/${data.project.id}/demo-events`, {
               method: "POST",
               body: JSON.stringify({
                 kind,
@@ -1241,7 +1386,8 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
             });
             await refresh();
             setDemo(false);
-            navigate("risks");
+            const signal=updatedRisks.find(r=>r.active&&r.evidence.kind===kind&&r.evidence.task_id===task);
+            if(signal)setRiskId(signal.id);else navigate('risks');
             setNotice(
               "Sample event replayed and labeled. Inspect the source in Risk Center.",
             );
@@ -1290,6 +1436,7 @@ function RiskRow({ risk, onClick }: { risk: Risk; onClick: () => void }) {
             hour: "2-digit",
             minute: "2-digit",
           })}
+          {risk.stale_evidence ? " · Evidence needs refresh" : ""}
         </p>
       </div>
       <Badge value={risk.active ? risk.severity : "resolved"} />
@@ -1306,9 +1453,9 @@ function DemoDialog({
   onClose: () => void;
   onReplay: (kind: string, task: string) => Promise<void>;
 }) {
-  const [kind, setKind] = useState("ci_failure"),
+  const [kind, setKind] = useState("capacity"),
     [task, setTask] = useState(
-      data.tasks.find((t) => t.key === "LOGIN-102")?.id ?? data.tasks[0].id,
+      data.tasks.find((t) => t.key === "LOGIN-210"&&t.status!=='done')?.id ?? data.tasks.find(t=>t.status!=='done')?.id ?? '',
     ),
     [busy, setBusy] = useState(false),
     [error, setError] = useState("");
@@ -1341,7 +1488,7 @@ function DemoDialog({
         <select value={kind} onChange={(e) => setKind(e.target.value)}>
           <option value="ci_failure">CI check fails</option>
           <option value="review_delay">PR review waits 48 hours</option>
-          <option value="capacity">Owner unavailable for two days</option>
+          <option value="capacity">Owner reports reduced availability for two days</option>
           <option value="ci_pass">CI check passes again</option>
         </select>
       </label>
@@ -1357,7 +1504,7 @@ function DemoDialog({
             ))}
         </select>
       </label>
-      <button className="primary" disabled={busy} onClick={run}>
+      <button className="primary" disabled={busy||!task} onClick={run}>
         {busy ? (
           <Busy text="Recording sample event…" />
         ) : (

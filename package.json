@@ -10,6 +10,7 @@
     "dev": "npm --prefix web run dev",
     "build": "npm --prefix web run build",
     "test:e2e": "playwright test",
+    "test:ux-mock": "node scripts/ux-smoke.cjs",
     "contracts": "openapi-typescript contracts/openapi.json -o web/lib/api-schema.d.ts"
   },
   "devDependencies": {

@@ -1,0 +1,46 @@
+import {test,expect} from '@playwright/test';
+import {readFileSync} from 'node:fs';
+const fixture=JSON.parse(readFileSync('.local/hosted-demo.json','utf8'));
+test('sample capacity signal to compared option, approval, persisted plan and audit',async({page},info)=>{
+ test.setTimeout(180000);page.setDefaultTimeout(30000);page.setDefaultNavigationTimeout(45000);
+ await page.emulateMedia({reducedMotion:'reduce'});
+ if(process.env.TEAMFLOW_VERCEL_SHARE_FILE)await page.goto(JSON.parse(readFileSync(process.env.TEAMFLOW_VERCEL_SHARE_FILE,'utf8')).url);
+ await page.goto('/overview');await page.getByLabel('Email address').fill('asha@teamflow.demo');await page.getByLabel('Password',{exact:true}).fill(fixture.passwords?.['asha@teamflow.demo']??fixture.password);await page.getByRole('button',{name:'Sign in',exact:true}).click();
+ await expect(page.getByRole('heading',{name:'Delivery overview'})).toBeVisible({timeout:60000});
+ console.info('Journey: signed in');await page.getByLabel('Project',{exact:true}).selectOption(fixture.workspace);
+ await expect(page.getByRole('region',{name:'Your next action'})).toBeVisible();
+ console.info('Journey: starting sample');await page.getByRole('button',{name:'Try a labeled sample scenario'}).click();
+ await page.getByRole('combobox',{name:'Scenario',exact:true}).selectOption('capacity');
+ await page.getByRole('combobox',{name:'Linked task',exact:true}).selectOption(fixture.tasks['LOGIN-210']);
+ await page.getByRole('button',{name:'Replay event',exact:true}).click();
+ await expect(page.getByRole('dialog',{name:'Risk evidence & recovery'})).toBeVisible();
+ await expect(page.getByText('Labeled sample event',{exact:true})).toBeVisible();
+ const base=`/api/projects/${fixture.workspace}`;
+ const read=async(path:string)=>{const response=await page.request.get(path);expect(response.ok()).toBeTruthy();return response.json();};
+ const before=await read(base+'/dashboard');
+ await page.screenshot({path:`evidence/journey-impact-${info.project.name}.png`,fullPage:true});
+ await page.getByRole('button',{name:'Compare recovery options',exact:true}).click();
+ await expect(page.getByRole('region',{name:'Recovery alternatives'})).toBeVisible();
+ // An outage must leave evidence and deterministic alternatives usable.
+ await page.route('**/api/risks/*/analyze?mode=gemini',route=>route.fulfill({status:503,contentType:'application/json',body:JSON.stringify({message:'Gemini is temporarily unavailable or busy. Retry shortly, or use a rule-based suggestion.'})}));
+ const ai=page.getByRole('button',{name:'Analyze with Gemini'});
+ if(await ai.isEnabled()){await ai.click();await expect(page.getByText('Gemini is temporarily unavailable or busy.',{exact:false})).toBeVisible();}
+ await page.getByRole('dialog').evaluate(el=>el.scrollTop=0);await page.screenshot({path:`evidence/journey-options-${info.project.name}.png`,fullPage:true});
+ await page.getByRole('button',{name:/^Review move ownership/i}).click();
+ const dialog=page.getByRole('dialog',{name:'Review recovery proposal'});await expect(dialog).toBeVisible();
+ await expect(dialog.getByText('Rule-based suggestion · no AI call',{exact:true})).toBeVisible();
+ const pending=await read(base+'/dashboard');expect(pending.tasks).toEqual(before.tasks);expect(pending.plan_version).toBe(before.plan_version);
+ await page.screenshot({path:`evidence/journey-review-${info.project.name}.png`,fullPage:true});
+ await page.getByRole('button',{name:'Approve & apply',exact:true}).click();
+ await expect(page.getByRole('region',{name:'Recovery decision recorded'})).toBeVisible();
+ await expect(page.getByRole('heading',{name:'Approved plan saved'})).toBeVisible();
+ const after=await read(base+'/dashboard');expect(after.plan_version).toBe(before.plan_version+1);
+ const task=(data:typeof before)=>data.tasks.find((t:{id:string})=>t.id===fixture.tasks['LOGIN-210']);expect(task(after).owner_id).not.toBe(task(before).owner_id);
+ await page.getByRole('button',{name:'View decision history',exact:true}).click();
+ await expect(page.getByRole('region',{name:'Audit history'})).toBeVisible();
+ await page.reload();expect((await read(base+'/dashboard')).tasks).toEqual(after.tasks);
+ const audit=await read(base+'/audit?limit=25');expect(audit.items.some((a:{kind:string;plan_version:number})=>a.kind==='proposal.approved'&&a.plan_version===after.plan_version)).toBe(true);
+ await page.goto('/overview');await expect(page.getByRole('region',{name:'Your next action'})).toBeVisible();
+ expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true);
+ await page.screenshot({path:`evidence/journey-overview-${info.project.name}.png`,fullPage:true});
+});
