@@ -45,6 +45,7 @@ import {
 } from "@/lib/api";
 import Login from "./login";
 import { DashboardHero, WorkspaceLoader } from "./brand-motion";
+import { DashboardAnalytics, DashboardTeam, WorkspaceSearch } from "./premium-dashboard";
 import { AuditHistory } from "./audit-history";
 import { EmptyWorkspaceWelcome, WorkspaceChecklist } from "./onboarding";
 import { downstream } from "@/domain/graph";
@@ -477,6 +478,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
               ))}
             </select>
           </div>
+          {data&&<WorkspaceSearch key={data.project.id} data={data} risks={risks} onTask={setTaskId} onRisk={setRiskId} onPerson={()=>navigate("team")} onDependency={id=>{selectTask(id);navigate("dependencies");}}/>}
           <div className="topbar-right">
             <span className="environment">
               <i />
@@ -571,42 +573,31 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                 </section>}
                 {view === "overview" && (
                   <>
-                    <DashboardHero/>
+                    <DashboardHero demoAction={data.is_demo&&lead?"Replay demo scenario":projects.some(p=>p.is_demo&&p.id!==data.project.id)?"Open demo workspace":"Explore dependencies"} onDemo={()=>{if(data.is_demo&&lead){setDemo(true);return;}const sample=projects.find(p=>p.is_demo&&p.id!==data.project.id);if(sample)switchWorkspace(sample.id);else navigate("dependencies");}} onGithub={()=>openConnections("github")} githubLinked={Boolean(integrations.github_repository)}/>
+                    <section className="stats premium-stats" aria-label="Delivery statistics">
+                      {[
+                        {label:"Delivery risks",value:activeRisks.length,icon:TriangleAlert,note:activeRisks.length?"Active evidence signals":"No active risk signals",color:"red",target:"risks"},
+                        {label:"Approval queue",value:pending.length,icon:Inbox,note:`${ready.length} ready for review`,color:"amber",target:"decisions"},
+                        {label:"Active tasks",value:data.tasks.filter(t=>t.status!=="done").length,icon:CheckCheck,note:`${data.counts.blocked} blocked · ${data.counts.in_progress} in progress`,color:"teal",target:"tasks"},
+                        {label:"Team capacity",value:`${data.members.reduce((sum,m)=>sum+m.available_hours,0)}h`,icon:Users,note:`${data.members.length} teammates · shared hours`,color:"blue",target:"team"},
+                      ].map(metric=><button key={metric.label} className={`stat ${metric.color}`} onClick={()=>navigate(metric.target as View)}><div><span>{metric.label}</span><metric.icon size={19}/></div><strong>{metric.value}</strong><small>{metric.note}<ArrowUpRight size={14}/></small><span className="metric-signal" aria-hidden="true"/></button>)}
+                    </section>
                     <section className="connection-launchpad" aria-label="Workspace connection shortcuts">
                       <button onClick={()=>openConnections("team")}><span className="connection-icon"><Users size={23}/></span><span><strong>Connect your team</strong><small>{data.members.length} {data.members.length===1?"member":"members"} · Invite by email</small></span><ArrowUpRight size={18}/></button>
                       <button onClick={()=>openConnections("github")}><span className="connection-icon"><Github size={23}/></span><span><strong>{integrations.github_repository?"GitHub repository":"Connect GitHub project"}</strong><small>{integrations.github_repository??"Link your code and see CI activity"}</small></span><ArrowUpRight size={18}/></button>
                       {data.is_demo&&<button onClick={()=>setDemo(true)} disabled={!lead}><span className="connection-icon"><Play size={23}/></span><span><strong>Guided demo</strong><small>{lead?"Replay a sample with your team":"Ask a workspace lead to replay"}</small></span><ArrowUpRight size={18}/></button>}
                     </section>
-                    {!data.is_demo && !activeRisks.length && (data.tasks.length < 2 || data.members.length < 2 || graph.edges.length === 0) && (
-                      <WorkspaceChecklist
-                        workspaceName={data.project.name}
-                        snapshot={{ tasks: data.tasks.length, members: data.members.length, connections: graph.edges.length }}
-                        canManage={lead}
-                        onCreateTask={()=>setManageTask('new')}
-                        onInviteTeam={()=>openConnections('team')}
-                        onConnectWork={()=>setDependencyDialog(true)}
-                        onOpenTasks={()=>navigate('tasks')}
-                        onOpenTeam={()=>navigate('team')}
-                        onOpenDependencies={()=>navigate('dependencies')}
-                        onOpenRisks={()=>navigate('risks')}
-                      />
-                    )}
-                    <section className="recovery-focus" aria-label="Your next action">
-                      <div className="recovery-focus-copy">
-                        <span className="section-kicker">{focus?.eyebrow}</span>
-                        <h2>{focus?.heading}</h2>
-                        <p>{focus?.description}</p>
-                        <div className="dialog-actions">
-                          <button className="primary" onClick={openFocus}>{focus?.action}<ArrowRight size={17}/></button>
-                          {ready.length > 0 && <button className="secondary" onClick={() => navigate("decisions")}>Open decision inbox</button>}
-                          {lead && data.is_demo && <button className="text-link" onClick={() => setDemo(true)}>Try a labeled demo scenario</button>}
-                        </div>
-                      </div>
-                      <div className="journey-explainer">
-                        <JourneySteps current={focus?.kind === "decision" ? 2 : 0}/>
-                        <p>Evidence starts the conversation. Your team reviews the impact. <strong>Only people approve changes.</strong></p>
-                      </div>
-                    </section>
+                    <div className="premium-overview-grid">
+                      <DependencyMap key={data.project.id} graph={graph} risks={risks} members={data.members} onSelect={selectTask} onOpen={()=>navigate("dependencies")}/>
+                      <section className="panel premium-risk-insights" aria-label="Risk insights">
+                        <div className="panel-head"><div><span className="section-kicker">DELIVERY INTELLIGENCE</span><h2>Risk insights</h2></div><button className="text-link" onClick={()=>navigate("risks")}>View all <ArrowRight size={15}/></button></div>
+                        {activeRisks.length?<div className="premium-risk-list">{activeRisks.slice(0,3).map(r=><RiskRow key={r.id} risk={r} onClick={()=>setRiskId(r.id)}/>)}</div>:<div className="premium-clear"><ShieldCheck size={28}/><strong>No active risk signals</strong><p>New evidence will appear here when a risk rule is met.</p></div>}
+                        <div className="premium-recommendation"><Sparkles size={21}/><div><strong>Recommended next step</strong><p>{focus?.description}</p><button className="secondary" onClick={openFocus}>{focus?.action} <ArrowRight size={15}/></button></div></div>
+                        <p className="premium-approval-note"><ShieldCheck size={15}/> Human approval required for plan changes.</p>
+                      </section>
+                      <DashboardTeam data={data} onManage={()=>navigate("team")} onInvite={()=>openConnections("team")}/>
+                    </div>
+                    <div className="premium-analytics-grid">
                     <section className="delivery-progress-panel" aria-label="Task completion progress">
                       <div>
                         <span className="section-kicker">LIVE PLAN PROGRESS</span>
@@ -638,159 +629,40 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                         )}
                       </div>
                     </section>
-                    <section className="stats" aria-label="Delivery statistics">
-                      {[
-                        {
-                          label: "Active risks",
-                          value: activeRisks.length,
-                          icon: TriangleAlert,
-                          note: activeRisks.length
-                            ? "Signals requiring attention"
-                            : "No active risk signals",
-                          color: "red",
-                          target: "risks",
-                        },
-                        {
-                          label: "Blocked tasks",
-                          value: data.counts.blocked,
-                          icon: Columns3,
-                          note: `${data.counts.in_progress} tasks in progress`,
-                          color: "amber",
-                          target: "tasks",
-                        },
-                        {
-                          label: "Pending decisions",
-                          value: ready.length,
-                          icon: Inbox,
-                          note: ready.length
-                            ? "Ready for human review"
-                            : "Your decision queue is clear",
-                          color: "teal",
-                          target: "decisions",
-                        },
-                        {
-                          label: "Completed tasks",
-                          value: data.counts.done,
-                          icon: CheckCheck,
-                          note: `of ${data.counts.total} tasks in the plan`,
-                          color: "blue",
-                          target: "tasks",
-                        },
-                      ].map((s) => (
-                        <button
-                          className={`stat ${s.color}`}
-                          key={s.label}
-                          onClick={() => {
-                            navigate(s.target as View);
-                            if (s.label === "Blocked tasks")
-                              setFilter("blocked");
-                          }}
-                        >
-                          <div>
-                            <span>{s.label}</span>
-                            <s.icon size={20} />
-                          </div>
-                          <strong>{String(s.value).padStart(2, "0")}</strong>
-                          <small>
-                            {s.note}
-                            <ArrowUpRight size={14} />
-                          </small>
-                        </button>
-                      ))}
-                    </section>
-                    <div className="overview-grid">
-                      <DependencyMap
-                        graph={graph}
-                        risks={risks}
-                        onSelect={selectTask}
-                        onOpen={() => navigate("dependencies")}
-                      />
-                      <section className="panel insight">
-                        <div className="insight-head">
-                          <span className="insight-icon">
-                            <Sparkles size={21} />
-                          </span>
-                          <span className="section-kicker">
-                            RECOVERY ASSISTANT
-                          </span>
-                          {activeRisks[0] && (
-                            <Badge value={activeRisks[0].severity} />
-                          )}
-                        </div>
-                        {activeRisks[0] ? (
-                          <>
-                            <h2>
-                              Turn a signal into{" "}
-                              <br />a clear next step.
-                            </h2>
-                            <p>{activeRisks[0].evidence.title}</p>
-                            <div className="insight-evidence">
-                              <FileText size={18} />
-                              <div>
-                                <strong>Source evidence attached</strong>
-                                <small>
-                                  {["seed", "replay"].includes(activeRisks[0].evidence.origin)
-                                    ? "Replayed sample · "
-                                    : ""}
-                                  {activeRisks[0].affected_task_ids.length}{" "}
-                                  downstream tasks
-                                </small>
-                              </div>
-                            </div>
-                            <p className="insight-reason">
-                              {activeRisks[0].reason}
-                            </p>
-                            <button
-                              className="primary"
-                              onClick={() => setRiskId(activeRisks[0].id)}
-                            >
-                              Review risk & recovery
-                              <ArrowRight size={17} />
-                            </button>
-                          </>
-                        ) : (
-                          <>
-                            <h2>
-                              A clear view.{" "}
-                              <br />A calmer delivery.
-                            </h2>
-                            <p>
-                              No active risk signals have been recorded. Your
-                              task plan is ready for the next update.
-                            </p>
-                            <div className="readiness-line">
-                              <Check size={17} />
-                              {graph.edges.length > 0 ? `${graph.edges.length} dependency connections saved` : "No dependency connections yet"}
-                            </div>
-                            <div className="readiness-line">
-                              <Check size={17} />
-                              Human approval enforced
-                            </div>
-                            {lead && data.is_demo && (
-                              <button
-                                className="primary"
-                                onClick={() => setDemo(true)}
-                              >
-                                <Play size={16} />
-                                Explore a demo scenario
-                              </button>
-                            )}
-                            {!data.is_demo && graph.edges.length === 0 && data.tasks.length >= 2 && (
-                              <button className="primary" onClick={() => setDependencyDialog(true)}>
-                                <GitBranch size={16} /> Connect your tasks
-                              </button>
-                            )}
-                          </>
-                        )}
-                        <div className="human-note">
-                          <ShieldCheck size={16} />
-                          <span>
-                            Suggestions only. You approve every protected
-                            change.
-                          </span>
-                        </div>
-                      </section>
+
+                      <DashboardAnalytics data={data} risks={activeRisks}/>
                     </div>
+                    {!data.is_demo && !activeRisks.length && (data.tasks.length < 2 || data.members.length < 2 || graph.edges.length === 0) && (
+                      <WorkspaceChecklist
+                        workspaceName={data.project.name}
+                        snapshot={{ tasks: data.tasks.length, members: data.members.length, connections: graph.edges.length }}
+                        canManage={lead}
+                        onCreateTask={()=>setManageTask('new')}
+                        onInviteTeam={()=>openConnections('team')}
+                        onConnectWork={()=>setDependencyDialog(true)}
+                        onOpenTasks={()=>navigate('tasks')}
+                        onOpenTeam={()=>navigate('team')}
+                        onOpenDependencies={()=>navigate('dependencies')}
+                        onOpenRisks={()=>navigate('risks')}
+                      />
+                    )}
+                    <section className="recovery-focus" aria-label="Your next action">
+                      <div className="recovery-focus-copy">
+                        <span className="section-kicker">{focus?.eyebrow}</span>
+                        <h2>{focus?.heading}</h2>
+                        <p>{focus?.description}</p>
+                        <div className="dialog-actions">
+                          <button className="primary" onClick={openFocus}>{focus?.action}<ArrowRight size={17}/></button>
+                          {ready.length > 0 && <button className="secondary" onClick={() => navigate("decisions")}>Open decision inbox</button>}
+                          {lead && data.is_demo && <button className="text-link" onClick={() => setDemo(true)}>Try a labeled demo scenario</button>}
+                        </div>
+                      </div>
+                      <div className="journey-explainer">
+                        <JourneySteps current={focus?.kind === "decision" ? 2 : 0}/>
+                        <p>Evidence starts the conversation. Your team reviews the impact. <strong>Only people approve changes.</strong></p>
+                      </div>
+                    </section>
+
                     <div className="lower-grid">
                       <section className="panel">
                         <div className="panel-head">

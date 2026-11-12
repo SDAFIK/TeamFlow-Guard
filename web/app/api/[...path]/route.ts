@@ -96,9 +96,9 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       return answer({ id: user.id, email: user.email ?? "", name: data?.name ?? "Member" });
     }
     if (path[0] === "projects" && path.length === 1 && request.method === "GET") {
-      const { data, error } = await client.from("tf_memberships").select("workspace_id,role,tf_workspaces(name)").eq("user_id", user.id);
+      const { data, error } = await client.from("tf_memberships").select("workspace_id,role,tf_workspaces(name,is_demo)").eq("user_id", user.id);
       if (error) databaseError(error);
-      return answer((data ?? []).map(row => ({ id: row.workspace_id, role: uiRole(row.role), name: (row.tf_workspaces as unknown as { name: string }).name })));
+      return answer((data ?? []).map(row => ({ id: row.workspace_id, role: uiRole(row.role), name: (row.tf_workspaces as unknown as { name: string }).name, is_demo: (row.tf_workspaces as unknown as { is_demo: boolean }).is_demo })));
     }
     if (path[0] === "projects" && path.length >= 2) {
       if (path[2] === "audit" && path.length === 3 && request.method === "GET" && request.nextUrl.searchParams.has("limit")) {

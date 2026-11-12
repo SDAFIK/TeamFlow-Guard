@@ -129,6 +129,14 @@ async function run(viewport, role="lead") {
     await page.getByRole("region",{name:"TeamFlow Guard brand hero"}).getByText("See risks early. Keep humans in control.",{exact:true}).waitFor();
     await page.getByRole("region",{name:"Workspace connection shortcuts"}).getByRole("button",{name:/Connect your team/}).waitFor();
     await page.getByRole("region",{name:"Workspace connection shortcuts"}).getByRole("button",{name:/Connect GitHub project/}).waitFor();
+    await page.getByRole("region",{name:"TeamFlow Guard brand hero"}).getByRole("button",{name:"Connect GitHub",exact:true}).waitFor();
+    await page.getByRole("region",{name:"Delivery statistics"}).getByText("Delivery risks",{exact:true}).waitFor();
+    await page.getByRole("region",{name:"Team collaboration"}).getByText("Jin (mock)",{exact:true}).waitFor();
+    await page.getByRole("region",{name:"Risk category breakdown"}).waitFor();
+    await page.getByRole("button",{name:"Search workspace",exact:true}).click();
+    await page.getByRole("searchbox",{name:"Search tasks, teammates and risks"}).fill("APP-101");
+    await page.getByRole("dialog",{name:"Search workspace"}).getByText("APP-101 · Plan the first sprint",{exact:true}).waitFor();
+    await page.getByRole("button",{name:"Close dialog",exact:true}).click();
     await page.getByRole("button",{name:"Recent team activity",exact:true}).click();
     await page.getByRole("dialog",{name:"Recent team activity"}).getByText("Workspace created (simulated)").waitFor();
     await page.getByRole("button",{name:"Close activity",exact:true}).click();

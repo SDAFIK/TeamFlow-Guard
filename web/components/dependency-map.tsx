@@ -94,7 +94,7 @@ export default function DependencyMap({
       id: `${edge.predecessor_id}-${edge.successor_id}`,
       source: edge.predecessor_id,
       target: edge.successor_id,
-      type: "smoothstep",
+      type: "default",
       animated: Boolean(onImpactPath),
       markerEnd: { type: MarkerType.ArrowClosed, color },
       style: {

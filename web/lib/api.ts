@@ -1,7 +1,7 @@
 import type { components } from "./api-schema";
 export type Overview = components["schemas"]["Overview"];
 export type Person = components["schemas"]["Person"];
-export type Project = components["schemas"]["ProjectSummary"];
+export type Project = components["schemas"]["ProjectSummary"] & { is_demo?: boolean };
 export type Task = components["schemas"]["TaskView"];
 export type Graph = components["schemas"]["GraphView"];
 export type Risk = components["schemas"]["RiskView"];
