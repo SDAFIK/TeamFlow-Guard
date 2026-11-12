@@ -13,6 +13,7 @@ import { auditPage } from "@/server/audit-page";
 import { buildRecoveryOptions } from "@/domain/recovery-options";
 import { recentPublicRuns, verifyPublicRepository } from "@/server/github-public";
 import { githubAppConfig, bindingForWorkspace, githubAppReady, appRepositoryActivity } from "@/server/github-app";
+import { workspaceCIMappings } from "@/server/github-evidence";
 import { invitationEmailConfigured, invitationURL, sendInvitationEmail, type InvitationEmailStatus } from "@/server/invitation-email";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -118,6 +119,12 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
           case "audit": return answer(state.audit);
           case "integrations": { const bound = appBinding(); return answer({ ai_configured: configured(), ai_provider: "gemini", ai_model: process.env.GEMINI_MODEL ?? null, github_configured: Boolean(bound || state.workspace.github_repository) || state.evidence.some(e => e.origin === 'github'), github_repository: bound?.repository ?? state.workspace.github_repository, github_app_bound: Boolean(bound), github_evidence_imported: state.evidence.some(e => e.origin === 'github'), mode: state.workspace.is_demo ? "demo" : "manual" }); }
           case "settings": return answer({...state.workspace,my_role:state.role,members:state.members,invitation_email_configured:!state.workspace.is_demo && invitationEmailConfigured(inviteEmailConfig)});
+          case "github-readiness": {
+            const bound=appBinding();
+            const rows=bound?workspaceCIMappings(process.env.TEAMFLOW_GITHUB_CI_MAPPINGS,id):[];
+            const mappings=rows.map(m=>{const task=state.tasks.find(t=>t.id===m.task_id);return {workflow_id:m.workflow_id,task_id:m.task_id,task_key:task?.key??null,task_title:task?.title??null,valid:Boolean(task)};});
+            return answer({repository:bound?.repository??state.workspace.github_repository,app_bound:Boolean(bound),app_credentials:Boolean(bound&&githubAppReady(appConfig)),webhook_configured:Boolean(bound&&appConfig.webhookSecret?.trim()),ingestion_configured:Boolean(bound&&process.env.TEAMFLOW_GITHUB_INGEST_KEY?.trim()),mappings,tracked_branch:state.workspace.tracked_branch,email_configured:!state.workspace.is_demo&&invitationEmailConfigured(inviteEmailConfig),is_demo:state.workspace.is_demo});
+          }
           case "github": {
             const bound = appBinding();
             if (bound) {
