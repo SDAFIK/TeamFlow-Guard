@@ -1,5 +1,11 @@
 # Phase progress
 
+## Stage 5 — team collaboration, 12 November 2026 (review branch)
+
+- Added optional server-only Resend delivery after the existing authorized invite RPC. No provider configuration or live delivery; demo workspaces never send email. Provider acceptance is not inbox delivery, and failures retain the manual private link.
+- Added searchable members, explicit renewal of expired/revoked invitations with fresh tokens, a recent saved audit activity modal and improved visible-workspace polling (20 seconds, not WebSocket realtime). Pending invitations must be revoked before renewal; no old token is recovered or stored in plaintext.
+- Added focused unit tests for configuration, canonical URL, recipient, idempotency and failure handling. GitHub CI and authenticated browser acceptance are release gates; no test success claimed before results. No paid resources, production schema or deployment changes.
+
 ## Stage 4 — team invitations, public GitHub linking and dependency map, 11 November 2026
 
 - Added a server-validated public-repository link with per-workspace role checks, version-checked audited Supabase RPC migration, read-only GitHub Actions summaries, and explicit handling for unavailable/private repositories. It does not authorize private GitHub repositories or import CI data as risk evidence.

@@ -1,5 +1,7 @@
 # TeamFlow Guard
 
+**Stage 5 review branch:** Optional direct transactional invitation email, manual delivery fallback, renewal of expired/revoked invitations, searchable team members, and a saved team-activity feed. See [Stage 5 review notes](docs/STAGE5_TEAM_COLLABORATION.md). Direct email requires an authorized provider and verified sender; not live or enabled by default.
+
 **Stage 4 review build:** Improved public GitHub linking, email invitation sharing and dependency navigation are included in source. The GitHub link requires a reviewed Supabase schema migration before deployment; see [Stage 4 release notes](docs/STAGE4_TEAM_GITHUB_GRAPH.md). Public GitHub Actions are read-only, and invitation emails are sent through the user's own mail client—not automatically by the app.
 
 The current release uses Next.js route handlers, Supabase Auth/Postgres with RLS, and an optional Gemini recovery adviser. Vercel Hobby is the selected host. The previous FastAPI/PostgreSQL implementation and its local data remain preserved below.

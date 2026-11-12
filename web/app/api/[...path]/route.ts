@@ -12,6 +12,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { auditPage } from "@/server/audit-page";
 import { buildRecoveryOptions } from "@/domain/recovery-options";
 import { recentPublicRuns, verifyPublicRepository } from "@/server/github-public";
+import { invitationEmailConfigured, invitationURL, sendInvitationEmail, type InvitationEmailStatus } from "@/server/invitation-email";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -112,7 +113,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
           case "proposals": return answer(state.proposals);
           case "audit": return answer(state.audit);
           case "integrations": return answer({ ai_configured: configured(), ai_provider: "gemini", ai_model: process.env.GEMINI_MODEL ?? null, github_configured: Boolean(state.workspace.github_repository) || state.evidence.some(e => e.origin === 'github'), github_repository: state.workspace.github_repository, github_evidence_imported: state.evidence.some(e => e.origin === 'github'), mode: state.workspace.is_demo ? "demo" : "manual" });
-          case "settings": return answer({...state.workspace,my_role:state.role,members:state.members});
+          case "settings": return answer({...state.workspace,my_role:state.role,members:state.members,invitation_email_configured:!state.workspace.is_demo && invitationEmailConfigured(process.env)});
           case "github": {
             const repository = state.workspace.github_repository;
             if (!repository) return answer({ connected: false, repository: null, runs: [], warning: null });
@@ -150,10 +151,17 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
         return answer({ repository: result.data.github_repository, plan_version: result.data.plan_version });
       }
       if(path[2]==='invitations' && path.length===3 && request.method==='POST') {
-        const input=z.object({email:z.email().max(254),role:z.enum(['manager','member','viewer'])}).strict().parse(body);
+        const input=z.object({email:z.email().max(254),role:z.enum(['manager','member','viewer']),send_email:z.boolean().default(false)}).strict().parse(body);
         const token=randomBytes(32).toString('hex');
-        const invitation=await workspaceWrite(id,'invite',{...input,token_hash:createHash('sha256').update(token).digest('hex')});
-        return answer({...invitation,token});
+        const invitation=await workspaceWrite(id,'invite',{email:input.email,role:input.role,token_hash:createHash('sha256').update(token).digest('hex')});
+        // Only after the RPC authorizes and commits the email-bound invitation. Demo data never sends mail.
+        let email_status: InvitationEmailStatus = "not_requested";
+        if(input.send_email) {
+          email_status = state.workspace.is_demo ? "not_configured" : await sendInvitationEmail({
+            id:invitation.id,email:invitation.email,role:input.role,workspace:state.workspace.name,token,
+          },process.env);
+        }
+        return answer({...invitation,token,invite_url:invitationURL(token,process.env),email_status});
       }
       if(path[2]==='invitations' && path[4]==='revoke' && request.method==='POST') return answer(await workspaceWrite(id,'revoke_invite',{invite_id:z.uuid().parse(path[3])}));
       if(path[2]==='members' && path[4]==='role' && request.method==='PUT') {
