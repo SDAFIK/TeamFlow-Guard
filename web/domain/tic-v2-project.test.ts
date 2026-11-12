@@ -1,0 +1,8 @@
+import {it,expect} from "vitest";
+import {projectIntelligence} from "./tic-v2-project";
+const t=(id:string,h:number,status="todo")=>({id,key:id,title:id,status,owner_id:"u",estimate_hours:h,due_at:null});
+const input={tasks:[t("a",3),t("b",7),t("c",2),t("done",99,"done")],edges:[{predecessor_id:"a",successor_id:"b"},{predecessor_id:"b",successor_id:"c"},{predecessor_id:"done",successor_id:"a"}],evidence:[],members:[],trackedBranch:"main",threshold:24,now:new Date("2026-11-13T00:00:00Z"),role:"viewer",planVersion:4};
+it("computes longest unfinished effort path and excludes completed work",()=>{const x=projectIntelligence(input);expect(x.critical_effort_path).toEqual(["a","b","c"]);expect(x.critical_effort_hours).toBe(12);expect(x.tasks[0].unfinished_predecessors).toEqual([]);expect(x.controls.can_request_recovery).toBe(false);});
+it("does not add parallel branches together",()=>{const x=projectIntelligence({...input,edges:[{predecessor_id:"a",successor_id:"c"},{predecessor_id:"b",successor_id:"c"}]});expect(x.critical_effort_hours).toBe(9);});
+it("reports deadline proxy and manager control without changing input",()=>{const x=projectIntelligence({...input,role:"owner",tasks:input.tasks.map(t=>t.id==="c"?{...t,due_at:"2026-11-13T04:00:00Z"}:t)});expect(x.tasks.find(t=>t.task_id==="c")?.deadline_slack_proxy_hours).toBe(-8);expect(x.controls.can_approve).toBe(true);expect(input.tasks[2].due_at).toBeNull();});
+it("rejects cycles and foreign edges",()=>{expect(()=>projectIntelligence({...input,edges:[...input.edges,{predecessor_id:"c",successor_id:"a"}]})).toThrow();expect(()=>projectIntelligence({...input,edges:[{predecessor_id:"foreign",successor_id:"a"}]})).toThrow();});
