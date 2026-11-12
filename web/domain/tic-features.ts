@@ -30,7 +30,7 @@ export function taskIntelligence(input:Input,taskId:string) {
     }
   }
   // No PR-review event is not evidence that the wait is zero.
-  const reviews=related.filter(e=>e.kind==="review_delay"&&e.active&&validTime(e,now)&&e.payload.state==="open"&&e.payload.is_draft===false&&Boolean(e.payload.reviewer_id));
+  const reviews=related.filter(e=>e.kind==="review_delay"&&e.active&&validTime(e,now)&&(e.payload.ingestion!=="github-review-reconciliation"||(e.payload.branch===input.trackedBranch&&e.payload.review_status==="waiting"))&&e.payload.state==="open"&&e.payload.is_draft===false&&Boolean(e.payload.reviewer_id));
   const reviewTimes=reviews.map(e=>Date.parse(String(e.payload.review_requested_at))).filter(t=>Number.isFinite(t)&&t<=now);
   const reviewHours=reviewTimes.length?hours(now-Math.min(...reviewTimes)):null;
   if(reviewHours===null)missing.push("observed_open_review");

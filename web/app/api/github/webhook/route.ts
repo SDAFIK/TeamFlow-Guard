@@ -1,7 +1,9 @@
 import { githubAppConfig, validWebhookSignature, webhookMatchesBinding } from "@/server/github-app";
 import { mappedCI, ingestCI } from "@/server/github-evidence";
+import { mappedReviewEvent, reconcileReview, validDeliveryId } from "@/server/github-review-evidence";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 export async function POST(request:Request) {
   const config=githubAppConfig();
   if(!config.webhookSecret?.trim())return new Response(null,{status:503});
@@ -22,9 +24,17 @@ export async function POST(request:Request) {
   try{payload=JSON.parse(raw.toString("utf8"));}catch{return new Response(null,{status:400});}
   try{if(!webhookMatchesBinding(config,event,payload))return new Response(null,{status:204});}catch{return new Response(null,{status:503});}
   try {
-    const ci=mappedCI(config,process.env.TEAMFLOW_GITHUB_CI_MAPPINGS,event,payload);
-    if(!ci)return new Response(null,{status:204});
-    await ingestCI(ci);
+    if(event==="workflow_run"){
+      const ci=mappedCI(config,process.env.TEAMFLOW_GITHUB_CI_MAPPINGS,event,payload);
+      if(!ci)return new Response(null,{status:204});
+      await ingestCI(ci);
+      return new Response(null,{status:202});
+    }
+    const review=mappedReviewEvent(config,process.env.TEAMFLOW_GITHUB_REVIEW_MAPPINGS,event,payload);
+    if(!review)return new Response(null,{status:204});
+    const delivery=request.headers.get("x-github-delivery");
+    if(!validDeliveryId(delivery))return new Response(null,{status:400});
+    await reconcileReview(config,review,delivery!);
     return new Response(null,{status:202});
   }catch{return new Response(null,{status:503});}
 }

@@ -1,5 +1,5 @@
 import { createSign, createHmac, timingSafeEqual } from "node:crypto";
-import { reviewObservation, type ReviewMapping } from "./github-review-observation";
+import { reviewObservation, reviewStateFingerprint, type ReviewMapping } from "./github-review-observation";
 import { repositorySlug, type PublicRun } from "./github-public";
 export type AppBinding = {workspace_id:string;installation_id:number;repository_id:number;repository:string};
 export type AppConfig = {appId?:string;privateKey?:string;bindings?:string;webhookSecret?:string};
@@ -59,7 +59,7 @@ export async function appRepositoryActivity(c:AppConfig,w:string,branch:string,t
   const pr=val(1);
   const pulls:Pull[]=Array.isArray(pr)?pr.slice(0,5).flatMap(v=>{const r=obj(v);return positive(r.number)?[{number:r.number,title:txt(r.title)||"Pull request",draft:r.draft===true,updated_at:txt(r.updated_at,60),html_url:"https://github.com/"+slug+"/pull/"+r.number}]:[];}):[];
   const dr=val(2);
-  const deliveries:Delivery[]=Array.isArray(dr)?dr.flatMap(v=>{const r=obj(v);return r.installation_id===b.installation_id&&r.repository_id===b.repository_id&&positive(r.id)&&positive(r.status_code)&&["workflow_run","pull_request"].includes(String(r.event))?[{id:r.id,event:txt(r.event,50),action:txt(r.action,50)||null,status_code:r.status_code,delivered_at:txt(r.delivered_at,60)}]:[];}).slice(0,5):[];
+  const deliveries:Delivery[]=Array.isArray(dr)?dr.flatMap(v=>{const r=obj(v);return r.installation_id===b.installation_id&&r.repository_id===b.repository_id&&positive(r.id)&&positive(r.status_code)&&["workflow_run","pull_request","pull_request_review"].includes(String(r.event))?[{id:r.id,event:txt(r.event,50),action:txt(r.action,50)||null,status_code:r.status_code,delivered_at:txt(r.delivered_at,60)}]:[];}).slice(0,5):[];
   return {runs,pulls,deliveries,warning:jobs.some(j=>j.status==="rejected")?"Some GitHub activity is temporarily unavailable.":null,observed_at:new Date().toISOString()};
 }
 export function validWebhookSignature(raw:Uint8Array,sig:string|null,secret?:string){
@@ -67,7 +67,7 @@ export function validWebhookSignature(raw:Uint8Array,sig:string|null,secret?:str
   return timingSafeEqual(createHmac("sha256",secret).update(raw).digest(),Buffer.from(sig.slice(7),"hex"));
 }
 export function webhookMatchesBinding(c:AppConfig,event:string,payload:unknown){
-  if(!["workflow_run","pull_request"].includes(event))return false;
+  if(!["workflow_run","pull_request","pull_request_review"].includes(event))return false;
   const p=obj(payload), i=obj(p.installation), r=obj(p.repository);
   return parseBindings(c.bindings).some(b=>b.installation_id===i.id&&b.repository_id===r.id);
 }
@@ -80,7 +80,12 @@ export async function appReviewObservation(c:AppConfig,w:string,branch:string,ma
   const token=minted.token,slug=b.repository;
   const repo=obj(await github("/repos/"+slug,token,transport));
   if(repo.id!==b.repository_id||typeof repo.full_name!=="string"||repo.full_name.toLowerCase()!==slug.toLowerCase())throw Error("GitHub repository identity changed.");
-  const pull=await github("/repos/"+slug+"/pulls/"+mapping.pull_number,token,transport);
+  // Capture observation order before reading GitHub; a slow older request must not overwrite a newer one.
+  const now=new Date();
+  const pullPath="/repos/"+slug+"/pulls/"+mapping.pull_number;
+  const pull=await github(pullPath,token,transport);
   const timeline=await github("/repos/"+slug+"/issues/"+mapping.pull_number+"/timeline?per_page=100",token,transport);
-  return reviewObservation({mapping,repositoryId:b.repository_id,repository:slug,branch,pull,timeline,now:new Date()});
+  const current=await github(pullPath,token,transport);
+  if(reviewStateFingerprint(pull)!==reviewStateFingerprint(current))throw Error("GitHub review changed during observation; retry.");
+  return reviewObservation({mapping,repositoryId:b.repository_id,repository:slug,branch,pull,timeline,now});
 }

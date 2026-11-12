@@ -11,7 +11,7 @@ import { configured } from "@/server/gemini";
 import { allowedOrigin, authRedirectOrigin } from "@/server/origin";
 import { createHash, randomBytes } from "node:crypto";
 import { auditPage } from "@/server/audit-page";
-import { buildRecoveryOptions } from "@/domain/recovery-options";
+import { buildRecoveryOptions, githubReviewReviewer } from "@/domain/recovery-options";
 import { recentPublicRuns, verifyPublicRepository } from "@/server/github-public";
 import { githubAppConfig, bindingForWorkspace, githubAppReady, appRepositoryActivity, appReviewObservation } from "@/server/github-app";
 import { workspaceCIMappings } from "@/server/github-evidence";
@@ -154,7 +154,8 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
             const bound=appBinding();
             const rows=bound?workspaceCIMappings(process.env.TEAMFLOW_GITHUB_CI_MAPPINGS,id):[];
             const mappings=rows.map(m=>{const task=state.tasks.find(t=>t.id===m.task_id);return {workflow_id:m.workflow_id,task_id:m.task_id,task_key:task?.key??null,task_title:task?.title??null,valid:Boolean(task)};});
-            return answer({repository:bound?.repository??state.workspace.github_repository,app_bound:Boolean(bound),app_credentials:Boolean(bound&&githubAppReady(appConfig)),webhook_configured:Boolean(bound&&appConfig.webhookSecret?.trim()),ingestion_configured:Boolean(bound&&process.env.TEAMFLOW_GITHUB_INGEST_KEY?.trim()),mappings,tracked_branch:state.workspace.tracked_branch,email_configured:!state.workspace.is_demo&&invitationEmailConfigured(inviteEmailConfig),is_demo:state.workspace.is_demo});
+            const review_mappings=bound?reviewMappings(process.env.TEAMFLOW_GITHUB_REVIEW_MAPPINGS,id).map(m=>({pull_number:m.pull_number,task_id:m.task_id,reviewer_id:m.reviewer_id,valid:state.tasks.some(t=>t.id===m.task_id)&&state.members.some(u=>u.id===m.reviewer_id&&u.role!=="viewer")})):[];
+            return answer({repository:bound?.repository??state.workspace.github_repository,app_bound:Boolean(bound),app_credentials:Boolean(bound&&githubAppReady(appConfig)),webhook_configured:Boolean(bound&&appConfig.webhookSecret?.trim()),ingestion_configured:Boolean(bound&&process.env.TEAMFLOW_GITHUB_INGEST_KEY?.trim()),mappings,review_mappings,tracked_branch:state.workspace.tracked_branch,email_configured:!state.workspace.is_demo&&invitationEmailConfigured(inviteEmailConfig),is_demo:state.workspace.is_demo});
           }
           case "github": {
             const bound = appBinding();
@@ -258,7 +259,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       const state = await snapshot(client, await scopedWorkspace(client, "tf_evidence", riskId));
       const risk = risksFor(state.tasks,state.edges,state.evidence,state.members,state.workspace.review_threshold_hours,new Date(),state.workspace.tracked_branch).find(r=>r.id===riskId);
       if (!risk?.active || risk.stale_evidence) throw new HttpError(409,"Risk evidence is resolved or stale. Refresh the source first.");
-      return answer({ options: buildRecoveryOptions(state.tasks,state.edges,state.members,risk.evidence.task_id,risk.evidence.kind), plan_version: state.workspace.plan_version });
+      return answer({ options: buildRecoveryOptions(state.tasks,state.edges,state.members,risk.evidence.task_id,risk.evidence.kind,Date.now(),githubReviewReviewer(risk.evidence)), plan_version: state.workspace.plan_version });
     }
     if (path[0] === "risks" && path[2] === "analyze" && request.method === "POST") {
       const riskId = z.uuid().parse(path[1]); const id = await scopedWorkspace(client, "tf_evidence", riskId);

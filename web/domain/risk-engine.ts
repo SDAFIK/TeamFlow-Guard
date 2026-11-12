@@ -14,6 +14,7 @@ export function detectRisk(e: EvidenceRecord, task: RiskTask, affected: number, 
   }
   if (e.kind === "dependency" && task.status === "blocked") return { severity: high, reason: `${task.key} is explicitly blocked; ${affected} unfinished downstream tasks.` };
   if (e.kind === "review_delay") {
+    if(e.payload.ingestion==="github-review-reconciliation"&&(e.payload.review_status!=="waiting"||e.payload.branch!==e.payload.tracked_branch))return null;
     if (e.payload.state !== "open" || e.payload.is_draft !== false || !e.payload.reviewer_id) return null;
     const requested = Date.parse(String(e.payload.review_requested_at));
     const hours = (now.getTime() - requested) / 3_600_000;
@@ -33,8 +34,8 @@ export function risksFor(tasks: RiskTask[], edges: Edge[], evidence: EvidenceRec
     const task = tasks.find(t => t.id === e.task_id);
     if (!task) return [];
     const affected = downstream(tasks.map(t => t.id), edges, task.id).filter(id => tasks.find(t => t.id === id)?.status !== "done");
-    const source=trackedBranch&&e.kind==='ci_failure'?{...e,payload:{...e.payload,tracked_branch:trackedBranch}}:e;
+    const source=trackedBranch&&(e.kind==='ci_failure'||(e.kind==='review_delay'&&e.payload.ingestion==='github-review-reconciliation'))?{...e,payload:{...e.payload,tracked_branch:trackedBranch}}:e;
     const finding = detectRisk(source, task, affected.length, members.find(m => m.id === task.owner_id), now, threshold);
-    return [{ id: e.id, severity: finding?.severity ?? "low", reason: finding?.reason ?? "This source no longer meets the risk rule.", affected_task_ids: affected, active: Boolean(finding), evidence: e, stale_evidence: now.getTime() - Date.parse(e.observed_at) > 72 * 3_600_000 }];
+    return [{ id: e.id, severity: finding?.severity ?? "low", reason: finding?.reason ?? (e.payload.review_status==="unknown_history" ? "Review history is uncertain; refresh GitHub evidence before acting." : "This source no longer meets the risk rule."), affected_task_ids: affected, active: Boolean(finding), evidence: e, stale_evidence: now.getTime() - Date.parse(e.observed_at) > 72 * 3_600_000 }];
   }).sort((a, b) => Number(b.active) - Number(a.active));
 }

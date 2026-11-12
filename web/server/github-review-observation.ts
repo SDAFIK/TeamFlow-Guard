@@ -4,16 +4,20 @@ const mapping=z.object({workspace_id:z.uuid(),pull_number:positive,task_id:z.uui
 export type ReviewMapping=z.infer<typeof mapping>;
 export function reviewMappings(raw:string|undefined,workspace:string){
   const rows=z.array(mapping).max(100).parse(JSON.parse(raw||"[]")).filter(m=>m.workspace_id.toLowerCase()===workspace.toLowerCase());
-  if(new Set(rows.map(m=>m.pull_number+":"+m.github_reviewer_id)).size!==rows.length)throw Error("Duplicate review mapping");
+  if(new Set(rows.map(m=>m.pull_number)).size!==rows.length||new Set(rows.map(m=>m.task_id.toLowerCase())).size!==rows.length)throw Error("Duplicate review mapping");
   return rows;
 }
-const prSchema=z.object({number:positive,state:z.enum(["open","closed"]),draft:z.boolean(),base:z.object({ref:z.string(),repo:z.object({id:positive})}),requested_reviewers:z.array(z.object({id:positive}))});
+const prSchema=z.object({number:positive,state:z.enum(["open","closed"]),draft:z.boolean(),updated_at:z.string().optional(),base:z.object({ref:z.string().min(1).max(255),repo:z.object({id:positive})}),requested_reviewers:z.array(z.object({id:positive}))});
+export function reviewStateFingerprint(value:unknown){
+  const p=prSchema.parse(value);
+  return JSON.stringify([p.number,p.state,p.draft,p.base.ref,p.base.repo.id,p.updated_at??null,p.requested_reviewers.map(r=>r.id).sort((a,b)=>a-b)]);
+}
 const eventSchema=z.object({event:z.string(),created_at:z.string().optional(),requested_reviewer:z.object({id:positive}).nullable().optional()});
 export function reviewObservation(input:{mapping:ReviewMapping;repositoryId:number;repository:string;branch:string;pull:unknown;timeline:unknown;now:Date}){
   const {mapping:m,repositoryId,repository,branch,now}=input;
   const p=prSchema.parse(input.pull);
   if(p.number!==m.pull_number||p.base.repo.id!==repositoryId)throw Error("PR identity mismatch");
-  const base={task_id:m.task_id,reviewer_id:m.reviewer_id,pull_number:m.pull_number,source_url:"https://github.com/"+repository+"/pull/"+m.pull_number,observed_at:now.toISOString(),review_requested_at:null as string|null,waiting_hours:null as number|null};
+  const base={task_id:m.task_id,reviewer_id:m.reviewer_id,pull_number:m.pull_number,github_reviewer_id:m.github_reviewer_id,target_branch:p.base.ref,pr_state:p.state,is_draft:p.draft,source_url:"https://github.com/"+repository+"/pull/"+m.pull_number,observed_at:now.toISOString(),review_requested_at:null as string|null,waiting_hours:null as number|null};
   if(p.base.ref!==branch)return {...base,status:"unrelated_branch" as const};
   if(p.state!=="open"||p.draft)return {...base,status:"inactive" as const};
   if(!p.requested_reviewers.some(r=>r.id===m.github_reviewer_id))return {...base,status:"not_requested" as const};
