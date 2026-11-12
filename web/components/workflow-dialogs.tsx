@@ -622,67 +622,38 @@ export function DependencyDialog({
     </Modal>
   );
 }
+function localDate(value:Date):string{
+ const y=value.getFullYear(),m=String(value.getMonth()+1).padStart(2,"0"),d=String(value.getDate()).padStart(2,"0");
+ return y+"-"+m+"-"+d;
+}
+function initialAvailabilityDate(value:string|null|undefined,fallback:Date):string{
+ const date=value?new Date(value):fallback;
+ return localDate(Number.isFinite(date.getTime())?date:fallback);
+}
 export function AvailabilityForm({
-  member,
-  projectId,
-  onSaved,
-  dated = false,
-}: {
-  member: Member;
-  projectId: string;
-  onSaved: () => Promise<void>;
-  dated?: boolean;
-}) {
-  const [start, setStart] = useState(() => new Date().toISOString().slice(0,10));
-  const [end, setEnd] = useState(() => new Date(Date.now()+2*86400000).toISOString().slice(0,10));
-  const [hours, setHours] = useState(member.available_hours),
-    [pending, setPending] = useState(false),
-    [error, setError] = useState("");
-  async function save() {
-    setPending(true);
-    setError("");
-    try {
-      await api(`/projects/${projectId}/availability`, {
-        method: "PUT",
-        body: JSON.stringify({ hours, ...(dated ? {start_at:new Date(start+"T00:00:00").toISOString(),end_at:new Date(end+"T00:00:00").toISOString()} : {}) }),
-      });
-      await onSaved();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setPending(false);
-    }
-  }
-  return (
-    <div className="availability-form">
-      <div>
-        <h3>Your available hours</h3>
-        <p>Voluntary planning availability. No private reason is collected.</p>
-      </div>
-      <label className="sr-only" htmlFor="hours">
-        Available hours
-      </label>
-      <input
-        id="hours"
-        type="number"
-        min={0}
-        max={80}
-        value={hours}
-        onChange={(e) => setHours(Number(e.target.value))}
-      />
-      <button
-        className="secondary"
-        disabled={pending || (!dated && hours === member.available_hours) || (dated && (!start || !end || end <= start))}
-        onClick={save}
-      >
-        {pending ? <Busy /> : "Save availability"}
-      </button>
-      {dated && <><label>From (your timezone)<input type="date" value={start} onChange={e=>setStart(e.target.value)}/></label><label>Until (exclusive)<input type="date" value={end} onChange={e=>setEnd(e.target.value)}/></label></>}
-      {error && (
-        <div className="error" role="alert">
-          {error}
-        </div>
-      )}
-    </div>
-  );
+ member,projectId,onSaved,dated=false,
+}: {member:Member & {availability_start?:string|null;availability_end?:string|null};projectId:string;onSaved:()=>Promise<void>;dated?:boolean}) {
+ const [start,setStart]=useState(()=>initialAvailabilityDate(member.availability_start,new Date()));
+ const [end,setEnd]=useState(()=>{const d=new Date();d.setDate(d.getDate()+2);return initialAvailabilityDate(member.availability_end,d);});
+ const [hours,setHours]=useState(String(member.available_hours)),[pending,setPending]=useState(false),[error,setError]=useState("");
+ const amount=Number(hours),validHours=hours.trim()!==""&&Number.isInteger(amount)&&amount>=0&&amount<=80;
+ const validRange=!dated||(Boolean(start)&&Boolean(end)&&end>start);
+ async function save(event:React.FormEvent<HTMLFormElement>){
+  event.preventDefault();if(pending||!validHours||!validRange)return;
+  setPending(true);setError("");
+  try{
+   await api(`/projects/${projectId}/availability`,{method:"PUT",body:JSON.stringify({hours:amount,...(dated?{start_at:new Date(start+"T00:00:00").toISOString(),end_at:new Date(end+"T00:00:00").toISOString()}:{})})});
+   await onSaved();
+  }catch(e){setError((e as Error).message);}finally{setPending(false);}
+ }
+ return <form className="availability-form release-availability" onSubmit={save} aria-label="Your planning availability">
+  <div className="availability-copy"><span className="section-kicker">VOLUNTARY CAPACITY</span><h3>Your available hours</h3><p>Share planning hours for a date range. No private reason or activity tracking is collected.</p></div>
+  <div className="availability-fields">
+   <label htmlFor="hours">Available hours<input id="hours" type="number" min={0} max={80} step={1} required value={hours} disabled={pending} onChange={e=>setHours(e.target.value)}/></label>
+   {dated&&<><label>From (local date)<input type="date" value={start} required disabled={pending} onChange={e=>setStart(e.target.value)}/></label><label>Until (exclusive)<input type="date" value={end} min={start||undefined} required disabled={pending} onChange={e=>setEnd(e.target.value)}/></label></>}
+   <button className="primary" type="submit" disabled={pending||!validHours||!validRange||(!dated&&amount===member.available_hours)}>{pending?<Busy/>:"Save availability"}</button>
+  </div>
+  {!validRange&&<p className="field-help" role="status">Choose an end date after the start date.</p>}
+  {error&&<div className="error" role="alert">{error}</div>}
+ </form>;
 }
