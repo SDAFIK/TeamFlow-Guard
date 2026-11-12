@@ -30,7 +30,16 @@ describe("optional invitation delivery", () => {
     const body = JSON.parse(String(init?.body));
     expect(body.to).toEqual([invite.email]);
     expect(body.text).toContain("/join#" + invite.token);
-    expect(body.html).toBeUndefined();
+    expect(body.html).toContain("Join workspace");
+    expect(body.html).toContain("/join#" + invite.token);
+    expect(body.html).toContain("WORKSPACE INVITATION");
+  });
+  it("escapes workspace names instead of inserting untrusted markup",async()=>{
+    const transport=vi.fn<typeof fetch>().mockResolvedValue(new Response("{}",{status:200}));
+    await sendInvitationEmail({...invite,workspace:"<img src=x onerror=alert(1)>"},config,transport);
+    const body=JSON.parse(String(transport.mock.calls[0][1]?.body));
+    expect(body.html).toContain("&lt;img");
+    expect(body.html).not.toContain("<img src=x");
   });
   it("preserves the invitation on provider rejection or a network failure", async () => {
     const transport = vi.fn<typeof fetch>().mockResolvedValue(new Response("rate limited", { status: 429 }));

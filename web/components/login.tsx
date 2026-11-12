@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ShieldCheck, ArrowRight, Users, LockKeyhole, Check } from "lucide-react";
 import { Brand } from "./ui";
 import { api } from "@/lib/api";
@@ -15,14 +15,19 @@ export default function Login({
     [error, setError] = useState(initialError),
     [busy, setBusy] = useState(false);
   const [register,setRegister]=useState(false),[message,setMessage]=useState('');
+  const [resendUntil,setResendUntil]=useState(0),[clock,setClock]=useState(0);
+  const remaining=Math.max(0,Math.ceil((resendUntil-clock)/1000));
+  useEffect(()=>{if(!resendUntil)return;const timer=window.setInterval(()=>setClock(Date.now()),1000);return()=>window.clearInterval(timer);},[resendUntil]);
+  function startCooldown(){const now=Date.now();setClock(now);setResendUntil(now+60_000);}
   async function resendConfirmation(){
-    if(busy)return;
+    if(busy||remaining>0)return;
     if(!email.trim()){setError("Enter the email address you registered with first.");return;}
     setBusy(true);setError("");setMessage("");
     try {
       const result=await api<{message:string}>("/auth/resend-confirmation",{method:"POST",body:JSON.stringify({email:email.trim()})});
       setMessage(result.message);
-    }catch(e){setError((e as Error).message);}
+      startCooldown();
+    }catch(e){setError((e as Error).message);if((e as {status?:number}).status===429)startCooldown();}
     finally{setBusy(false);}
   }
   async function submit(e: React.FormEvent) {
@@ -34,7 +39,7 @@ export default function Login({
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
-      if(register)setMessage(result.message??'Check your email to confirm your account.');else await onLogin();
+      if(register){setMessage(result.message??'Check your email to confirm your account.');startCooldown();}else await onLogin();
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -108,7 +113,7 @@ export default function Login({
             <ArrowRight size={17} />
           </button>
           <button className="text-link" type="button" onClick={()=>{setRegister(!register);setError('');setMessage('');}}>{register?'Already have an account? Sign in':'New here? Create an account'}</button>
-          <button className="text-link" type="button" disabled={busy} onClick={()=>void resendConfirmation()}>Resend confirmation email</button>
+          <div className="confirmation-help"><p>Didn’t receive your verification email? Check spam or request a fresh link. Use the newest email.</p><button className="text-link" type="button" disabled={busy||remaining>0} onClick={()=>void resendConfirmation()}>{remaining>0?`Resend available in ${remaining}s`:"Resend confirmation email"}</button></div>
           <div className="login-note">
             <LockKeyhole size={17} />
             <span>
