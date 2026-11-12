@@ -1,11 +1,12 @@
 -- Phase 5B: isolated service-only review observations. No plan, task, or proposal writes.
 create table teamflow_private.tf_review_deliveries (
  workspace_id uuid not null references public.tf_workspaces(id),
- delivery_id uuid not null, task_id uuid not null, repository text not null,
+ delivery_id uuid not null, task_id uuid not null, reviewer_id uuid not null, repository text not null,
  pull_number bigint not null, github_reviewer_id bigint not null,
  evidence_id uuid, recorded_at timestamptz not null default now(),
  primary key(workspace_id,delivery_id),
  foreign key(workspace_id,task_id) references public.tf_tasks(workspace_id,id),
+ foreign key(workspace_id,reviewer_id) references public.tf_memberships(workspace_id,user_id),
  foreign key(workspace_id,evidence_id) references public.tf_evidence(workspace_id,id)
 );
 alter table teamflow_private.tf_review_deliveries enable row level security;
@@ -54,7 +55,7 @@ begin
  select q.key into task_key from public.tf_tasks q where q.workspace_id=w and q.id=t and not q.archived;
  select * into receipt from teamflow_private.tf_review_deliveries d where d.workspace_id=w and d.delivery_id=ingest_github_review.delivery_id;
  if found then
-  if receipt.task_id<>t or receipt.repository<>repo or receipt.pull_number<>pull_number or receipt.github_reviewer_id<>github_reviewer_id then
+  if receipt.task_id<>t or receipt.reviewer_id<>reviewer or receipt.repository<>repo or receipt.pull_number<>pull_number or receipt.github_reviewer_id<>github_reviewer_id then
    raise exception 'Delivery mapping changed' using errcode='40001';
   end if;
   return jsonb_build_object('status','duplicate','evidence_id',receipt.evidence_id);
@@ -84,8 +85,8 @@ begin
    result_status:='recorded';
   end if;
  end if;
- insert into teamflow_private.tf_review_deliveries(workspace_id,delivery_id,task_id,repository,pull_number,github_reviewer_id,evidence_id)
- values(w,delivery_id,t,repo,pull_number,github_reviewer_id,eid);
+ insert into teamflow_private.tf_review_deliveries(workspace_id,delivery_id,task_id,reviewer_id,repository,pull_number,github_reviewer_id,evidence_id)
+ values(w,delivery_id,t,reviewer,repo,pull_number,github_reviewer_id,eid);
  return jsonb_build_object('status',result_status,'evidence_id',eid);
 end $$;
 revoke all on function teamflow_private.ingest_github_review(uuid,uuid,uuid,text,bigint,bigint,uuid,text,text,text,timestamptz,timestamptz,text,boolean) from public,anon,authenticated;

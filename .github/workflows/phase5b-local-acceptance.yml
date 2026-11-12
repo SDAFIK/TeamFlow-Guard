@@ -1,0 +1,58 @@
+name: Phase 5B isolated review acceptance
+on:
+  push:
+    branches: [codex/tic-risk-model]
+    paths:
+      - '.github/workflows/phase5b-local-acceptance.yml'
+      - 'scripts/stage8-auth-e2e.cjs'
+      - 'scripts/fixtures/mock-github-review.cjs'
+      - 'web/server/github-*.ts'
+      - 'web/app/api/**'
+      - 'web/domain/**'
+      - 'supabase/migrations/**'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: phase5b-local-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  authenticated-local:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - name: Install application and browser
+        working-directory: web
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Start disposable local Supabase (no hosted project)
+        run: |
+          mkdir -p "$RUNNER_TEMP/teamflow-stage8"
+          cd "$RUNNER_TEMP/teamflow-stage8"
+          npx --yes supabase@2.79.0 init
+          mkdir -p supabase/migrations
+          cp "$GITHUB_WORKSPACE"/supabase/migrations/*.sql supabase/migrations/
+          touch supabase/seed.sql
+          npx --yes supabase@2.79.0 start > "$RUNNER_TEMP/stage8-supabase-start.log" 2>&1 || { tail -n 25 "$RUNNER_TEMP/stage8-supabase-start.log"; exit 1; }
+          npx --yes supabase@2.79.0 status -o env > "$RUNNER_TEMP/stage8-local.env"
+          node -e 'const fs=require("fs"); const lines=fs.readFileSync(process.argv[1],"utf8").split(/\r?\n/); const v={}; for(const line of lines){const i=line.indexOf("=");if(i>0)v[line.slice(0,i)]=line.slice(i+1).replace(/^"|"$/g,"");} const u=new URL(v.API_URL); if(!["127.0.0.1","localhost"].includes(u.hostname)||u.port!=="54321")throw Error("Not local"); const values={STAGE8_LOCAL_SUPABASE_URL:v.API_URL,STAGE8_LOCAL_ANON_KEY:v.ANON_KEY||v.PUBLISHABLE_KEY,STAGE8_LOCAL_SERVICE_ROLE:v.SERVICE_ROLE_KEY||v.SECRET_KEY};for(const [k,x] of Object.entries(values)){if(!x||/[\r\n]/.test(x))throw Error("Missing local config "+k);if(k!=="STAGE8_LOCAL_SUPABASE_URL")console.log("::add-mask::"+x);fs.appendFileSync(process.env.GITHUB_ENV,k+"="+x+"\n");}' "$RUNNER_TEMP/stage8-local.env"
+          rm -f "$RUNNER_TEMP/stage8-local.env"
+      - name: Authenticated browser and signed CI/review fixture journey
+        env:
+          NODE_PATH: ${{ github.workspace }}/web/node_modules
+        run: node scripts/stage8-auth-e2e.cjs
+      - name: Stop disposable Supabase
+        if: always()
+        run: |
+          if [ -d "$RUNNER_TEMP/teamflow-stage8/supabase" ]; then
+            cd "$RUNNER_TEMP/teamflow-stage8"
+            npx --yes supabase@2.79.0 stop --no-backup
+          fi
