@@ -126,9 +126,17 @@ async function run(viewport, role="lead") {
     await page.getByRole("region",{name:"Your next action"}).waitFor();
     await page.getByRole("progressbar",{name:"Completed tasks"}).waitFor();
     await page.getByRole("region",{name:"TeamFlow Guard brand hero"}).waitFor();
-    const hero=page.getByRole("img",{name:"TeamFlow Guard — See risks early. Keep humans in control."});
-    await hero.waitFor();
-    await page.waitForFunction(()=>{const img=document.querySelector(".brand-hero-art");return img&&img.complete&&img.naturalWidth>0;});
+    await page.getByRole("region",{name:"TeamFlow Guard brand hero"}).getByText("See risks early. Keep humans in control.",{exact:true}).waitFor();
+    await page.getByRole("region",{name:"Workspace connection shortcuts"}).getByRole("button",{name:/Connect your team/}).waitFor();
+    await page.getByRole("region",{name:"Workspace connection shortcuts"}).getByRole("button",{name:/Connect GitHub project/}).waitFor();
+    await page.getByRole("region",{name:"TeamFlow Guard brand hero"}).getByRole("button",{name:"Connect GitHub",exact:true}).waitFor();
+    await page.getByRole("region",{name:"Delivery statistics"}).getByText("Delivery risks",{exact:true}).waitFor();
+    await page.getByRole("region",{name:"Team collaboration"}).getByText("Jin (mock)",{exact:true}).waitFor();
+    await page.getByRole("region",{name:"Risk category breakdown"}).waitFor();
+    await page.getByRole("button",{name:"Search workspace",exact:true}).click();
+    await page.getByRole("searchbox",{name:"Search tasks, teammates and risks"}).fill("APP-101");
+    await page.getByRole("dialog",{name:"Search workspace"}).getByText("APP-101 · Plan the first sprint",{exact:true}).waitFor();
+    await page.getByRole("button",{name:"Close dialog",exact:true}).click();
     await page.getByRole("button",{name:"Recent team activity",exact:true}).click();
     await page.getByRole("dialog",{name:"Recent team activity"}).getByText("Workspace created (simulated)").waitFor();
     await page.getByRole("button",{name:"Close activity",exact:true}).click();
@@ -155,6 +163,12 @@ async function run(viewport, role="lead") {
     if (viewport.width<600) await page.getByRole("button",{name:"Open navigation"}).click();
     await page.getByRole("button",{name:"Dependencies",exact:true}).click();
     await page.getByRole("heading",{name:"Dependency map"}).waitFor();
+    const taskSelect=page.getByRole("combobox",{name:"Find dependency task"});
+    await taskSelect.selectOption(state.tasks[0].id);
+    await page.getByRole("button",{name:"Open task",exact:true}).waitFor();
+    await page.getByRole("button",{name:"Fit all",exact:true}).click();
+    await page.getByRole("button",{name:"Reset layout",exact:true}).click();
+    await taskSelect.selectOption("");
     if(role==="lead") {
       await page.getByRole("button",{name:"Propose dependency"}).click();
       await page.getByRole("dialog",{name:"Propose a dependency"}).waitFor();
@@ -167,7 +181,7 @@ async function run(viewport, role="lead") {
     }
 
     if (viewport.width<600) await page.getByRole("button",{name:"Open navigation"}).click();
-    await page.getByRole("button",{name:"Settings",exact:true}).click();
+    await page.getByRole("button",{name:"Team & invitations",exact:true}).first().click();
     await page.getByRole("heading",{name:"Your team",exact:true}).waitFor();
     await page.getByRole("region",{name:"Integration readiness"}).getByText("Repository authorization",{exact:true}).waitFor();
     await page.getByRole("searchbox",{name:"Search team members"}).fill("Jin");

@@ -25,7 +25,7 @@ const roleExplainers: Record<Exclude<Role, "owner">, string> = {
   viewer: "Read-only access",
 };
 
-export function WorkspaceSettings({ id, onSaved }: { id: string; onSaved: () => Promise<void> }) {
+export function WorkspaceSettings({ id, onSaved, focus }: { id: string; onSaved: () => Promise<void>; focus?: "team"|"github"|null }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [invites, setInvites] = useState<Invitation[]>([]);
   const [error, setError] = useState("");
@@ -66,6 +66,8 @@ export function WorkspaceSettings({ id, onSaved }: { id: string; onSaved: () => 
     });
     return () => { active = false; };
   }, [id]);
+
+  useEffect(()=>{if(!settings||!focus)return;const frame=requestAnimationFrame(()=>document.getElementById(focus==="team"?"team-access-title":"github-settings-title")?.scrollIntoView({block:"start",behavior:"instant"}));return()=>cancelAnimationFrame(frame);},[focus,settings]);
 
   async function perform(action: () => Promise<void | string>, message: string) {
     if (busy) return;
