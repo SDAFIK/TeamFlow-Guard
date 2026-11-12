@@ -95,3 +95,15 @@ create function public.tf_ingest_github_review(w uuid,t uuid,reviewer uuid,repo 
 returns jsonb language sql security invoker set search_path='' as $$ select teamflow_private.ingest_github_review(w,t,reviewer,repo,pull_number,github_reviewer_id,delivery_id,tracked,branch,review_status,requested,observed,pr_state,is_draft) $$;
 revoke all on function public.tf_ingest_github_review(uuid,uuid,uuid,text,bigint,bigint,uuid,text,text,text,timestamptz,timestamptz,text,boolean) from public,anon,authenticated;
 grant execute on function public.tf_ingest_github_review(uuid,uuid,uuid,text,bigint,bigint,uuid,text,text,text,timestamptz,timestamptz,text,boolean) to service_role;
+
+-- Convert deterministic business conflicts at the public RPC boundary, not genuine serialization failures.
+create or replace function public.tf_mutate(w uuid, operation text, body jsonb, request_key text default '') returns jsonb
+language plpgsql security invoker set search_path='' as $$
+begin
+ return teamflow_private.mutate(w,operation,body,request_key);
+exception when serialization_failure then
+ if SQLERRM in ('Task changed; regenerate proposal','Idempotency key reused','Proposal already decided','Plan changed; regenerate proposal','Evidence changed or expired','Plan changed','Task changed','Event key reused') then
+  raise exception 'Plan or evidence changed; refresh and retry' using errcode='PT409';
+ end if;
+ raise;
+end $$;

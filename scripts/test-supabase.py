@@ -89,10 +89,10 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
         assert result['plan_version']==2
         assert db.execute('select priority from public.tf_tasks where id=%s',(task,)).fetchone()[0]=='critical'
         passed.append('approval applies exactly once with durable receipt')
-        denied('key reuse rejected',lambda:rpc('decision',{**decision,'decision':'reject'},'approve-key'),'40001')
-        denied('second approval rejected',lambda:rpc('decision',decision,'another-key'),'40001')
-        denied('missing version rejected',lambda:rpc('status',{'task_id':task,'status':'blocked'}),'40001')
-        denied('stale proposal rejected',lambda:rpc('proposal',proposal),'40001')
+        denied('key reuse rejected',lambda:rpc('decision',{**decision,'decision':'reject'},'approve-key'),'PT409')
+        denied('second approval rejected',lambda:rpc('decision',decision,'another-key'),'PT409')
+        denied('missing version rejected',lambda:rpc('status',{'task_id':task,'status':'blocked'}),'PT409')
+        denied('stale proposal rejected',lambda:rpc('proposal',proposal),'PT409')
         denied('cyclic dependency rejected',lambda:rpc('proposal',{**proposal,'base_plan_version':2,'actions':[{'task_id':task,'field':'dependency','before':None,'after':successor}]}),'22023')
         denied('cross-workspace reviewer rejected',lambda:rpc('proposal',{**proposal,'base_plan_version':2,'actions':[{'task_id':task,'field':'reviewer_id','before':None,'after':outsider}]}),'22023')
         denied('audit update denied',lambda:db.execute("update public.tf_audit set summary='tampered'"),'42501')
@@ -260,7 +260,7 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
         stamp=db.execute("select now()::text").fetchone()[0]
         assert ingest_review(review_delivery[7],'inactive',stamp,pr_state='closed')['status']=='recorded'
         identity(owner)
-        denied('resolved review invalidates pending approval',lambda:db.execute("select public.tf_mutate(%s,'decision',%s::jsonb,'review-decision')",(ciw,json.dumps({'proposal_id':q['id'],'decision':'approve','base_plan_version':1}))),'40001')
+        denied('resolved review invalidates pending approval',lambda:db.execute("select public.tf_mutate(%s,'decision',%s::jsonb,'review-decision')",(ciw,json.dumps({'proposal_id':q['id'],'decision':'approve','base_plan_version':1}))),'PT409')
         db.execute('reset role')
         assert db.execute("select priority,version from public.tf_tasks where id=%s",(cit,)).fetchone()==('normal',1)
         assert db.execute("select plan_version from public.tf_workspaces where id=%s",(ciw,)).fetchone()[0]==1
