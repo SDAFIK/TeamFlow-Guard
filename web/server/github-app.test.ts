@@ -28,17 +28,13 @@ describe("GitHub App workspace access",()=>{
       if(u.endsWith("/repos/org/private"))return json({id:29,full_name:"org/private"});
       if(u.includes("/actions/runs?"))return json({workflow_runs:[{id:44,name:"CI",conclusion:"failure",html_url:"https://evil.test"}]});
       if(u.includes("/pulls?"))return json([{number:7,title:"Review"}]);
-      if(u.includes("/hook/deliveries?"))return json([
-        {id:101,installation_id:19,repository_id:29,event:"workflow_run",status_code:202},
-        {id:102,installation_id:19,repository_id:30,event:"pull_request",status_code:200},
-        {id:103,installation_id:20,repository_id:29,event:"pull_request",status_code:200}
-      ]);
+      if(u.includes("/hook/deliveries?"))return new Response('[{"id":3853711357083967541,"installation_id":19,"repository_id":29,"event":"workflow_run","status_code":202},{"id":101,"installation_id":19,"repository_id":29,"event":"pull_request","status_code":200},{"id":102,"installation_id":19,"repository_id":30,"event":"pull_request","status_code":200},{"id":103,"installation_id":20,"repository_id":29,"event":"pull_request","status_code":200}]',{status:200});
       throw Error("unexpected endpoint");
     });
     const r=await appRepositoryActivity(c,w,"main",f);
     expect(r.runs[0].html_url).toBe("https://github.com/org/private/actions/runs/44");
     expect(r.pulls[0].number).toBe(7);
-    expect(r.deliveries.map(d=>d.id)).toEqual([101]);
+    expect(r.deliveries.map(d=>d.id)).toEqual(["3853711357083967541","101"]);
     expect(JSON.stringify(r)).not.toContain("fixture-token");
   });
   it("stops when repository identity changes",async()=>{

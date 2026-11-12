@@ -4,8 +4,9 @@ import { repositorySlug, type PublicRun } from "./github-public";
 export type AppBinding = {workspace_id:string;installation_id:number;repository_id:number;repository:string};
 export type AppConfig = {appId?:string;privateKey?:string;bindings?:string;webhookSecret?:string};
 type Pull = {number:number;title:string;draft:boolean;html_url:string;updated_at:string};
-type Delivery = {id:number;event:string;action:string|null;status_code:number;delivered_at:string};
+type Delivery = {id:string;event:string;action:string|null;status_code:number;delivered_at:string};
 const positive = (x:unknown):x is number => typeof x==="number" && Number.isSafeInteger(x) && x>0;
+const deliveryId = (x:unknown):string|null => positive(x)?String(x):typeof x==="string"&&/^[1-9]\d{0,19}$/.test(x)?x:null;
 const obj = (x:unknown):Record<string,unknown> => x!==null && typeof x==="object" && !Array.isArray(x) ? x as Record<string,unknown> : {};
 const txt = (x:unknown,n=200) => typeof x==="string"?x.slice(0,n):"";
 export function githubAppConfig():AppConfig {
@@ -40,6 +41,8 @@ function jwt(c:AppConfig){
 async function github(path:string,token:string,transport:typeof fetch,body?:unknown):Promise<unknown>{
   const result=await transport("https://api.github.com"+path,{method:body===undefined?"GET":"POST",headers:{Accept:"application/vnd.github+json",Authorization:"Bearer "+token,"X-GitHub-Api-Version":"2022-11-28","User-Agent":"TeamFlow-Guard","Content-Type":"application/json"},redirect:"error",cache:"no-store",signal:AbortSignal.timeout(8000),...(body===undefined?{}:{body:JSON.stringify(body)})});
   if(!result.ok)throw Error("GitHub App request unavailable.");
+  // Delivery IDs may exceed Number.MAX_SAFE_INTEGER. Preserve the exact decimal ID before parsing.
+  if(path.startsWith("/app/hook/deliveries?"))return JSON.parse((await result.text()).replace(/"id"\s*:\s*(\d{16,})(?=\s*[,}])/g,'"id":"$1"'));
   return result.json();
 }
 export async function appRepositoryActivity(c:AppConfig,w:string,branch:string,transport:typeof fetch=fetch){
@@ -59,7 +62,7 @@ export async function appRepositoryActivity(c:AppConfig,w:string,branch:string,t
   const pr=val(1);
   const pulls:Pull[]=Array.isArray(pr)?pr.slice(0,5).flatMap(v=>{const r=obj(v);return positive(r.number)?[{number:r.number,title:txt(r.title)||"Pull request",draft:r.draft===true,updated_at:txt(r.updated_at,60),html_url:"https://github.com/"+slug+"/pull/"+r.number}]:[];}):[];
   const dr=val(2);
-  const deliveries:Delivery[]=Array.isArray(dr)?dr.flatMap(v=>{const r=obj(v);return r.installation_id===b.installation_id&&r.repository_id===b.repository_id&&positive(r.id)&&positive(r.status_code)&&["workflow_run","pull_request","pull_request_review"].includes(String(r.event))?[{id:r.id,event:txt(r.event,50),action:txt(r.action,50)||null,status_code:r.status_code,delivered_at:txt(r.delivered_at,60)}]:[];}).slice(0,5):[];
+  const deliveries:Delivery[]=Array.isArray(dr)?dr.flatMap(v=>{const r=obj(v),id=deliveryId(r.id);return r.installation_id===b.installation_id&&r.repository_id===b.repository_id&&id!==null&&positive(r.status_code)&&["workflow_run","pull_request","pull_request_review"].includes(String(r.event))?[{id,event:txt(r.event,50),action:txt(r.action,50)||null,status_code:r.status_code,delivered_at:txt(r.delivered_at,60)}]:[];}).slice(0,5):[];
   return {runs,pulls,deliveries,warning:jobs.some(j=>j.status==="rejected")?"Some GitHub activity is temporarily unavailable.":null,observed_at:new Date().toISOString()};
 }
 export function validWebhookSignature(raw:Uint8Array,sig:string|null,secret?:string){
