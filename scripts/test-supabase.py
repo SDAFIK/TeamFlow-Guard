@@ -27,7 +27,9 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
         db.execute("DO $$ BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; END $$")
         db.execute('GRANT USAGE ON SCHEMA public,auth TO authenticated,anon')
         db.execute('GRANT EXECUTE ON FUNCTION auth.uid() TO authenticated,anon')
-        db.execute("DO $ BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='service_role') THEN CREATE ROLE service_role NOLOGIN; END IF; END $")
+        if not db.execute("select exists(select 1 from pg_roles where rolname='service_role')").fetchone()[0]:
+            db.execute("CREATE ROLE service_role NOLOGIN")
+        db.execute("GRANT USAGE ON SCHEMA public TO service_role")
         for file in sorted((ROOT/'supabase/migrations').glob('*.sql')):
             db.execute(file.read_text(encoding='utf-8'))
         passed.append('migration applies')
