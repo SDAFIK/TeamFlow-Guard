@@ -125,7 +125,7 @@ async function run(viewport, role="lead") {
     if (viewport.width<600) {
       await page.getByRole("button",{name:"Open navigation"}).click();
     }
-    await page.getByRole("button",{name:"Task Board"}).click();
+    await page.getByRole("button",{name:"Task Board",exact:true}).click();
     if (role==="lead") {
       await page.getByRole("button",{name:"Create task",exact:true}).first().click();
       await page.getByRole("dialog",{name:"Create a task"}).waitFor();
@@ -140,7 +140,7 @@ async function run(viewport, role="lead") {
     }
 
     if (viewport.width<600) await page.getByRole("button",{name:"Open navigation"}).click();
-    await page.getByRole("button",{name:"Dependencies"}).click();
+    await page.getByRole("button",{name:"Dependencies",exact:true}).click();
     await page.getByRole("heading",{name:"Dependency map"}).waitFor();
     if(role==="lead") {
       await page.getByRole("button",{name:"Propose dependency"}).click();
