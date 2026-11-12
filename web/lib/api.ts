@@ -7,7 +7,10 @@ export type Graph = components["schemas"]["GraphView"];
 export type Risk = components["schemas"]["RiskView"];
 export type Proposal = components["schemas"]["ProposalView"];
 export type Audit = components["schemas"]["AuditView"];
-export type Integrations = components["schemas"]["IntegrationStatus"];
+export type Integrations = components["schemas"]["IntegrationStatus"] & {
+  github_repository?: string | null;
+  github_evidence_imported?: boolean;
+};
 export type Action = components["schemas"]["Action"];
 export class ApiError extends Error {
   constructor(

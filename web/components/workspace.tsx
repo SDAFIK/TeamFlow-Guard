@@ -1255,16 +1255,18 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                         <div>
                           <strong>GitHub</strong>
                           <p>
-                            {integrations.github_configured
-                                ? "Workflow evidence imported by an operator. Sync is manual; check source timestamps."
-                              : "No live repository connection. Demo events are labeled."}
+                            {integrations.github_repository
+                              ? `Public repository ${integrations.github_repository} linked read-only. Recent runs appear above; risk evidence import remains manual.`
+                              : integrations.github_evidence_imported
+                                ? "Historical workflow evidence was imported manually. No live repository linked."
+                                : "No public repository linked. Demo events are labeled."}
                           </p>
                         </div>
                         <Badge
                           value={
-                            integrations.github_configured
-                                ? "manual sync"
-                              : "not connected"
+                            integrations.github_repository
+                              ? "read-only link"
+                              : integrations.github_evidence_imported ? "manual evidence" : "not connected"
                           }
                         />
                       </div>
