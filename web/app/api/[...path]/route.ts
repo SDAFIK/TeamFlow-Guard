@@ -7,7 +7,7 @@ import { downstream, validateGraph } from "@/domain/graph";
 import { actionSchema } from "@/domain/proposal";
 import { recovery } from "@/server/recovery";
 import { configured } from "@/server/gemini";
-import { allowedOrigin } from "@/server/origin";
+import { allowedOrigin, authRedirectOrigin } from "@/server/origin";
 import { createHash, randomBytes } from "node:crypto";
 import { auditPage } from "@/server/audit-page";
 import { buildRecoveryOptions } from "@/domain/recovery-options";
@@ -70,9 +70,21 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       const { error } = await client.auth.signOut(); if (error) throw new HttpError(503, "Sign out failed. Retry.");
       return answer({ message: "Signed out" });
     }
+    if (path.join('/') === 'auth/resend-confirmation' && request.method === 'POST') {
+      const input=z.object({email:z.email().max(254)}).strict().parse(body);
+      const origin=authRedirectOrigin(request.headers.get("origin"),{APP_BASE_URL:process.env.APP_BASE_URL,APP_ALLOWED_ORIGINS:process.env.APP_ALLOWED_ORIGINS,VERCEL:process.env.VERCEL,VERCEL_URL:process.env.VERCEL_URL});
+      if(!origin)throw new HttpError(503,"Confirmation is not configured. Contact your workspace owner.");
+      const {error}=await client.auth.resend({type:"signup",email:input.email,options:{emailRedirectTo:origin+"/auth/callback"}});
+      if(error?.status===429)throw new HttpError(429,"Too many requests. Try again later.");
+      // Do not disclose whether the email belongs to an existing account.
+      if(error&&error.status&&error.status>=500)throw new HttpError(503,"Confirmation email is temporarily unavailable. Try again later.");
+      return answer({message:"If an unconfirmed account exists, a new confirmation email has been requested. Open the newest email, then sign in and reopen your team invitation."});
+    }
     if (path.join('/') === 'auth/register' && request.method === 'POST') {
       const input=z.object({email:z.email().max(254),password:z.string().min(12).max(128)}).strict().parse(body);
-      const {error}=await client.auth.signUp({...input,options:{emailRedirectTo:`${process.env.APP_BASE_URL}/auth/callback`}});
+      const origin=authRedirectOrigin(request.headers.get("origin"),{APP_BASE_URL:process.env.APP_BASE_URL,APP_ALLOWED_ORIGINS:process.env.APP_ALLOWED_ORIGINS,VERCEL:process.env.VERCEL,VERCEL_URL:process.env.VERCEL_URL});
+      if(!origin)throw new HttpError(503,"Confirmation is not configured. Contact your workspace owner.");
+      const {error}=await client.auth.signUp({...input,options:{emailRedirectTo:origin+"/auth/callback"}});
       if(error) throw new HttpError(error.status===429?429:422,'Account registration is unavailable. Check your email and password, or ask the workspace owner for access.');
       return answer({message:'Check your email to confirm your account, then return here to sign in.'});
     }
