@@ -11,6 +11,7 @@ import {
   type Node,
   type NodeProps,
   type ReactFlowInstance,
+  type Edge,
 } from "@xyflow/react";
 import { GitBranch, ArrowUpRight, Maximize2, RotateCcw } from "lucide-react";
 import type { Graph, Risk, Task, Person } from "@/lib/api";
@@ -81,7 +82,7 @@ export default function DependencyMap({
         ariaLabel: `${task.key}: ${task.title}. ${task.status}. Click to inspect dependencies.`,
       };
     });
-    const edges = graph.edges.map((edge) => {
+    const edges: Edge[] = graph.edges.map((edge) => {
       const onImpactPath = graph.selected_task_id &&
         (edge.predecessor_id === graph.selected_task_id || downstream.has(edge.predecessor_id)) &&
         downstream.has(edge.successor_id);
