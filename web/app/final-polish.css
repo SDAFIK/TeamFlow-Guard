@@ -524,3 +524,56 @@ dialog .field-grid { gap: 18px; }
 @keyframes guard-signal{0%,100%{fill:#102a3b}45%{fill:#236d70}}
 @media(max-width:700px){.brand-hero{aspect-ratio:16/9;border-radius:13px;margin-bottom:16px}}
 @media(prefers-reduced-motion:reduce){.brand-hero-light,.guard-loading-orbit:before,.guard-loading-track i,.guard-loading .guard-node{animation:none!important}.brand-hero-light{display:none}}
+
+/* v1.1 — sharp brand, visible connections, workspace chooser and graph explorer */
+.brand-hero-hd{aspect-ratio:auto;min-height:clamp(220px,27vw,330px);display:grid;place-items:center;padding:32px;background:linear-gradient(125deg,#071a28,#040c18 72%);border-color:#315969}
+.hero-signal-art{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.hero-brand-content{position:relative;display:flex;align-items:center;gap:clamp(14px,3vw,32px);z-index:1;min-width:0}
+.hero-brand-content>.guard-mark{flex:none;width:clamp(65px,10vw,132px);height:auto;filter:drop-shadow(0 0 18px #22d9d080)}
+.hero-eyebrow{font-size:11px;letter-spacing:2.4px;color:#9ad9de;font-weight:750}
+.hero-wordmark{font-size:clamp(27px,4.2vw,62px);font-weight:850;letter-spacing:-.045em;line-height:1.07;color:#f3fbff}
+.hero-wordmark span{color:#5cf0dc;display:block}
+.hero-brand-content p{color:#b8dfe4;margin:12px 0 0;font-size:clamp(13px,1.5vw,19px)}
+.hero-signal-points{filter:drop-shadow(0 0 5px #55edda);animation:hero-signal-breathe 4s ease-in-out infinite}
+@keyframes hero-signal-breathe{50%{opacity:.5}}
+.connection-launchpad{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px;margin-bottom:20px}
+.connection-launchpad button{display:flex;align-items:center;gap:13px;text-align:left;padding:16px;border:1px solid #35546a;border-radius:14px;background:linear-gradient(145deg,#142d40,#0e2030);min-width:0;cursor:pointer;color:inherit;transition:border-color .18s,transform .18s}
+.connection-launchpad button:hover{border-color:#65d9c6;transform:translateY(-2px)}
+.connection-launchpad button>span:nth-child(2){flex:1;display:grid;gap:5px;min-width:0;overflow-wrap:anywhere}
+.connection-launchpad small{color:#b0c3d3;font-size:12px}
+.connection-icon{display:grid;place-items:center;width:43px;height:43px;flex:none;border-radius:12px;background:#1b424c;color:#7af1db}
+.workspace-picker{position:relative;min-width:0}.workspace-picker .workspace-switch{width:100%;text-align:left}
+.workspace-picker-list{display:grid;gap:4px;padding:10px;background:#102637;border:1px solid #41667c;border-radius:12px;margin:6px 0;max-height:300px;overflow:auto}
+.workspace-picker-list>.section-kicker{padding:6px}
+.workspace-picker-list button{display:flex;align-items:center;gap:8px;border:0;background:transparent;border-radius:8px;color:inherit;padding:8px;text-align:left;cursor:pointer;min-width:0}
+.workspace-picker-list button:hover,.workspace-picker-list button.current-workspace{background:#24475a}
+.workspace-picker-list button>span:nth-child(2){flex:1;min-width:0;display:grid;gap:3px}
+.workspace-picker-list strong,.workspace-picker-list small{overflow-wrap:anywhere}.workspace-picker-list small{color:#b3c8d6;font-size:11px}
+.workspace-emblem.mini{width:28px;height:28px;font-size:13px;flex:none}
+.workspace-picker-actions{border-top:1px solid #39596d;padding-top:5px;display:grid;gap:2px}
+.connection-nav{display:grid;gap:3px}.team-connect-strip{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+.graph-tools{display:flex;align-items:end;gap:10px;flex-wrap:wrap;margin:12px 0}
+.graph-tools label{flex:1;min-width:min(100%,220px)}.graph-tools select{width:100%;display:block;margin-top:5px}
+.graph-tools .secondary{white-space:nowrap}
+.graph-panel.expanded .graph-canvas{height:clamp(420px,58vh,700px)}
+.graph-task{width:234px;min-height:126px;padding:14px 16px;cursor:grab}.graph-task:active{cursor:grabbing}
+.graph-task .graph-owner{font-size:11px;color:#abc4d7;display:block;margin-top:3px;overflow-wrap:anywhere}
+.graph-task.dimmed{opacity:.45}.graph-task.has-risk .graph-owner{color:#e3bbc1}
+.graph-inspector{display:grid;gap:12px;border-top:1px solid #355367;padding-top:15px;margin-top:15px}
+.graph-inspector-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.graph-impact-columns{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.graph-impact-columns>div{border:1px solid #355367;padding:12px;border-radius:12px;background:#0b1d2c;min-width:0}
+.graph-impact-columns h3{font-size:14px;margin:0 0 10px}
+.graph-impact-columns button{display:block;width:100%;text-align:left;background:#173247;border:1px solid #36576c;border-radius:8px;padding:8px;margin:5px 0;color:inherit;cursor:pointer;overflow-wrap:anywhere}
+.graph-impact-columns p{font-size:12px;color:#aebdca}
+.demo-step-label{font-size:12px;color:#a7d6d8;letter-spacing:.8px;font-weight:750;margin:14px 0 8px}
+.demo-scenario-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+.demo-scenario-grid button{display:grid;gap:6px;border:1px solid #3b5d72;background:#112739;border-radius:11px;padding:13px;text-align:left;color:inherit;cursor:pointer}
+.demo-scenario-grid button.chosen{border-color:#55e9ce;background:#1b4147;box-shadow:0 0 0 2px #55e9ce26}
+.demo-scenario-grid small{font-size:12px;color:#b9cad7;line-height:1.5}
+.demo-impact-preview{border:1px solid #406176;background:#112839;border-radius:12px;padding:14px;margin:16px 0;display:grid;gap:10px}
+.demo-impact-preview h3{margin:6px 0}.demo-impact-preview p{margin:4px 0}
+.demo-people{display:flex;flex-wrap:wrap;gap:8px}.demo-people>span{display:flex;align-items:center;gap:6px;background:#1d394d;border-radius:20px;padding:4px 10px 4px 4px;font-size:12px}
+#team-access-title,#github-settings-title{scroll-margin-top:95px}
+@media(max-width:600px){.brand-hero-hd{min-height:200px;padding:24px 15px}.hero-brand-content{gap:12px}.hero-brand-content>.guard-mark{width:68px}.hero-wordmark{font-size:clamp(23px,6.9vw,36px)}.hero-eyebrow{font-size:9px;letter-spacing:1px}.hero-brand-content p{font-size:12px}.connection-launchpad{grid-template-columns:1fr;gap:8px}.connection-launchpad button{padding:12px}.graph-panel.expanded .graph-canvas{height:440px}.graph-impact-columns{grid-template-columns:1fr}.demo-scenario-grid{grid-template-columns:1fr}.graph-tools .secondary{flex:1}.graph-tools label{min-width:100%}}
+@media(prefers-reduced-motion:reduce){.hero-signal-points{animation:none}.connection-launchpad button{transition:none}.connection-launchpad button:hover{transform:none}}
