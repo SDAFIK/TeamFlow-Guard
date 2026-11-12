@@ -8,7 +8,8 @@ if(process.env.VERCEL_ENV==="preview"&&process.env.VERCEL_GIT_COMMIT_REF==="code
  const body=enc({alg:"RS256",typ:"JWT"})+"."+enc({iat:now-60,exp:now+480,iss:id});
  const sign=createSign("RSA-SHA256");sign.update(body);const jwt=body+"."+sign.sign(key.replace(/\\n/g,"\n"),"base64url");
  const headers={Accept:"application/vnd.github+json",Authorization:"Bearer "+jwt,"X-GitHub-Api-Version":"2022-11-28","Content-Type":"application/json","User-Agent":"TeamFlow-Guard"};
- const api=async(path)=>{const r=await fetch("https://api.github.com"+path,{headers,signal:AbortSignal.timeout(15000)});if(!r.ok)throw Error("GitHub API HTTP "+r.status+" "+path);return r.json();};
+ const api=async(path)=>{const r=await fetch("https://api.github.com"+path,{headers,signal:AbortSignal.timeout(15000)});if(!r.ok)throw Error("GitHub API HTTP "+r.status+" "+path);// GitHub delivery IDs are unsigned 64-bit values; preserve them as decimal strings.
+ const raw=await r.text();return JSON.parse(raw.replace(/"id"\s*:\s*(\d{16,})(?=\s*[,}])/g,'"id":"$1"'));};
  const app=await api("/app");if(app.id!==5735990)throw Error("App identity mismatch");
  console.log("GITHUB_APP_EVENTS: "+JSON.stringify(app.events??[]));
  const list=await api("/app/hook/deliveries?per_page=100");let matched=null;
