@@ -96,7 +96,7 @@ async function event(payload,valid=true,type="workflow_run",delivery=randomUUID(
   const pull={number:7,title:"Fictional PR",state:"open",draft:false,updated_at:new Date().toISOString(),base:{ref:"main",repo:{id:202}},requested_reviewers:[{id:githubReviewer}]};
   const requested={event:"review_requested",created_at:requestedAt,requested_reviewer:{id:githubReviewer}};
   writeFixture(pull,[requested]);
-  await start({GITHUB_APP_ID:"99",GITHUB_APP_PRIVATE_KEY:reviewKey,GITHUB_APP_WEBHOOK_SECRET:fixtureSecret,TEAMFLOW_GITHUB_APP_BINDINGS:JSON.stringify([{workspace_id:w,installation_id:101,repository_id:202,repository:"fixture/isolated"}]),TEAMFLOW_GITHUB_CI_MAPPINGS:JSON.stringify([{workspace_id:w,workflow_id:303,task_id:task.id}]),TEAMFLOW_GITHUB_REVIEW_MAPPINGS:JSON.stringify([{workspace_id:w,pull_number:7,task_id:next.id,github_reviewer_id:githubReviewer,reviewer_id:owner.id}]),TEAMFLOW_GITHUB_INGEST_KEY:SERVICE,TEAMFLOW_TEST_GITHUB_FIXTURE:fixtureFile,NODE_OPTIONS:(process.env.NODE_OPTIONS||"")+" --require="+path.resolve(__dirname,"fixtures/mock-github-review.cjs"),NEXT_TELEMETRY_DISABLED:"1"});
+  await start({GEMINI_API_KEY:"teamflow-local-fixture-key",GEMINI_MODEL:"gemini-3.1-flash-lite",GITHUB_APP_ID:"99",GITHUB_APP_PRIVATE_KEY:reviewKey,GITHUB_APP_WEBHOOK_SECRET:fixtureSecret,TEAMFLOW_GITHUB_APP_BINDINGS:JSON.stringify([{workspace_id:w,installation_id:101,repository_id:202,repository:"fixture/isolated"}]),TEAMFLOW_GITHUB_CI_MAPPINGS:JSON.stringify([{workspace_id:w,workflow_id:303,task_id:task.id}]),TEAMFLOW_GITHUB_REVIEW_MAPPINGS:JSON.stringify([{workspace_id:w,pull_number:7,task_id:next.id,github_reviewer_id:githubReviewer,reviewer_id:owner.id}]),TEAMFLOW_GITHUB_INGEST_KEY:SERVICE,TEAMFLOW_TEST_GITHUB_FIXTURE:fixtureFile,NODE_OPTIONS:(process.env.NODE_OPTIONS||"")+" --require="+path.resolve(__dirname,"fixtures/mock-github-review.cjs"),NEXT_TELEMETRY_DISABLED:"1"});
   const ready=await call(ownerPage,base+"/github-readiness");
   assert.equal(ready.mappings[0].task_id,task.id);
   assert.equal(ready.mappings[0].valid,true);
@@ -227,6 +227,16 @@ async function event(payload,valid=true,type="workflow_run",delivery=randomUUID(
     await ownerPage.getByRole("region",{name:"Synthetic model laboratory"}).waitFor();
     const bar=ownerPage.getByRole("progressbar",{name:"Synthetic model score"});
     const initial=await bar.getAttribute("aria-valuenow");
+    const layout=await ownerPage.locator(".tic-center").evaluate(el=>({gap:parseFloat(getComputedStyle(el).gap),cardPadding:parseFloat(getComputedStyle(el.querySelector(".tic-card")).paddingTop),hero:el.querySelector(".tic-hero").getBoundingClientRect().height}));
+    assert.ok(layout.gap>=12&&layout.cardPadding>=16&&layout.hero>=80,"Intelligence layout has actual spacing");
+    if(process.env.TEAMFLOW_ARTIFACT_DIR){
+      fs.mkdirSync(process.env.TEAMFLOW_ARTIFACT_DIR,{recursive:true});
+      await ownerPage.screenshot({path:path.join(process.env.TEAMFLOW_ARTIFACT_DIR,"01-intelligence-desktop.png"),fullPage:true});
+      await ownerPage.setViewportSize({width:390,height:844});
+      assert.equal(await ownerPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+      await ownerPage.screenshot({path:path.join(process.env.TEAMFLOW_ARTIFACT_DIR,"02-intelligence-mobile.png"),fullPage:true});
+      await ownerPage.setViewportSize({width:1440,height:900});
+    }
     await ownerPage.getByRole("slider",{name:/CI failures/}).fill("6");
     assert.notEqual(await bar.getAttribute("aria-valuenow"),initial,"model responds to fictional inputs");
     await ownerPage.getByRole("button",{name:"Start fresh AI rehearsal"}).click();
@@ -241,6 +251,17 @@ async function event(payload,valid=true,type="workflow_run",delivery=randomUUID(
     const demoDash=await call(ownerPage,demoBase+"/dashboard");
     assert.equal(demoDash.tasks.length,1);assert.equal(demoDash.tasks[0].priority,"normal");
     console.log("PASS repeatable fictional demo, interactive trained model and rule-based proposal without automatic plan mutation");
+    await ownerPage.goto(BASE+"/intelligence");
+    await ownerPage.getByRole("button",{name:"Start fresh AI rehearsal"}).click();
+    await ownerPage.getByRole("heading",{name:"Risk evidence & recovery"}).waitFor();
+    await ownerPage.getByRole("button",{name:"Compare recovery options"}).click();
+    await ownerPage.getByRole("button",{name:"Analyze with Gemini"}).click();
+    await ownerPage.getByText("Gemini analysis",{exact:true}).waitFor();
+    const both=await call(ownerPage,demoBase+"/proposals");
+    assert.equal(both.length,2);assert.ok(both.some(p=>p.source==="gemini"&&p.status==="pending"));
+    const after=await call(ownerPage,demoBase+"/dashboard");assert.equal(after.tasks.length,2);assert.ok(after.tasks.every(t=>t.priority==="normal"));
+    if(process.env.TEAMFLOW_ARTIFACT_DIR)await ownerPage.screenshot({path:path.join(process.env.TEAMFLOW_ARTIFACT_DIR,"03-gemini-proposal.png"),fullPage:true});
+    console.log("PASS second fresh rehearsal, Gemini HTTP fixture, persisted Gemini proposal and unchanged task priorities");
   }
  }finally{if(browser)await browser.close();await stop();fs.rmSync(fixtureDir,{recursive:true,force:true});}
 })().catch(e=>{console.error(String(e.message).split("\n")[0]);process.exitCode=1;});
