@@ -265,6 +265,50 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
         assert db.execute("select priority,version from public.tf_tasks where id=%s",(cit,)).fetchone()==('normal',1)
         assert db.execute("select plan_version from public.tf_workspaces where id=%s",(ciw,)).fetchone()[0]==1
         passed.append('resolved review cannot authorize stale proposal or mutate task')
+
+        # TIC prospective learning: no historical timestamp fabrication, no raw personal export.
+        lw,lt=str(uuid4()),str(uuid4())
+        db.execute("insert into public.tf_workspaces(id,name,is_demo) values(%s,'Learning test',false)",(lw,))
+        db.execute("insert into public.tf_memberships(workspace_id,user_id,role,name,email,available_hours,availability_start,availability_end) values(%s,%s,'owner','Learning Owner','owner@example.test',24,now()-interval '1 day',now()+interval '3 days')",(lw,owner))
+        db.execute("insert into public.tf_memberships(workspace_id,user_id,role,name,email) values(%s,%s,'member','Learning Member','member@example.test')",(lw,member))
+        db.execute("insert into public.tf_tasks(id,workspace_id,key,title,owner_id,estimate_hours,due_at,created_at) values(%s,%s,'L-1','Learning sample',%s,8,now()+interval '2 days',now()-interval '1 hour')",(lt,lw,owner))
+        def learning(op, task_id=None, enable=None, workspace=lw):
+            return db.execute("select public.tf_learning(%s,%s,%s,%s)",(workspace,op,task_id,enable)).fetchone()[0]
+        identity(owner)
+        assert not learning('status')['enabled']
+        denied('learning capture without consent denied',lambda:learning('capture',lt),'42501')
+        identity(member)
+        denied('member cannot enable learning',lambda:learning('consent',enable=True),'42501')
+        denied('member cannot export learning samples',lambda:learning('export'),'42501')
+        identity(outsider)
+        denied('outsider learning status denied',lambda:learning('status'),'42501')
+        identity(owner)
+        assert learning('consent',enable=True)['enabled']
+        assert learning('capture',lt)['status']=='missing_evidence'
+        db.execute('reset role')
+        db.execute('set local role service_role')
+        db.execute("select public.tf_ingest_github_ci(%s,%s,'example/learning',5,10,1,'main','failure',now()-interval '1 minute')",(lw,lt))
+        db.execute("select public.tf_ingest_github_review(%s,%s,%s,'example/learning',8,123,%s,'main','main','waiting',now()-interval '30 hours',now()-interval '1 minute','open',false)",(lw,lt,owner,str(uuid4())))
+        identity(owner)
+        assert learning('capture',lt)['status']=='captured'
+        assert learning('capture',lt)['status']=='already_captured'
+        assert learning('status')['samples']==1 and learning('status')['labeled']==0
+        assert learning('export')['rows']==[]
+        assert db.execute("select plan_version from public.tf_workspaces where id=%s",(lw,)).fetchone()[0]==1
+        db.execute("select public.tf_mutate(%s,'status',%s::jsonb,'')",(lw,json.dumps({'task_id':lt,'status':'done','expected_version':1})))
+        rows=learning('export')['rows']
+        assert len(rows)==1 and rows[0]['completed_at'] is not None
+        assert len(rows[0]['features'])==12 and rows[0]['features']['ci_failures']==1
+        assert 'task_id' not in rows[0] and 'name' not in rows[0]
+        db.execute('reset role')
+        db.execute("update public.tf_tasks set due_at=due_at+interval '1 day' where id=%s",(lt,))
+        identity(owner)
+        assert learning('export')['rows']==[]
+        assert learning('consent',enable=False)['samples']==0
+        denied('export after revocation denied',lambda:learning('export'),'42501')
+        db.execute('reset role')
+        assert db.execute("select count(*) from teamflow_private.tf_learning_samples where workspace_id=%s",(lw,)).fetchone()[0]==0
+        passed.append('learning opt-in, role boundaries, authoritative snapshots, outcome labeling, revision exclusion and purge')
         prepare_sync = runpy.run_path(str(ROOT/'scripts/prepare-github-sync.py'))['prepare']
         def sync(runs):
             sql, _ = prepare_sync(w,'T-1','example/repo',"Build ' $sync$",runs)

@@ -133,6 +133,11 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
           case "tasks": return answer(state.tasks);
           case "dependencies": return answer({ nodes: state.tasks, edges: state.edges, plan_version: state.workspace.plan_version, selected_task_id: selected, downstream_ids: selected ? downstream(state.tasks.map(t => t.id), state.edges, selected) : [], upstream_ids: selected ? downstream(state.tasks.map(t => t.id), state.edges, selected, true) : [] });
           case "risks": return answer(risks());
+          case "learning": {
+            if(path.length!==3)throw new HttpError(404,"Resource unavailable");
+            const operation=request.nextUrl.searchParams.get("export")==="1"?"export":"status";
+            const result=await client.rpc("tf_learning",{w:id,operation,t:null,enable:null});if(result.error)databaseError(result.error);return answer(result.data);
+          }
           case "model-info": return answer({...v2ModelInfo, demo_example:state.workspace.is_demo?scoreV2(v2Artifact.parity_input,true):null});
           case "project-intelligence": {
             if(path.length!==3)throw new HttpError(404,"Resource unavailable");
@@ -232,6 +237,10 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
         const edge = z.object({ predecessor_id: z.uuid(), successor_id: z.uuid() }).strict().parse(body);
         try { validateGraph(state.tasks.map(t => t.id), [...state.edges, edge]); } catch (e) { throw new HttpError(422, (e as Error).message); }
         return answer({ message: "Dependency is valid. Submit a proposal to apply it." });
+      }
+      if(path[2]==="learning"&&path.length===3&&request.method==="POST"){
+        const input=z.discriminatedUnion("operation",[z.object({operation:z.literal("consent"),enable:z.boolean()}).strict(),z.object({operation:z.literal("capture"),task_id:z.uuid()}).strict()]).parse(body);
+        const result=await client.rpc("tf_learning",{w:id,operation:input.operation,t:input.operation==="capture"?input.task_id:null,enable:input.operation==="consent"?input.enable:null});if(result.error)databaseError(result.error);return answer(result.data);
       }
       if (path[2] === "proposals" && request.method === "POST") {
         const input = z.object({ title: z.string().min(3).max(140), base_plan_version: z.number().int().positive(), actions: z.array(actionSchema).min(1).max(8) }).strict().parse(body);
