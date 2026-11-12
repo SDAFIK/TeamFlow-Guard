@@ -15,10 +15,10 @@ if(process.env.VERCEL_ENV==="preview"&&process.env.VERCEL_GIT_COMMIT_REF==="code
  const list=await api("/app/hook/deliveries?per_page=100");let matched=null;
  for(const d of list.filter(d=>d.event==="workflow_run"&&d.action==="completed").slice(0,35)){
   const delivery=await api("/app/hook/deliveries/"+d.id);const raw=delivery.request?.payload;const p=typeof raw==="string"?JSON.parse(raw):raw;
-  if(p?.workflow_run?.id===43324373557&&p?.workflow_run?.head_branch==="codex/github-live-sandbox"&&p?.workflow_run?.conclusion==="failure"&&p?.repository?.id===1450114794&&p?.installation?.id===181405240){matched={delivery_id:d.id,event:d.event,action:d.action,status_code:d.status_code,delivered_at:d.delivered_at,run_id:p.workflow_run.id,workflow_id:p.workflow_run.workflow_id,repository_id:p.repository.id,installation_id:p.installation.id,branch:p.workflow_run.head_branch,conclusion:p.workflow_run.conclusion};break;}
+  if(p?.workflow_run?.id===43324780151&&p?.workflow_run?.head_branch==="codex/github-live-sandbox"&&p?.workflow_run?.conclusion==="success"&&p?.repository?.id===1450114794&&p?.installation?.id===181405240){matched={delivery_id:d.id,event:d.event,action:d.action,status_code:d.status_code,delivered_at:d.delivered_at,run_id:p.workflow_run.id,workflow_id:p.workflow_run.workflow_id,repository_id:p.repository.id,installation_id:p.installation.id,branch:p.workflow_run.head_branch,conclusion:p.workflow_run.conclusion};break;}
  }
  console.log("TEAMFLOW_LIVE_DELIVERY: "+JSON.stringify(matched));
- if(!matched||matched.status_code!==204)throw Error("exact live failure delivery not accepted");
- console.log("TEAMFLOW_LIVE_DELIVERY: PASS genuine GitHub signed workflow_run reached production receiver; intentionally unmapped, no database write");
- })().catch(e=>{console.error("TEAMFLOW_LIVE_DELIVERY: FAIL "+(e instanceof Error&&/^(GitHub API HTTP|missing configuration|App identity mismatch|exact live failure delivery)/.test(e.message)?e.message:"verification unavailable"));process.exitCode=1;});
+ if(!matched||matched.status_code!==204)throw Error("exact live recovery delivery not accepted");
+ console.log("TEAMFLOW_LIVE_DELIVERY: PASS genuine GitHub signed recovery workflow_run reached production receiver; intentionally unmapped, no database write");
+ })().catch(e=>{console.error("TEAMFLOW_LIVE_DELIVERY: FAIL "+(e instanceof Error&&/^(GitHub API HTTP|missing configuration|App identity mismatch|exact live recovery delivery)/.test(e.message)?e.message:"verification unavailable"));process.exitCode=1;});
 }
