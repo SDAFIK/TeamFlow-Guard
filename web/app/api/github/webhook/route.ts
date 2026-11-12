@@ -1,4 +1,5 @@
 import { githubAppConfig, validWebhookSignature, webhookMatchesBinding } from "@/server/github-app";
+import { mappedCI, ingestCI } from "@/server/github-evidence";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export async function POST(request:Request) {
@@ -20,6 +21,10 @@ export async function POST(request:Request) {
   let payload:unknown;
   try{payload=JSON.parse(raw.toString("utf8"));}catch{return new Response(null,{status:400});}
   try{if(!webhookMatchesBinding(config,event,payload))return new Response(null,{status:204});}catch{return new Response(null,{status:503});}
-  // GitHub retains delivery receipts. No task/evidence mutation or payload persistence.
-  return new Response(null,{status:202});
+  try {
+    const ci=mappedCI(config,process.env.TEAMFLOW_GITHUB_CI_MAPPINGS,event,payload);
+    if(!ci)return new Response(null,{status:204});
+    await ingestCI(ci);
+    return new Response(null,{status:202});
+  }catch{return new Response(null,{status:503});}
 }

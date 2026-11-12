@@ -27,6 +27,9 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
         db.execute("DO $$ BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; END $$")
         db.execute('GRANT USAGE ON SCHEMA public,auth TO authenticated,anon')
         db.execute('GRANT EXECUTE ON FUNCTION auth.uid() TO authenticated,anon')
+        if not db.execute("select exists(select 1 from pg_roles where rolname='service_role')").fetchone()[0]:
+            db.execute("CREATE ROLE service_role NOLOGIN")
+        db.execute("GRANT USAGE ON SCHEMA public TO service_role")
         for file in sorted((ROOT/'supabase/migrations').glob('*.sql')):
             db.execute(file.read_text(encoding='utf-8'))
         passed.append('migration applies')
@@ -187,6 +190,27 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
         denied('anonymous GitHub link denied',
                lambda:github_link(w,'example/public-repo',v+2),'42501')
         db.execute('reset role')
+        # Stage 7: use a new non-demo fixture; no hosted data.
+        db.execute('reset role')
+        ciw, cit = str(uuid4()), str(uuid4())
+        db.execute("insert into public.tf_workspaces(id,name,is_demo) values(%s,'CI test',false)",(ciw,))
+        db.execute("insert into public.tf_memberships(workspace_id,user_id,role,name,email) values(%s,%s,'owner','CI Owner','ci@example.test')",(ciw,owner))
+        db.execute("insert into public.tf_tasks(id,workspace_id,key,title,owner_id) values(%s,%s,'CI-1','CI test',%s)",(cit,ciw,owner))
+        def ingest(run, result, stamp, branch='main'):
+            return db.execute("select public.tf_ingest_github_ci(%s,%s,'example/repo',9,%s,1,%s,%s,%s::timestamptz)",(ciw,cit,run,branch,result,stamp)).fetchone()[0]
+        identity(owner)
+        denied('authenticated cannot forge GitHub evidence',lambda:ingest(1,'failure','2026-11-10T10:00:00Z'),'42501')
+        db.execute('reset role')
+        db.execute('set local role service_role')
+        assert ingest(1,'failure','2026-11-10T10:00:00Z')['status']=='recorded'
+        assert ingest(1,'failure','2026-11-10T10:00:00Z')['status']=='duplicate'
+        assert ingest(2,'success','2026-11-10T11:00:00Z')['status']=='recorded'
+        assert ingest(3,'failure','2026-11-10T09:00:00Z')['status']=='recorded'
+        assert ingest(4,'failure','2026-11-10T12:00:00Z','other')['status']=='ignored_branch'
+        db.execute('reset role')
+        assert db.execute("select kind from public.tf_evidence where workspace_id=%s and active",(ciw,)).fetchall()==[('ci_pass',)]
+        assert db.execute("select plan_version from public.tf_workspaces where id=%s",(ciw,)).fetchone()[0]==1
+        passed.append('signed CI ingestion deduplicates and preserves newest branch evidence without plan change')
         prepare_sync = runpy.run_path(str(ROOT/'scripts/prepare-github-sync.py'))['prepare']
         def sync(runs):
             sql, _ = prepare_sync(w,'T-1','example/repo',"Build ' $sync$",runs)

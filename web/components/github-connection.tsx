@@ -120,7 +120,7 @@ export function GithubConnection({ workspaceId, planVersion, canManage, onChange
             <button className="danger-button" type="button" onClick={() => void save(null)} disabled={busy}>Confirm unlink</button>
           </div> : <button className="text-link" type="button" onClick={() => setConfirmDisconnect(true)} disabled={busy}>Unlink repository</button>)}
         </>}
-        <p className="field-help">GitHub Actions are displayed for visibility only. They do not automatically create risk evidence or change tasks. Private repository monitoring requires administrator authorization. Webhook receipts do not create risk evidence or change tasks.</p>
+        <p className="field-help">Public repository activity is read-only. Authorized GitHub App workflows can create CI evidence when signed webhook ingestion and task mapping are configured. No GitHub event changes the approved plan.</p>
       </>}
       {error && <p className="error" role="alert">{error}</p>}
       {notice && <p className="success-banner" role="status"><CheckCircle2 size={16}/>{notice}</p>}
