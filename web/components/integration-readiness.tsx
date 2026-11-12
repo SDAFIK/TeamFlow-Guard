@@ -7,7 +7,11 @@ type Readiness={repository:string|null;app_bound:boolean;app_credentials:boolean
 export function IntegrationReadiness({workspaceId}:{workspaceId:string}){
  const [data,setData]=useState<Readiness|null>(null),[error,setError]=useState(""),[loading,setLoading]=useState(true);
  const refresh=useCallback(async()=>{setLoading(true);setError("");try{setData(await api<Readiness>(`/projects/${workspaceId}/github-readiness`));}catch{setError("Unable to check integration configuration. Retry.");}finally{setLoading(false);}},[workspaceId]);
- useEffect(()=>{void refresh();},[refresh]);
+ useEffect(()=>{
+  let active=true;
+  void api<Readiness>(`/projects/${workspaceId}/github-readiness`).then(next=>{if(active)setData(next);}).catch(()=>{if(active)setError("Unable to check integration configuration. Retry.");}).finally(()=>{if(active)setLoading(false);});
+  return()=>{active=false;};
+ },[workspaceId]);
  const checks=data?[["Repository authorization",data.app_bound],["App credentials",data.app_credentials],["Webhook secret",data.webhook_configured],["Evidence ingestion credential",data.ingestion_configured],["Valid task mappings",data.mappings.length>0&&data.mappings.every(m=>m.valid)]] as const:[];
  return <section className="panel settings-panel integration-readiness" aria-label="Integration readiness">
   <div className="settings-section-header"><span className="section-kicker"><ShieldCheck size={15}/> INTEGRATION SETUP</span><h2>Connect with confidence</h2><p>Configuration checks, not proof of live delivery. GitHub activity and actual webhook receipts are checked separately.</p></div>
