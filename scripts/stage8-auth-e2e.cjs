@@ -203,7 +203,7 @@ async function event(payload,valid=true,type="workflow_run",delivery=randomUUID(
       await page.goto(BASE+"/intelligence");
       const section=page.getByRole("region",{name:"TIC intelligence center"});
       await section.getByText("Critical dependency effort",{exact:true}).waitFor();
-      await section.getByText("Tasks needing attention",{exact:true}).waitFor();
+      await section.getByRole("heading",{name:"Tasks needing attention",exact:true}).waitFor();
       await page.getByRole("region",{name:"Continuous learning controls"}).waitFor();
       assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
     }
@@ -216,6 +216,31 @@ async function event(payload,valid=true,type="workflow_run",delivery=randomUUID(
     await call(memberPage,base+"/learning?export=1","GET",undefined,403);
     assert.equal((await call(ownerPage,base+"/learning","POST",{operation:"consent",enable:false})).enabled,false);
     console.log("PASS TIC V2 authenticated project/model APIs, desktop/mobile Intelligence Center and owner-only learning controls");
+    // Separate fictional workspace, never modify the real acceptance workspace.
+    const demo=await call(ownerPage,"/projects","POST",{name:"Repeatable fictional AI demo",display_name:"Fixture Owner"});
+    const demoBase="/projects/"+demo.id;
+    const {error:markDemo}=await admin.from("tf_workspaces").update({is_demo:true,fixture_label:"Fictional browser acceptance"}).eq("id",demo.id);
+    assert.equal(markDemo,null,"local-only demo setup");
+    await ownerPage.evaluate(({id,uid})=>localStorage.setItem("teamflow.workspace."+uid,id),{id:demo.id,uid:owner.id});
+    await ownerPage.goto(BASE+"/intelligence");
+    await ownerPage.getByRole("region",{name:"TIC intelligence center"}).waitFor();
+    await ownerPage.getByRole("region",{name:"Synthetic model laboratory"}).waitFor();
+    const bar=ownerPage.getByRole("progressbar",{name:"Synthetic model score"});
+    const initial=await bar.getAttribute("aria-valuenow");
+    await ownerPage.getByRole("slider",{name:/CI failures/}).fill("6");
+    assert.notEqual(await bar.getAttribute("aria-valuenow"),initial,"model responds to fictional inputs");
+    await ownerPage.getByRole("button",{name:"Start fresh AI rehearsal"}).click();
+    await ownerPage.getByRole("heading",{name:"Risk evidence & recovery"}).waitFor();
+    await ownerPage.getByRole("button",{name:"Compare recovery options"}).click();
+    await ownerPage.getByRole("heading",{name:"Compare recovery options"}).waitFor();
+    await ownerPage.getByRole("button",{name:"Use recommended rule-based option"}).click();
+    await ownerPage.getByText("Rule-based suggestion · no AI call",{exact:true}).waitFor();
+    const demoProposals=await call(ownerPage,demoBase+"/proposals");
+    assert.equal(demoProposals.length,1);
+    assert.equal(demoProposals[0].source,"rules");assert.equal(demoProposals[0].status,"pending");
+    const demoDash=await call(ownerPage,demoBase+"/dashboard");
+    assert.equal(demoDash.tasks.length,1);assert.equal(demoDash.tasks[0].priority,"normal");
+    console.log("PASS repeatable fictional demo, interactive trained model and rule-based proposal without automatic plan mutation");
   }
  }finally{if(browser)await browser.close();await stop();fs.rmSync(fixtureDir,{recursive:true,force:true});}
 })().catch(e=>{console.error(String(e.message).split("\n")[0]);process.exitCode=1;});

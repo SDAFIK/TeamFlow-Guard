@@ -35,6 +35,7 @@ import {
   api,
   ApiError,
   type Overview,
+  type Task,
   type Person,
   type Project,
   type Graph,
@@ -591,7 +592,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                   <JourneySteps current={3}/><h2>{receipt.decision==='approve'?'Approved plan saved':'Proposal rejected — plan unchanged'}</h2><p>{receipt.title}</p><p>The decision is recorded in your workspace history. {receipt.decision==='approve'?'Check the updated task assignments and follow up on the source signal.':'No proposed changes were applied.'}</p>
                   <div className="dialog-actions"><button className="primary" onClick={()=>{setReceipt(null);navigate('tasks');}}>View current plan</button><button className="secondary" onClick={()=>{setReceipt(null);navigate('audit');}}>View decision history</button><button className="text-link" onClick={()=>setReceipt(null)}>Dismiss receipt</button></div>
                 </section>}
-                {view === "intelligence" && <IntelligenceCenter key={data.project.id} workspace={data.project.id} onRisk={id=>setRiskId(id)} isDemo={data.is_demo} canRehearse={lead} aiConfigured={Boolean(integrations.ai_configured)} onRisks={()=>navigate("risks")} onDemo={()=>{const sample=projects.find(p=>p.is_demo);if(sample)switchWorkspace(sample.id);else setNotice("No demo workspace is available for this account.");}} onFreshDemo={freshAIRehearsal} demoBusy={demoBusy}/>}
+                {view === "intelligence" && <IntelligenceCenter key={data.project.id} workspace={data.project.id} onRisk={id=>setRiskId(id)} isDemo={Boolean(data.is_demo)} canRehearse={lead} aiConfigured={Boolean(integrations.ai_configured)} onRisks={()=>navigate("risks")} onDemo={()=>{const sample=projects.find(p=>p.is_demo);if(sample)switchWorkspace(sample.id);else setNotice("No demo workspace is available for this account.");}} onFreshDemo={freshAIRehearsal} demoBusy={demoBusy}/>}
                 {view === "overview" && (
                   <>
                     <DashboardHero demoAction={data.is_demo&&lead?"Replay demo scenario":projects.some(p=>p.is_demo&&p.id!==data.project.id)?"Open demo workspace":"Explore dependencies"} onDemo={()=>{if(data.is_demo&&lead){setDemo(true);return;}const sample=projects.find(p=>p.is_demo&&p.id!==data.project.id);if(sample)switchWorkspace(sample.id);else navigate("dependencies");}} onGithub={()=>openConnections("github")} githubLinked={Boolean(integrations.github_repository)}/>
