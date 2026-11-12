@@ -4,7 +4,9 @@
  */
 const assert = require("node:assert/strict");
 const { spawn } = require("node:child_process");
-const { createHmac, randomUUID } = require("node:crypto");
+const { createHmac, randomUUID, generateKeyPairSync } = require("node:crypto");
+const fs = require("node:fs");
+const os = require("node:os");
 const path = require("node:path");
 const { chromium } = require("playwright");
 const { createClient } = require("@supabase/supabase-js");
@@ -21,6 +23,11 @@ const password="Fixture-"+randomUUID()+"-A9!";
 const nonce=randomUUID().slice(0,8);
 const emails=["owner","member","outsider"].map(s=>s+"-"+nonce+"@example.test");
 const fixtureSecret=randomUUID()+randomUUID();
+const fixtureDir=fs.mkdtempSync(path.join(os.tmpdir(),"teamflow-review-fixture-"));
+const fixtureFile=path.join(fixtureDir,"github.json");
+const githubReviewer=123;
+const reviewKey=generateKeyPairSync("rsa",{modulusLength:2048}).privateKey.export({type:"pkcs8",format:"pem"}).toString();
+const writeFixture=(pull,timeline)=>fs.writeFileSync(fixtureFile,JSON.stringify({pull,timeline}));
 let server;
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function start(extra={}){
@@ -32,7 +39,8 @@ async function start(extra={}){
 }
 async function stop(){if(!server)return;const s=server;server=undefined;if(s.exitCode!==null)return;s.kill("SIGTERM");await Promise.race([new Promise(r=>s.once("exit",r)),wait(5000)]);if(s.exitCode===null)s.kill("SIGKILL");await wait(500);}
 async function call(page,route,method="GET",body,expected=200,headers={}){
-  const r=await page.request.fetch(BASE+"/api"+route,{method,headers:{Origin:BASE,"Content-Type":"application/json",...headers},...(body===undefined?{}:{data:body})});
+  console.log("CHECK "+method+" "+route.split("?")[0]);
+  const r=await page.request.fetch(BASE+"/api"+route,{timeout:60000,method,headers:{Origin:BASE,"Content-Type":"application/json",...headers},...(body===undefined?{}:{data:body})});
   assert.equal(r.status(),expected,method+" "+route+" unexpected status");
   return r.headers()["content-type"]?.includes("json")?r.json():null;
 }
@@ -45,10 +53,10 @@ async function login(page,email){
   assert.equal((await response).status(),200,"real password login");
   return call(page,"/me");
 }
-async function event(payload,valid=true){
+async function event(payload,valid=true,type="workflow_run",delivery=randomUUID()){
   const raw=JSON.stringify(payload);
   const signature="sha256="+createHmac("sha256",valid?fixtureSecret:"wrong").update(raw).digest("hex");
-  return (await fetch(BASE+"/api/github/webhook",{method:"POST",headers:{"Content-Type":"application/json","x-github-event":"workflow_run","x-hub-signature-256":signature},body:raw})).status;
+  return (await fetch(BASE+"/api/github/webhook",{method:"POST",headers:{"Content-Type":"application/json","x-github-event":type,"x-github-delivery":delivery,"x-hub-signature-256":signature},body:raw})).status;
 }
 (async()=>{
  let browser;
@@ -84,11 +92,16 @@ async function event(payload,valid=true){
   assert.ok(graph.downstream_ids.includes(next.id));
   console.log("PASS real Auth, email-bound invitation, shared workspace, outsider denial and dependency approval");
   await stop();
-  await start({GITHUB_APP_WEBHOOK_SECRET:fixtureSecret,TEAMFLOW_GITHUB_APP_BINDINGS:JSON.stringify([{workspace_id:w,installation_id:101,repository_id:202,repository:"fixture/isolated"}]),TEAMFLOW_GITHUB_CI_MAPPINGS:JSON.stringify([{workspace_id:w,workflow_id:303,task_id:task.id}]),TEAMFLOW_GITHUB_INGEST_KEY:SERVICE});
+  const requestedAt=new Date(Date.now()-48*3600000).toISOString();
+  const pull={number:7,title:"Fictional PR",state:"open",draft:false,updated_at:new Date().toISOString(),base:{ref:"main",repo:{id:202}},requested_reviewers:[{id:githubReviewer}]};
+  const requested={event:"review_requested",created_at:requestedAt,requested_reviewer:{id:githubReviewer}};
+  writeFixture(pull,[requested]);
+  await start({GITHUB_APP_ID:"99",GITHUB_APP_PRIVATE_KEY:reviewKey,GITHUB_APP_WEBHOOK_SECRET:fixtureSecret,TEAMFLOW_GITHUB_APP_BINDINGS:JSON.stringify([{workspace_id:w,installation_id:101,repository_id:202,repository:"fixture/isolated"}]),TEAMFLOW_GITHUB_CI_MAPPINGS:JSON.stringify([{workspace_id:w,workflow_id:303,task_id:task.id}]),TEAMFLOW_GITHUB_REVIEW_MAPPINGS:JSON.stringify([{workspace_id:w,pull_number:7,task_id:next.id,github_reviewer_id:githubReviewer,reviewer_id:owner.id}]),TEAMFLOW_GITHUB_INGEST_KEY:SERVICE,TEAMFLOW_TEST_GITHUB_FIXTURE:fixtureFile,NODE_OPTIONS:(process.env.NODE_OPTIONS||"")+" --require="+path.resolve(__dirname,"fixtures/mock-github-review.cjs"),NEXT_TELEMETRY_DISABLED:"1"});
   const ready=await call(ownerPage,base+"/github-readiness");
   assert.equal(ready.mappings[0].task_id,task.id);
   assert.equal(ready.mappings[0].valid,true);
-  assert.equal(ready.app_credentials,false,"fictional App is not actually authorized");
+  assert.equal(ready.app_credentials,true,"fictional App credentials configured for intercepted GitHub transport only");
+  assert.equal(ready.review_mappings[0].valid,true);
   const at=new Date(Date.now()-10000).toISOString();
   const payload={action:"completed",installation:{id:101},repository:{id:202,full_name:"fixture/isolated"},workflow_run:{id:701,workflow_id:303,run_attempt:1,head_branch:"main",status:"completed",conclusion:"failure",updated_at:at}};
   assert.equal(await event(payload,false),401);
@@ -123,5 +136,62 @@ async function event(payload,valid=true){
   assert.equal((await call(memberPage,base+"/risks")).filter(r=>r.active&&r.evidence.kind==="ci_failure").length,0);
   assert.equal((await dash()).tasks.find(t=>t.id===task.id).priority,"critical");
   console.log("PASS signed fixture webhook, deduplication, actual evidence, downstream impact, two browser views, rule-based proposal, human approval, audit and newer success");
- }finally{if(browser)await browser.close();await stop();}
-})().catch(e=>{console.error(e.message);process.exitCode=1;});
+  // Phase 5B: actual local Auth/HTTP/PostgREST with explicitly simulated GitHub API.
+  d=await dash();
+  const successor=await call(ownerPage,base+"/tasks","POST",{key:"PR-103",title:"Review-dependent release",owner_id:member.id,estimate_hours:4,due_at:null,base_plan_version:d.plan_version});
+  d=await dash();
+  const dep=await call(ownerPage,base+"/proposals","POST",{title:"Connect the review-dependent release",base_plan_version:d.plan_version,actions:[{task_id:successor.id,field:"dependency",before:null,after:next.id}]});
+  await call(ownerPage,"/proposals/"+dep.id+"/decision","POST",{decision:"approve",base_plan_version:dep.base_plan_version},200,{"Idempotency-Key":randomUUID()});
+  const baseline=await dash();
+  const reviewPayload={action:"review_requested",installation:{id:101},repository:{id:202,full_name:"fixture/isolated"},pull_request:{number:7}};
+  const reviewDelivery=randomUUID();
+  const observed=await call(ownerPage,base+"/github-review?task="+next.id);
+  assert.equal(observed.status,"waiting");assert.equal(observed.delayed,true);assert.ok(observed.waiting_hours>=48);
+  await call(outsiderPage,base+"/github-review?task="+next.id,"GET",undefined,404);
+  assert.equal(await event(reviewPayload,false,"pull_request",reviewDelivery),401);
+  assert.equal(await event({...reviewPayload,repository:{id:999,full_name:"fixture/isolated"}},true,"pull_request",reviewDelivery),204);
+  assert.equal(await event(reviewPayload,true,"pull_request",reviewDelivery),202);
+  assert.equal(await event(reviewPayload,true,"pull_request",reviewDelivery),202);
+  let reviewRisks=(await call(ownerPage,base+"/risks")).filter(r=>r.evidence.kind==="review_delay");
+  assert.equal(reviewRisks.length,1);
+  const reviewRisk=reviewRisks.find(r=>r.active);
+  assert.ok(reviewRisk);assert.equal(reviewRisk.evidence.task_id,next.id);assert.ok(reviewRisk.affected_task_ids.includes(successor.id));
+  assert.equal((await dash()).plan_version,baseline.plan_version);
+  const intelligence=await call(memberPage,base+"/intelligence?task="+next.id);
+  assert.ok(intelligence.features.review_hours>=48);assert.equal(intelligence.prediction,null);
+  for(const page of [ownerPage,memberPage]){
+    await page.goto(BASE+"/risks");
+    await page.getByRole("region",{name:"Risk protection overview"}).waitFor();
+    await page.locator(".risk-feed").getByText("PR #7 review: waiting",{exact:true}).waitFor();
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+  }
+  const reviewOptions=await call(ownerPage,"/risks/"+reviewRisk.id+"/recovery-options");
+  assert.ok(reviewOptions.options.some(o=>o.id==="priority"));
+  const pending=await call(ownerPage,"/risks/"+reviewRisk.id+"/analyze?mode=rules&strategy=priority","POST",undefined,200,{"Idempotency-Key":randomUUID()});
+  assert.equal(pending.status,"pending");
+  await call(memberPage,"/proposals/"+pending.id+"/decision","POST",{decision:"approve",base_plan_version:pending.base_plan_version},403,{"Idempotency-Key":randomUUID()});
+  writeFixture({...pull,requested_reviewers:[],updated_at:new Date().toISOString()},[requested]);
+  assert.equal(await event({...reviewPayload,action:"submitted"},true,"pull_request_review"),202);
+  reviewRisks=(await call(memberPage,base+"/risks")).filter(r=>r.evidence.kind==="review_delay");
+  assert.equal(reviewRisks.length,2);assert.equal(reviewRisks.filter(r=>r.active).length,0);
+  await call(ownerPage,"/proposals/"+pending.id+"/decision","POST",{decision:"approve",base_plan_version:pending.base_plan_version},409,{"Idempotency-Key":randomUUID()});
+  assert.equal(await event(reviewPayload,true,"pull_request",reviewDelivery),202);
+  assert.equal((await call(memberPage,base+"/risks")).filter(r=>r.active&&r.evidence.kind==="review_delay").length,0);
+  assert.equal((await dash()).plan_version,baseline.plan_version);
+  const newer={event:"review_requested",created_at:new Date(Date.now()-30*3600000).toISOString(),requested_reviewer:{id:githubReviewer}};
+  writeFixture({...pull,updated_at:new Date().toISOString()},[requested,{event:"review_request_removed",created_at:new Date(Date.now()-40*3600000).toISOString(),requested_reviewer:{id:githubReviewer}},newer]);
+  assert.equal(await event(reviewPayload,true,"pull_request"),202);
+  const renewed=(await call(ownerPage,base+"/risks")).find(r=>r.active&&r.evidence.kind==="review_delay");
+  assert.ok(renewed&&renewed.id!==reviewRisk.id);
+  const accepted=await call(ownerPage,"/risks/"+renewed.id+"/analyze?mode=rules&strategy=priority","POST",undefined,200,{"Idempotency-Key":randomUUID()});
+  const approveKey=randomUUID();
+  const approval={decision:"approve",base_plan_version:accepted.base_plan_version};
+  const receipt=await call(ownerPage,"/proposals/"+accepted.id+"/decision","POST",approval,200,{"Idempotency-Key":approveKey});
+  assert.deepEqual(await call(ownerPage,"/proposals/"+accepted.id+"/decision","POST",approval,200,{"Idempotency-Key":approveKey}),receipt);
+  const final=await call(memberPage,base+"/dashboard");
+  assert.equal(final.plan_version,baseline.plan_version+1);
+  assert.equal(final.tasks.find(t=>t.id===next.id).priority,"critical");
+  assert.ok((await call(ownerPage,base+"/audit")).some(a=>a.kind==="proposal.approved"&&a.proposal_id===accepted.id));
+  console.log("PASS Phase 5B actual local Auth/PostgREST + signed review lifecycle, GitHub HTTP fixture, TIC, desktop/mobile risk UI, stale approval denial, re-request, approved recovery and audit");
+ }finally{if(browser)await browser.close();await stop();fs.rmSync(fixtureDir,{recursive:true,force:true});}
+})().catch(e=>{console.error(String(e.message).split("\n")[0]);process.exitCode=1;});

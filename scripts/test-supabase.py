@@ -89,10 +89,10 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
         assert result['plan_version']==2
         assert db.execute('select priority from public.tf_tasks where id=%s',(task,)).fetchone()[0]=='critical'
         passed.append('approval applies exactly once with durable receipt')
-        denied('key reuse rejected',lambda:rpc('decision',{**decision,'decision':'reject'},'approve-key'),'40001')
-        denied('second approval rejected',lambda:rpc('decision',decision,'another-key'),'40001')
-        denied('missing version rejected',lambda:rpc('status',{'task_id':task,'status':'blocked'}),'40001')
-        denied('stale proposal rejected',lambda:rpc('proposal',proposal),'40001')
+        denied('key reuse rejected',lambda:rpc('decision',{**decision,'decision':'reject'},'approve-key'),'PT409')
+        denied('second approval rejected',lambda:rpc('decision',decision,'another-key'),'PT409')
+        denied('missing version rejected',lambda:rpc('status',{'task_id':task,'status':'blocked'}),'PT409')
+        denied('stale proposal rejected',lambda:rpc('proposal',proposal),'PT409')
         denied('cyclic dependency rejected',lambda:rpc('proposal',{**proposal,'base_plan_version':2,'actions':[{'task_id':task,'field':'dependency','before':None,'after':successor}]}),'22023')
         denied('cross-workspace reviewer rejected',lambda:rpc('proposal',{**proposal,'base_plan_version':2,'actions':[{'task_id':task,'field':'reviewer_id','before':None,'after':outsider}]}),'22023')
         denied('audit update denied',lambda:db.execute("update public.tf_audit set summary='tampered'"),'42501')
@@ -211,6 +211,60 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
         assert db.execute("select kind from public.tf_evidence where workspace_id=%s and active",(ciw,)).fetchall()==[('ci_pass',)]
         assert db.execute("select plan_version from public.tf_workspaces where id=%s",(ciw,)).fetchone()[0]==1
         passed.append('signed CI ingestion deduplicates and preserves newest branch evidence without plan change')
+
+        # Phase 5B: real SQL lifecycle, service-only, no hosted data.
+        review_delivery=[str(uuid4()) for _ in range(8)]
+        def ingest_review(delivery,status,stamp,requested=None,branch='main',pr_state='open',draft=False,reviewer=owner,task_id=cit,workspace=ciw):
+            return db.execute("select public.tf_ingest_github_review(%s,%s,%s,'example/repo',7,123,%s,'main',%s,%s,%s::timestamptz,%s::timestamptz,%s,%s)",
+                (workspace,task_id,reviewer,delivery,branch,status,requested,stamp,pr_state,draft)).fetchone()[0]
+        identity(owner)
+        denied('authenticated cannot forge review context',lambda:db.execute('select public.tf_github_review_context(%s,%s,%s)',(ciw,cit,owner)),'42501')
+        denied('authenticated cannot forge review evidence',lambda:ingest_review(review_delivery[0],'waiting','2026-11-10T10:00:00Z','2026-11-09T10:00:00Z'),'42501')
+        db.execute('reset role')
+        db.execute('set local role service_role')
+        assert db.execute('select public.tf_github_review_context(%s,%s,%s)',(ciw,cit,owner)).fetchone()[0]=='main'
+        denied('foreign reviewer rejected',lambda:ingest_review(review_delivery[0],'waiting','2026-11-10T10:00:00Z','2026-11-09T10:00:00Z',reviewer=outsider),'22023')
+        denied('demo review ingest rejected',lambda:ingest_review(review_delivery[0],'waiting','2026-11-10T10:00:00Z','2026-11-09T10:00:00Z',task_id=task,workspace=w),'42501')
+        denied('future review request rejected',lambda:ingest_review(review_delivery[0],'waiting','2026-11-10T10:00:00Z','2026-11-11T10:00:00Z'),'22023')
+        first=ingest_review(review_delivery[0],'waiting','2026-11-10T10:00:00Z','2026-11-09T10:00:00Z')
+        assert first['status']=='recorded'
+        assert ingest_review(review_delivery[0],'waiting','2026-11-10T11:00:00Z','2026-11-09T10:00:00Z')['status']=='duplicate'
+        refreshed=ingest_review(review_delivery[1],'waiting','2026-11-10T11:00:00Z','2026-11-09T10:00:00Z')
+        assert refreshed=={'status':'refreshed','evidence_id':first['evidence_id']}
+        resolved=ingest_review(review_delivery[2],'not_requested','2026-11-10T12:00:00Z')
+        assert resolved['status']=='recorded'
+        assert ingest_review(review_delivery[3],'waiting','2026-11-10T10:30:00Z','2026-11-09T10:00:00Z')['status']=='stale_observation'
+        db.execute('reset role')
+        assert db.execute("select active from public.tf_evidence where id=%s",(first['evidence_id'],)).fetchone()[0] is False
+        assert db.execute("select count(*) from public.tf_evidence where workspace_id=%s and kind='review_delay'",(ciw,)).fetchone()[0]==2
+        assert db.execute("select plan_version from public.tf_workspaces where id=%s",(ciw,)).fetchone()[0]==1
+        passed.append('review request, refresh, deduplication, resolution and ordering preserve plan')
+        db.execute('set local role service_role')
+        renewed=ingest_review(review_delivery[4],'waiting','2026-11-10T13:00:00Z','2026-11-10T12:30:00Z')
+        assert renewed['status']=='recorded' and renewed['evidence_id']!=first['evidence_id']
+        assert ingest_review(review_delivery[5],'unrelated_branch','2026-11-10T14:00:00Z',branch='other')['status']=='recorded'
+        db.execute('reset role')
+        assert db.execute("select count(*) from public.tf_evidence where workspace_id=%s and kind='review_delay' and active",(ciw,)).fetchone()[0]==0
+        passed.append('re-request gets new evidence and changed target branch resolves prior risk')
+        # Proposal approval must fail when an active source was replaced after proposal creation.
+        db.execute('set local role service_role')
+        pending=ingest_review(review_delivery[6],'waiting','2026-11-10T15:00:00Z','2026-11-09T15:00:00Z')
+        db.execute('reset role')
+        # Keep the fixture evidence recent relative to the CI runner for existing approval freshness checks.
+        db.execute("update public.tf_evidence set observed_at=now()-interval '1 minute' where id=%s",(pending['evidence_id'],))
+        identity(owner)
+        q=db.execute("select public.tf_mutate(%s,'proposal',%s::jsonb,'')",(ciw,json.dumps({'title':'Review recovery','explanation':'Evidence-backed','source':'rules','base_plan_version':1,'actions':[{'task_id':cit,'field':'priority','before':'normal','after':'critical'}],'evidence_ids':[pending['evidence_id']],'risk_id':pending['evidence_id']}))).fetchone()[0]
+        db.execute('reset role')
+        db.execute('set local role service_role')
+        # Use the actual database clock so the newer observation supersedes the current fixture.
+        stamp=db.execute("select now()::text").fetchone()[0]
+        assert ingest_review(review_delivery[7],'inactive',stamp,pr_state='closed')['status']=='recorded'
+        identity(owner)
+        denied('resolved review invalidates pending approval',lambda:db.execute("select public.tf_mutate(%s,'decision',%s::jsonb,'review-decision')",(ciw,json.dumps({'proposal_id':q['id'],'decision':'approve','base_plan_version':1}))),'PT409')
+        db.execute('reset role')
+        assert db.execute("select priority,version from public.tf_tasks where id=%s",(cit,)).fetchone()==('normal',1)
+        assert db.execute("select plan_version from public.tf_workspaces where id=%s",(ciw,)).fetchone()[0]==1
+        passed.append('resolved review cannot authorize stale proposal or mutate task')
         prepare_sync = runpy.run_path(str(ROOT/'scripts/prepare-github-sync.py'))['prepare']
         def sync(runs):
             sql, _ = prepare_sync(w,'T-1','example/repo',"Build ' $sync$",runs)

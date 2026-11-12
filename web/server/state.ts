@@ -12,7 +12,7 @@ export type State = {
 };
 export class HttpError extends Error { constructor(public status: number, message: string) { super(message); } }
 export function databaseError(error: { code?: string; message: string }) {
-  const codes: Record<string, number> = { "42501": 403, "28000": 401, "40001": 409, "22023": 422, "23514": 422, "23503": 422, "22P02": 422, "23505": 409 };
+  const codes: Record<string, number> = { "42501": 403, "28000": 401, "40001": 409, "PT409": 409, "22023": 422, "23514": 422, "23503": 422, "22P02": 422, "23505": 409 };
   const status = error.code === "P0429" ? 429 : codes[error.code ?? ""] ?? 503;
   // Do not expose SQL, tenant records, connection details or constraint values.
   throw new HttpError(status, status === 403 ? "Your role does not permit this action, or the invitation is unavailable for this email." : status === 429 ? "Too many requests. Please try again later." : status === 409 ? "The plan or request changed. Refresh and try again." : status === 422 ? "The change failed validation. Check values, capacity and dependencies." : "Database unavailable. Please retry.");
