@@ -1,0 +1,27 @@
+name: TeamFlow isolated CI evidence
+on:
+  workflow_dispatch:
+    inputs:
+      outcome:
+        description: "Intentional fixture result"
+        required: true
+        type: choice
+        options:
+          - fail
+          - pass
+permissions:
+  contents: read
+jobs:
+  evidence:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Produce requested fixture outcome
+        env:
+          FIXTURE_OUTCOME: ${{ inputs.outcome }}
+        run: |
+          case "$FIXTURE_OUTCOME" in
+            fail) echo "Intentional sandbox CI failure"; exit 1 ;;
+            pass) echo "Intentional sandbox CI success" ;;
+            *) exit 2 ;;
+          esac
