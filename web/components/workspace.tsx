@@ -113,7 +113,7 @@ const titles: Record<View, [string, string]> = {
   ],
 };
 
-export default function Workspace({ initialRiskId, initialProposalId }: { initialRiskId?: string; initialProposalId?: string } = {}) {
+export default function Workspace({ initialRiskId, initialProposalId, confirmationFailed }: { initialRiskId?: string; initialProposalId?: string; confirmationFailed?: boolean } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const routeView = pathname.split("/")[1];
@@ -298,7 +298,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
     return (
       <WorkspaceLoader/>
     );
-  if (!user) return <Login onLogin={() => load()} initialError={error} />;
+  if (!user) return <Login onLogin={() => load()} initialError={error || (confirmationFailed?"Confirmation could not be completed. If your email is already verified, sign in. Otherwise enter your email and request a fresh confirmation. Reopen your team invitation after signing in.":"")} />;
   const activeRisks = risks.filter((r) => r.active).sort((a,b)=>Number(a.stale_evidence)-Number(b.stale_evidence)||b.affected_task_ids.length-a.affected_task_ids.length||({high:3,medium:2,low:1}[b.severity]??0)-({high:3,medium:2,low:1}[a.severity]??0)),
     pending = proposals.filter((p) => p.status === "pending"),
     ready = pending.filter((p) => !p.stale);

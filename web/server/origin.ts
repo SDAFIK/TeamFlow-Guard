@@ -16,3 +16,11 @@ export function allowedOrigin(origin: string | null, config: OriginConfig): bool
     } catch { return false; }
   });
 }
+
+// Preserve the browser's trusted origin for PKCE cookies. Never reflect an arbitrary host.
+export function authRedirectOrigin(origin: string | null, config: OriginConfig): string | null {
+  if (allowedOrigin(origin, config)) return origin;
+  const base = config.APP_BASE_URL;
+  try { const canonical = new URL(base ?? "").origin; return allowedOrigin(canonical, config) ? canonical : null; }
+  catch { return null; }
+}

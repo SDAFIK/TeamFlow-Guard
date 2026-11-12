@@ -1,2 +1,5 @@
 import Workspace from "@/components/workspace";
-export default function Page() { return <Workspace />; }
+export default async function Page({searchParams}:{searchParams:Promise<{confirmation?:string}>}) {
+  const params=await searchParams;
+  return <Workspace confirmationFailed={params.confirmation==="failed"}/>;
+}

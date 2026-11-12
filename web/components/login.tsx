@@ -15,6 +15,16 @@ export default function Login({
     [error, setError] = useState(initialError),
     [busy, setBusy] = useState(false);
   const [register,setRegister]=useState(false),[message,setMessage]=useState('');
+  async function resendConfirmation(){
+    if(busy)return;
+    if(!email.trim()){setError("Enter the email address you registered with first.");return;}
+    setBusy(true);setError("");setMessage("");
+    try {
+      const result=await api<{message:string}>("/auth/resend-confirmation",{method:"POST",body:JSON.stringify({email:email.trim()})});
+      setMessage(result.message);
+    }catch(e){setError((e as Error).message);}
+    finally{setBusy(false);}
+  }
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -98,6 +108,7 @@ export default function Login({
             <ArrowRight size={17} />
           </button>
           <button className="text-link" type="button" onClick={()=>{setRegister(!register);setError('');setMessage('');}}>{register?'Already have an account? Sign in':'New here? Create an account'}</button>
+          <button className="text-link" type="button" disabled={busy} onClick={()=>void resendConfirmation()}>Resend confirmation email</button>
           <div className="login-note">
             <LockKeyhole size={17} />
             <span>
