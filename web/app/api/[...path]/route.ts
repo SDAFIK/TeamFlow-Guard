@@ -76,6 +76,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
     }
     const { data: { user }, error: authError } = await client.auth.getUser();
     if (authError || !user) throw new HttpError(401, "Sign in to continue");
+    const inviteEmailConfig = { RESEND_API_KEY: process.env.RESEND_API_KEY, TEAMFLOW_INVITE_EMAIL_FROM: process.env.TEAMFLOW_INVITE_EMAIL_FROM, APP_BASE_URL: process.env.APP_BASE_URL };
     const workspaceWrite=async(w:string|null,operation:string,input:unknown)=>{
       const result=await client.rpc('tf_workspace_write',{w,operation,body:input});
       if(result.error) databaseError(result.error);return result.data;
@@ -113,7 +114,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
           case "proposals": return answer(state.proposals);
           case "audit": return answer(state.audit);
           case "integrations": return answer({ ai_configured: configured(), ai_provider: "gemini", ai_model: process.env.GEMINI_MODEL ?? null, github_configured: Boolean(state.workspace.github_repository) || state.evidence.some(e => e.origin === 'github'), github_repository: state.workspace.github_repository, github_evidence_imported: state.evidence.some(e => e.origin === 'github'), mode: state.workspace.is_demo ? "demo" : "manual" });
-          case "settings": return answer({...state.workspace,my_role:state.role,members:state.members,invitation_email_configured:!state.workspace.is_demo && invitationEmailConfigured(process.env)});
+          case "settings": return answer({...state.workspace,my_role:state.role,members:state.members,invitation_email_configured:!state.workspace.is_demo && invitationEmailConfigured(inviteEmailConfig)});
           case "github": {
             const repository = state.workspace.github_repository;
             if (!repository) return answer({ connected: false, repository: null, runs: [], warning: null });
@@ -159,9 +160,9 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
         if(input.send_email) {
           email_status = state.workspace.is_demo ? "not_configured" : await sendInvitationEmail({
             id:invitation.id,email:invitation.email,role:input.role,workspace:state.workspace.name,token,
-          },process.env);
+          },inviteEmailConfig);
         }
-        return answer({...invitation,token,invite_url:invitationURL(token,process.env),email_status});
+        return answer({...invitation,token,invite_url:invitationURL(token,inviteEmailConfig),email_status});
       }
       if(path[2]==='invitations' && path[4]==='revoke' && request.method==='POST') return answer(await workspaceWrite(id,'revoke_invite',{invite_id:z.uuid().parse(path[3])}));
       if(path[2]==='members' && path[4]==='role' && request.method==='PUT') {
