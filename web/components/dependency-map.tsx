@@ -56,13 +56,14 @@ export default function DependencyMap({
   onConnectProposal?: (source:string,target:string)=>void;
 }) {
   const [vertical,setVertical]=useState(false);
-  const initialized=useRef(false);
-  useEffect(()=>{if(window.matchMedia("(max-width: 680px)").matches)setVertical(true);},[]);
-  useEffect(()=>{if(!initialized.current)return;const timer=window.setTimeout(()=>void flow.current?.fitView({padding:.16,maxZoom:1.15,duration:350}),100);return()=>window.clearTimeout(timer);},[vertical]);
+
   const [linkMode,setLinkMode]=useState(false);
   const [linkError,setLinkError]=useState("");
   const [positions,setPositions]=useState<Record<string,{x:number;y:number}>>({});
   const flow=useRef<ReactFlowInstance<TaskNode>|null>(null);
+  const initFlow=(instance:ReactFlowInstance<TaskNode>)=>{flow.current=instance;};
+  useEffect(()=>{const timer=window.setTimeout(()=>{if(window.matchMedia("(max-width: 680px)").matches)setVertical(true);},0);return()=>window.clearTimeout(timer);},[]);
+  useEffect(()=>{const timer=window.setTimeout(()=>void flow.current?.fitView({padding:.16,maxZoom:1.15,duration:350}),100);return()=>window.clearTimeout(timer);},[vertical]);
   const selected=graph.nodes.find(t=>t.id===graph.selected_task_id);
   const fit=()=>void flow.current?.fitView({padding:.16,maxZoom:1.15,duration:350});
   const reset=()=>{setPositions({});requestAnimationFrame(fit);};
@@ -161,7 +162,7 @@ export default function DependencyMap({
           nodesConnectable={expanded&&linkMode&&Boolean(onConnectProposal)}
           onConnect={connect}
           nodesDraggable={expanded}
-          onInit={instance=>{flow.current=instance;initialized.current=true;}}
+          onInit={initFlow}
           onNodeDrag={(_,node)=>setPositions(prev=>({...prev,[node.id]:node.position}))}
           onNodeDragStop={(_,node)=>setPositions(prev=>({...prev,[node.id]:node.position}))}
           onPaneClick={()=>onSelect("")}
