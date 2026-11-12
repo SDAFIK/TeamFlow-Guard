@@ -1,0 +1,19 @@
+name: TIC learning migration scaffold
+on:
+  push:
+    branches: [codex/tic-v2]
+    paths: ['.github/workflows/tic-learning-migration-name.yml']
+permissions:
+  contents: read
+jobs:
+  scaffold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: |
+          npx --yes supabase@2.79.0 migration new tic_learning_ledger
+          ls supabase/migrations/*_tic_learning_ledger.sql
