@@ -128,9 +128,11 @@ async function run(viewport, role="lead") {
     await page.getByRole("dialog",{name:"Recent team activity"}).getByText("Workspace created (simulated)").waitFor();
     await page.getByRole("button",{name:"Close activity",exact:true}).click();
 
-    if (viewport.width<600) {
-      await page.getByRole("button",{name:"Open navigation"}).click();
-    }
+    if (viewport.width<600) await page.getByRole("button",{name:"Open navigation"}).click();
+    await page.getByRole("button",{name:"Risk Center",exact:true}).click();
+    await page.getByRole("region",{name:"Risk protection overview"}).waitFor();
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1),false,"risk overview has no overflow");
+    if (viewport.width<600) await page.getByRole("button",{name:"Open navigation"}).click();
     await page.getByRole("button",{name:"Task Board",exact:true}).click();
     if (role==="lead") {
       await page.getByRole("button",{name:"Create task",exact:true}).first().click();
