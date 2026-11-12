@@ -10,6 +10,7 @@ export type Audit = components["schemas"]["AuditView"];
 export type Integrations = components["schemas"]["IntegrationStatus"] & {
   github_repository?: string | null;
   github_evidence_imported?: boolean;
+  github_app_bound?: boolean;
 };
 export type Action = components["schemas"]["Action"];
 export class ApiError extends Error {
