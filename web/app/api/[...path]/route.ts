@@ -90,7 +90,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
     }
     const { data: { user }, error: authError } = await client.auth.getUser();
     if (authError || !user) throw new HttpError(401, "Sign in to continue");
-    const inviteEmailConfig = { RESEND_API_KEY: process.env.RESEND_API_KEY, TEAMFLOW_INVITE_EMAIL_FROM: process.env.TEAMFLOW_INVITE_EMAIL_FROM, APP_BASE_URL: process.env.APP_BASE_URL };
+    const inviteEmailConfig = { RESEND_API_KEY: process.env.RESEND_API_KEY, TEAMFLOW_INVITE_EMAIL_FROM: process.env.TEAMFLOW_INVITE_EMAIL_FROM, APP_BASE_URL: process.env.APP_BASE_URL, TEAMFLOW_GMAIL_USER: process.env.TEAMFLOW_GMAIL_USER, TEAMFLOW_GMAIL_APP_PASSWORD: process.env.TEAMFLOW_GMAIL_APP_PASSWORD };
     const workspaceWrite=async(w:string|null,operation:string,input:unknown)=>{
       const result=await client.rpc('tf_workspace_write',{w,operation,body:input});
       if(result.error) databaseError(result.error);return result.data;

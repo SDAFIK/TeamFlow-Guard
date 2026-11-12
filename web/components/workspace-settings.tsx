@@ -35,7 +35,7 @@ export function WorkspaceSettings({ id, onSaved, focus }: { id: string; onSaved:
   const [inviteRole, setInviteRole] = useState<Exclude<Role, "owner">>("member");
   const [link, setLink] = useState("");
   const [invitedEmail, setInvitedEmail] = useState("");
-  const [sendEmail, setSendEmail] = useState(false);
+  const [sendEmail, setSendEmail] = useState(true);
   const [memberQuery, setMemberQuery] = useState("");
   const [roleChange, setRoleChange] = useState<{ id: string; name: string; role: Exclude<Role, "owner"> } | null>(null);
   const [refreshedAt, setRefreshedAt] = useState(0);
@@ -202,13 +202,14 @@ export function WorkspaceSettings({ id, onSaved, focus }: { id: string; onSaved:
                   {owner && <option value="manager">Manager — approve changes</option>}
                 </select>
               </label>
-              {settings.invitation_email_configured ? <label className="invite-send-option form-full"><input type="checkbox" checked={sendEmail} disabled={busy} onChange={event => setSendEmail(event.target.checked)}/> Send invitation email now</label> : <p className="field-help form-full">Direct email is not configured for this workspace. You can still share a private link or open an email draft.</p>}
+              {settings.invitation_email_configured ? <label className="invite-send-option form-full"><input type="checkbox" checked={sendEmail} disabled={busy} onChange={event => setSendEmail(event.target.checked)}/> Send invitation email now</label> : <p className="field-help form-full">Direct email is not configured for this workspace. Generating a link does not send an email. Use the Gmail draft or copy the private link.</p>}
               <button className="secondary" disabled={busy} type="submit"><MailPlus size={16}/> Generate invitation link</button>
             </form>
             {link && <div className="invitation-link">
               <label>Private invitation link<input readOnly value={link} onFocus={event => event.target.select()} aria-describedby="invitation-help"/></label>
               <button className="primary" onClick={() => void navigator.clipboard.writeText(link).then(() => setNotice("Invitation link copied.")).catch(() => setError("Clipboard is unavailable. Select the link and copy it manually."))}><ClipboardCopy size={16}/> Copy link</button>
               <a className="secondary invite-email-action" href={`mailto:${encodeURIComponent(invitedEmail)}?subject=${encodeURIComponent("Join my TeamFlow Guard workspace")}&body=${encodeURIComponent(`I've invited you to join our TeamFlow Guard workspace. Sign in using ${invitedEmail}, then open this private invitation link (expires in seven days):\n\n${link}\n\nPlease don't forward it.`)}`}><Send size={16}/> Open email draft</a>
+              <a className="secondary invite-email-action" target="_blank" rel="noopener noreferrer" href={`https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(invitedEmail)}&su=${encodeURIComponent("Join my TeamFlow Guard workspace")}&body=${encodeURIComponent("You are invited to join our TeamFlow Guard workspace. Sign in using "+invitedEmail+", then open this private link (expires in seven days):\n\n"+link+"\n\nPlease do not forward it.")}`}>Open Gmail draft</a>
               <p id="invitation-help">Only send this to the invited email owner. The link is shown until you leave the page.</p>
             </div>}
             {invites.length > 0 && <div className="pending-invitations"><h3>Recent invitations</h3>
