@@ -23,6 +23,8 @@ import { dependencyFeedback } from "@/domain/dependency-feedback";
 import { Modal, Badge, Busy, statusLabels } from "./ui";
 import { JourneySteps } from './journey-steps';
 import type { RecoveryOption } from '@/domain/recovery-options';
+import type { simulateRecovery } from '@/domain/tic-v2-recovery';
+type RecoverySimulation=ReturnType<typeof simulateRecovery>[number];
 
 type Member = Overview["members"][number];
 export function TaskDialog({
@@ -243,10 +245,11 @@ export function RiskDialog({
     [error, setError] = useState("");
   const [stage,setStage]=useState<'understand'|'compare'>('understand');
   const [options,setOptions]=useState<RecoveryOption[]>([]);
+  const [simulations,setSimulations]=useState<RecoverySimulation[]>([]);
   async function compare() {
     if(integrations.ai_provider!=='gemini'){await analyze('rules');return;}
     setPending('options');setError('');
-    try { const result=await api<{options:RecoveryOption[]}>(`/risks/${risk.id}/recovery-options`);setOptions(result.options);setStage('compare'); }
+    try { const result=await api<{options:RecoveryOption[];simulations?:RecoverySimulation[]}>(`/risks/${risk.id}/recovery-options`);setOptions(result.options);setSimulations(result.simulations??[]);setStage('compare'); }
     catch(e){setError((e as Error).message);}finally{setPending('');}
   }
   async function analyze(mode: string, strategy?: string) {
@@ -327,7 +330,8 @@ export function RiskDialog({
       </div>}
       {stage==='compare'&&<section aria-label="Recovery alternatives">
         <p>These choices come from plan constraints and reported availability. Compare the tradeoffs, then review one change. AI can explain and select from the same allowed actions.</p>
-        <div className="recovery-options">{options.map(option=><article className="recovery-option" key={option.id}><span className="section-kicker">RULE-BASED OPTION</span><h3>{option.title}</h3><p>{option.effect}</p><p className="option-tradeoff"><strong>Tradeoff:</strong> {option.tradeoff}</p><button className="secondary" aria-label={`Review ${option.title}`} disabled={readOnly||!!pending} onClick={()=>analyze('rules',option.id)}>Review this option<ArrowRight size={16}/></button></article>)}</div>
+        <div className="recovery-options">{options.map(option=><article className="recovery-option" key={option.id}><span className="section-kicker">RULE-BASED OPTION</span><h3>{option.title}</h3><p>{option.effect}</p><p className="option-tradeoff"><strong>Tradeoff:</strong> {option.tradeoff}</p>{simulations.filter(s=>s.id===option.id).map(s=><div key={s.id}><p><strong>Simulation:</strong> {s.affected_task_ids.length} unfinished dependent tasks. Source risk is not resolved by this action.</p>{s.capacity.map(c=><p key={c.member_id}>Estimated workload: {c.before_hours}h → {c.after_hours}h; {c.available_hours}h reported available.</p>)}<p className="field-help">No guaranteed delay reduction.</p></div>)}<button className="secondary" aria-label={`Review ${option.title}`} disabled={readOnly||!!pending} onClick={()=>analyze('rules',option.id)}>Review this option<ArrowRight size={16}/></button></article>)}</div>
+        {simulations.filter(s=>!s.feasible).map(s=><p className="warning" key={s.id}>{s.title} is unavailable: {s.explanation}</p>)}
         {!options.length&&<p className="warning">No feasible change is available. Keep the current plan and discuss the constraint with your team.</p>}
         <button className="text-link" disabled={!!pending} onClick={()=>setStage('understand')}>Back to evidence & impact</button>
       </section>}
@@ -343,7 +347,7 @@ export function RiskDialog({
         {stage==='compare'&&<>
         <button
           className="primary"
-          disabled={readOnly || !!pending || !risk.active || !integrations.ai_configured}
+          disabled={readOnly || !!pending || !risk.active || !integrations.ai_configured || !options.length}
           onClick={() => analyze(integrations.ai_provider ?? "gemini")}
         >
           {pending === (integrations.ai_provider ?? "gemini") ? (
@@ -357,7 +361,7 @@ export function RiskDialog({
         </button>
         <button
           className="secondary"
-          disabled={readOnly || !!pending || !risk.active}
+          disabled={readOnly || !!pending || !risk.active || !options.length}
           onClick={() => analyze("rules")}
         >
           {pending === "rules" ? <Busy /> : "Review combined rule-based plan"}
@@ -622,67 +626,38 @@ export function DependencyDialog({
     </Modal>
   );
 }
+function localDate(value:Date):string{
+ const y=value.getFullYear(),m=String(value.getMonth()+1).padStart(2,"0"),d=String(value.getDate()).padStart(2,"0");
+ return y+"-"+m+"-"+d;
+}
+function initialAvailabilityDate(value:string|null|undefined,fallback:Date):string{
+ const date=value?new Date(value):fallback;
+ return localDate(Number.isFinite(date.getTime())?date:fallback);
+}
 export function AvailabilityForm({
-  member,
-  projectId,
-  onSaved,
-  dated = false,
-}: {
-  member: Member;
-  projectId: string;
-  onSaved: () => Promise<void>;
-  dated?: boolean;
-}) {
-  const [start, setStart] = useState(() => new Date().toISOString().slice(0,10));
-  const [end, setEnd] = useState(() => new Date(Date.now()+2*86400000).toISOString().slice(0,10));
-  const [hours, setHours] = useState(member.available_hours),
-    [pending, setPending] = useState(false),
-    [error, setError] = useState("");
-  async function save() {
-    setPending(true);
-    setError("");
-    try {
-      await api(`/projects/${projectId}/availability`, {
-        method: "PUT",
-        body: JSON.stringify({ hours, ...(dated ? {start_at:new Date(start+"T00:00:00").toISOString(),end_at:new Date(end+"T00:00:00").toISOString()} : {}) }),
-      });
-      await onSaved();
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setPending(false);
-    }
-  }
-  return (
-    <div className="availability-form">
-      <div>
-        <h3>Your available hours</h3>
-        <p>Voluntary planning availability. No private reason is collected.</p>
-      </div>
-      <label className="sr-only" htmlFor="hours">
-        Available hours
-      </label>
-      <input
-        id="hours"
-        type="number"
-        min={0}
-        max={80}
-        value={hours}
-        onChange={(e) => setHours(Number(e.target.value))}
-      />
-      <button
-        className="secondary"
-        disabled={pending || (!dated && hours === member.available_hours) || (dated && (!start || !end || end <= start))}
-        onClick={save}
-      >
-        {pending ? <Busy /> : "Save availability"}
-      </button>
-      {dated && <><label>From (your timezone)<input type="date" value={start} onChange={e=>setStart(e.target.value)}/></label><label>Until (exclusive)<input type="date" value={end} onChange={e=>setEnd(e.target.value)}/></label></>}
-      {error && (
-        <div className="error" role="alert">
-          {error}
-        </div>
-      )}
-    </div>
-  );
+ member,projectId,onSaved,dated=false,
+}: {member:Member & {availability_start?:string|null;availability_end?:string|null};projectId:string;onSaved:()=>Promise<void>;dated?:boolean}) {
+ const [start,setStart]=useState(()=>initialAvailabilityDate(member.availability_start,new Date()));
+ const [end,setEnd]=useState(()=>{const d=new Date();d.setDate(d.getDate()+2);return initialAvailabilityDate(member.availability_end,d);});
+ const [hours,setHours]=useState(String(member.available_hours)),[pending,setPending]=useState(false),[error,setError]=useState("");
+ const amount=Number(hours),validHours=hours.trim()!==""&&Number.isInteger(amount)&&amount>=0&&amount<=80;
+ const validRange=!dated||(Boolean(start)&&Boolean(end)&&end>start);
+ async function save(event:React.FormEvent<HTMLFormElement>){
+  event.preventDefault();if(pending||!validHours||!validRange)return;
+  setPending(true);setError("");
+  try{
+   await api(`/projects/${projectId}/availability`,{method:"PUT",body:JSON.stringify({hours:amount,...(dated?{start_at:new Date(start+"T00:00:00").toISOString(),end_at:new Date(end+"T00:00:00").toISOString()}:{})})});
+   await onSaved();
+  }catch(e){setError((e as Error).message);}finally{setPending(false);}
+ }
+ return <form className="availability-form release-availability" onSubmit={save} aria-label="Your planning availability">
+  <div className="availability-copy"><span className="section-kicker">VOLUNTARY CAPACITY</span><h3>Your available hours</h3><p>Share planning hours for a date range. No private reason or activity tracking is collected.</p></div>
+  <div className="availability-fields">
+   <label htmlFor="hours">Available hours<input id="hours" type="number" min={0} max={80} step={1} required value={hours} disabled={pending} onChange={e=>setHours(e.target.value)}/></label>
+   {dated&&<><label>From (local date)<input type="date" value={start} required disabled={pending} onChange={e=>setStart(e.target.value)}/></label><label>Until (exclusive)<input type="date" value={end} min={start||undefined} required disabled={pending} onChange={e=>setEnd(e.target.value)}/></label></>}
+   <button className="primary" type="submit" disabled={pending||!validHours||!validRange||(!dated&&amount===member.available_hours)}>{pending?<Busy/>:"Save availability"}</button>
+  </div>
+  {!validRange&&<p className="field-help" role="status">Choose an end date after the start date.</p>}
+  {error&&<div className="error" role="alert">{error}</div>}
+ </form>;
 }

@@ -1,0 +1,60 @@
+{
+  "status": "synthetic_only",
+  "seed": 42,
+  "projects": [
+    72,
+    24,
+    24
+  ],
+  "rows": [
+    7200,
+    2400,
+    2400
+  ],
+  "features": [
+    "ci_failures",
+    "blocked",
+    "review_hours",
+    "downstream_count",
+    "deadline_hours",
+    "capacity_gap",
+    "estimate_hours",
+    "dependency_depth",
+    "unfinished_predecessors",
+    "workload_ratio",
+    "task_age_hours",
+    "ci_retries"
+  ],
+  "candidate_selected_by_validation_ap": "logistic",
+  "metrics": {
+    "logistic": {
+      "validation_ap": 0.7642,
+      "test_ap": 0.8185,
+      "brier": 0.2004,
+      "threshold": 0.41,
+      "precision": 0.6693,
+      "recall": 0.9163,
+      "f1": 0.7735
+    },
+    "random_forest": {
+      "validation_ap": 0.7371,
+      "test_ap": 0.8017,
+      "brier": 0.2077,
+      "threshold": 0.47,
+      "precision": 0.6618,
+      "recall": 0.9397,
+      "f1": 0.7766
+    },
+    "xgboost": {
+      "validation_ap": 0.7508,
+      "test_ap": 0.8122,
+      "brier": 0.2027,
+      "threshold": 0.44,
+      "precision": 0.6749,
+      "recall": 0.9136,
+      "f1": 0.7763
+    }
+  },
+  "baseline_test_ap": 0.6221,
+  "baseline_brier": 0.2351
+}

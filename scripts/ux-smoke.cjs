@@ -20,7 +20,7 @@ const firstTask = {
 
 function model(role) {
   const store = {
-    role, version: 1, tasks: [firstTask], edges: [], proposals: [], audit: [{id:"mock-audit-1",actor_id:OWNER,actor_name:"Asha (mock)",kind:"workspace.created",summary:"Workspace created (simulated)",created_at:new Date().toISOString(),plan_version:1,changes:[]}], githubRepo:null,
+    role, isDemo:false, replays:[], version: 1, tasks: [{...firstTask}], edges: [], proposals: [], audit: [{id:"mock-audit-1",actor_id:OWNER,actor_name:"Asha (mock)",kind:"workspace.created",summary:"Workspace created (simulated)",created_at:new Date().toISOString(),plan_version:1,changes:[]}], githubRepo:null,
     members: [
       {id:OWNER,name:"Asha (mock)",email:"asha@example.invalid",role:role==="viewer"?"viewer":"lead",specialty:"Product",available_hours:24},
       {id:OTHER,name:"Jin (mock)",email:"jin@example.invalid",role:"contributor",specialty:"Frontend",available_hours:20},
@@ -44,10 +44,10 @@ async function mockApi(page, state) {
     const json = (data, status=200) => route.fulfill({status,contentType:"application/json",body:JSON.stringify(data)});
     const base = `/api/projects/${WORKSPACE}`;
     if (pathname === "/api/me") return json({id:OWNER,name:"Asha (mock)",email:"asha@example.invalid"});
-    if (pathname === "/api/projects" && method==="GET") return json([{id:WORKSPACE,name:state.settings.name,role:state.role}]);
+    if (pathname === "/api/projects" && method==="GET") return json([{id:WORKSPACE,name:state.settings.name,role:state.role,is_demo:state.isDemo}]);
     if (pathname === `${base}/dashboard`) return json({
       project:{id:WORKSPACE,name:state.settings.name,role:state.role},
-      description:state.settings.description,is_demo:false,fixture_label:"",
+      description:state.settings.description,is_demo:state.isDemo,fixture_label:state.isDemo?"Fictional evidence":"",
       plan_version:state.version,as_of:new Date().toISOString(),
       tasks:state.tasks,members:state.members,
       counts:{total:state.tasks.length,...Object.fromEntries(["todo","in_progress","blocked","done"].map(s=>[s,state.tasks.filter(t=>t.status===s).length]))},
@@ -57,8 +57,10 @@ async function mockApi(page, state) {
       selected_task_id:url.searchParams.get("selected"),downstream_ids:[],upstream_ids:[],
     });
     if (pathname === `${base}/risks`) return json([]);
+    if (pathname === `${base}/availability` && method==="PUT"){if(state.role==="viewer")return json({message:"Read-only access"},403);state.members[0].available_hours=input.hours;state.members[0].availability_start=input.start_at;state.members[0].availability_end=input.end_at;return json({message:"saved"});}
+    if (pathname === `${base}/demo-events` && method==="POST"){state.replays.push(input);return json([]);}
     if (pathname === `${base}/proposals` && method==="GET") return json(state.proposals);
-    if (pathname === `${base}/audit`) return json(state.audit);
+    if (pathname === `${base}/audit`) return json(url.searchParams.has("limit") ? {items:state.audit,next_cursor:null} : state.audit);
     if (pathname === `${base}/integrations`) return json({
       ai_configured:false,ai_provider:"gemini",ai_model:null,github_configured:false,mode:"manual",
     });
@@ -202,7 +204,7 @@ async function run(viewport, role="lead") {
       await page.getByRole("button",{name:"Renew invitation",exact:true}).click();
       assert.equal(await page.getByLabel("Teammate email").inputValue(),"expired.person@example.invalid");
       await page.getByRole("checkbox",{name:"Send invitation email now"}).check();
-      await page.getByRole("button",{name:"Generate invitation link",exact:true}).click();
+      await page.getByRole("button",{name:"Send invitation email",exact:true}).click();
       await page.getByText("Invitation accepted by the email provider. Delivery to the inbox is not yet confirmed.",{exact:true}).waitFor();
       assert.deepEqual(state.emailRequests,["expired.person@example.invalid"],"only explicitly requested simulated email");
       await page.getByLabel("Repository URL or owner/name").fill("SDAFIK/TeamFlow-Guard");
@@ -217,6 +219,40 @@ async function run(viewport, role="lead") {
       await page.getByText("#7 Private PR (simulated)",{exact:true}).waitFor();
       await page.getByText("workflow run · completed",{exact:true}).waitFor();
       assert.equal(await page.getByRole("checkbox",{name:"Send invitation email now"}).count(),0,"viewer cannot send invitations");
+    }
+    await page.getByRole("button",{name:/View team capacity/}).click();
+    await page.getByRole("heading",{name:"Team capacity",exact:true}).waitFor();
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1),false,"capacity page fits viewport");
+    if(role==="lead"){
+      const form=page.getByRole("form",{name:"Your planning availability"});
+      await form.getByLabel("Available hours").fill("16");
+      await form.getByLabel("From (local date)").fill("2026-11-12");
+      await form.getByLabel("Until (exclusive)").fill("2026-11-12");
+      assert.equal(await form.getByRole("button",{name:"Save availability"}).isDisabled(),true);
+      await form.getByLabel("Until (exclusive)").fill("2026-11-14");
+      await form.getByRole("button",{name:"Save availability"}).click();
+      await page.getByText("Your availability was saved.").waitFor();
+      assert.equal(state.members[0].available_hours,16);
+      assert.ok(state.members[0].availability_end>state.members[0].availability_start);
+    }else assert.equal(await page.getByRole("form",{name:"Your planning availability"}).count(),0);
+    if(viewport.width<600) await page.getByRole("button",{name:"Open navigation"}).click();
+    await page.getByRole("button",{name:"Audit Log",exact:true}).click();
+    await page.getByRole("heading",{name:"Audit log",exact:true}).waitFor();
+    await page.getByRole("region",{name:"Audit history"}).getByText("Workspace created (simulated)",{exact:true}).waitFor();
+    if(viewport.width<600) await page.getByRole("button",{name:"Open navigation"}).click();
+    await page.getByRole("button",{name:/^Decision Inbox(?:\s+\d+)?$/}).click();
+    await page.getByRole("heading",{name:"Decision inbox",exact:true}).waitFor();
+    if(role==="lead"){
+      state.isDemo=true;
+      await page.goto(`${BASE}/overview`,{waitUntil:"networkidle"});
+      await page.getByRole("region",{name:"TeamFlow Guard brand hero"}).getByRole("button",{name:"Replay demo scenario"}).click();
+      const dialog=page.getByRole("dialog",{name:"Replay a demo event"});
+      await dialog.getByRole("button",{name:/Upstream work blocked/}).click();
+      const oldVersion=state.version;
+      await dialog.getByRole("button",{name:"Replay event"}).click();
+      await dialog.waitFor({state:"hidden"});
+      assert.equal(state.replays.at(-1).kind,"dependency");
+      assert.equal(state.version,oldVersion,"demo replay does not change approved plan");
     }
     const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1);
     assert.equal(overflow,false,`horizontal overflow at ${label}`);

@@ -98,3 +98,4 @@ jobs:
         working-directory: api
 
       - run: python scripts/test-supabase.py
+      - run: python scripts/test-tic-learning.py

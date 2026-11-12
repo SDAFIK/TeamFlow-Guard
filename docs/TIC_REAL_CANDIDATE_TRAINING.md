@@ -1,0 +1,6 @@
+# TIC real candidate training
+Use only explicit owner-authorized exports, never commit them to this public repository. New ledger export is a prospective task-level schema. Run locally using Python 3.13, numpy 2.3.5, scikit-learn 1.8.0, XGBoost 3.1.3:
+```sh
+python scripts/train-tic-real.py --input /private/export-a.json /private/export-b.json --validation-start 2027-01-01T00:00:00Z --test-start 2027-03-01T00:00:00Z --output /private/tic-candidate-001.json
+```
+Dates are illustrative, choose actual predeclared data cutoffs. Entire projects are separated by chronological windows including outcome timestamps; crossing groups omitted and counted. Minimum groups 6/3/3, rows 200/100/100, each split at least 20 of each class. Compare three models by validation AP, select threshold using validation only, report held-out metrics. Review gate: AP at least .02 over constant prevalence, lower Brier, precision >= .60 and recall >= .70, validation precision threshold exists. These are initial engineering criteria, not guaranteed accuracy. Candidate contains only aggregates and model parameters, immutable filename and SHA-256. It cannot promote itself. Serving parity, reviewed model version, independent final validation and release approval are still required. Synthetic benchmark remains separate. No real data has been collected or trained here.

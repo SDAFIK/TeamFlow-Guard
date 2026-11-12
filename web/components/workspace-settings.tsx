@@ -204,7 +204,7 @@ export function WorkspaceSettings({ id, onSaved, focus }: { id: string; onSaved:
                 </select>
               </label>
               {settings.invitation_email_configured ? <label className="invite-send-option form-full"><input type="checkbox" checked={sendEmail} disabled={busy} onChange={event => setSendEmail(event.target.checked)}/> Send invitation email now</label> : <p className="field-help form-full">Direct email is not configured for this workspace. Generating a link does not send an email. Use the Gmail draft or copy the private link.</p>}
-              <button className="secondary" disabled={busy} type="submit"><MailPlus size={16}/> Generate invitation link</button>
+              <button className={sendEmail&&settings.invitation_email_configured?"primary":"secondary"} disabled={busy} type="submit"><MailPlus size={16}/> {sendEmail&&settings.invitation_email_configured?"Send invitation email":"Generate invitation link"}</button>
             </form>
             {link && <div className="invitation-link">
               <label>Private invitation link<input readOnly value={link} onFocus={event => event.target.select()} aria-describedby="invitation-help"/></label>

@@ -89,10 +89,10 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
         assert result['plan_version']==2
         assert db.execute('select priority from public.tf_tasks where id=%s',(task,)).fetchone()[0]=='critical'
         passed.append('approval applies exactly once with durable receipt')
-        denied('key reuse rejected',lambda:rpc('decision',{**decision,'decision':'reject'},'approve-key'),'40001')
-        denied('second approval rejected',lambda:rpc('decision',decision,'another-key'),'40001')
-        denied('missing version rejected',lambda:rpc('status',{'task_id':task,'status':'blocked'}),'40001')
-        denied('stale proposal rejected',lambda:rpc('proposal',proposal),'40001')
+        denied('key reuse rejected',lambda:rpc('decision',{**decision,'decision':'reject'},'approve-key'),'PT409')
+        denied('second approval rejected',lambda:rpc('decision',decision,'another-key'),'PT409')
+        denied('missing version rejected',lambda:rpc('status',{'task_id':task,'status':'blocked'}),'PT409')
+        denied('stale proposal rejected',lambda:rpc('proposal',proposal),'PT409')
         denied('cyclic dependency rejected',lambda:rpc('proposal',{**proposal,'base_plan_version':2,'actions':[{'task_id':task,'field':'dependency','before':None,'after':successor}]}),'22023')
         denied('cross-workspace reviewer rejected',lambda:rpc('proposal',{**proposal,'base_plan_version':2,'actions':[{'task_id':task,'field':'reviewer_id','before':None,'after':outsider}]}),'22023')
         denied('audit update denied',lambda:db.execute("update public.tf_audit set summary='tampered'"),'42501')
@@ -211,6 +211,124 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
         assert db.execute("select kind from public.tf_evidence where workspace_id=%s and active",(ciw,)).fetchall()==[('ci_pass',)]
         assert db.execute("select plan_version from public.tf_workspaces where id=%s",(ciw,)).fetchone()[0]==1
         passed.append('signed CI ingestion deduplicates and preserves newest branch evidence without plan change')
+
+        # Phase 5B: real SQL lifecycle, service-only, no hosted data.
+        review_delivery=[str(uuid4()) for _ in range(8)]
+        def ingest_review(delivery,status,stamp,requested=None,branch='main',pr_state='open',draft=False,reviewer=owner,task_id=cit,workspace=ciw):
+            return db.execute("select public.tf_ingest_github_review(%s,%s,%s,'example/repo',7,123,%s,'main',%s,%s,%s::timestamptz,%s::timestamptz,%s,%s)",
+                (workspace,task_id,reviewer,delivery,branch,status,requested,stamp,pr_state,draft)).fetchone()[0]
+        identity(owner)
+        denied('authenticated cannot forge review context',lambda:db.execute('select public.tf_github_review_context(%s,%s,%s)',(ciw,cit,owner)),'42501')
+        denied('authenticated cannot forge review evidence',lambda:ingest_review(review_delivery[0],'waiting','2026-11-10T10:00:00Z','2026-11-09T10:00:00Z'),'42501')
+        db.execute('reset role')
+        db.execute('set local role service_role')
+        assert db.execute('select public.tf_github_review_context(%s,%s,%s)',(ciw,cit,owner)).fetchone()[0]=='main'
+        denied('foreign reviewer rejected',lambda:ingest_review(review_delivery[0],'waiting','2026-11-10T10:00:00Z','2026-11-09T10:00:00Z',reviewer=outsider),'22023')
+        denied('demo review ingest rejected',lambda:ingest_review(review_delivery[0],'waiting','2026-11-10T10:00:00Z','2026-11-09T10:00:00Z',task_id=task,workspace=w),'42501')
+        denied('future review request rejected',lambda:ingest_review(review_delivery[0],'waiting','2026-11-10T10:00:00Z','2026-11-11T10:00:00Z'),'22023')
+        first=ingest_review(review_delivery[0],'waiting','2026-11-10T10:00:00Z','2026-11-09T10:00:00Z')
+        assert first['status']=='recorded'
+        assert ingest_review(review_delivery[0],'waiting','2026-11-10T11:00:00Z','2026-11-09T10:00:00Z')['status']=='duplicate'
+        refreshed=ingest_review(review_delivery[1],'waiting','2026-11-10T11:00:00Z','2026-11-09T10:00:00Z')
+        assert refreshed=={'status':'refreshed','evidence_id':first['evidence_id']}
+        resolved=ingest_review(review_delivery[2],'not_requested','2026-11-10T12:00:00Z')
+        assert resolved['status']=='recorded'
+        assert ingest_review(review_delivery[3],'waiting','2026-11-10T10:30:00Z','2026-11-09T10:00:00Z')['status']=='stale_observation'
+        db.execute('reset role')
+        assert db.execute("select active from public.tf_evidence where id=%s",(first['evidence_id'],)).fetchone()[0] is False
+        assert db.execute("select count(*) from public.tf_evidence where workspace_id=%s and kind='review_delay'",(ciw,)).fetchone()[0]==2
+        assert db.execute("select plan_version from public.tf_workspaces where id=%s",(ciw,)).fetchone()[0]==1
+        passed.append('review request, refresh, deduplication, resolution and ordering preserve plan')
+        db.execute('set local role service_role')
+        renewed=ingest_review(review_delivery[4],'waiting','2026-11-10T13:00:00Z','2026-11-10T12:30:00Z')
+        assert renewed['status']=='recorded' and renewed['evidence_id']!=first['evidence_id']
+        assert ingest_review(review_delivery[5],'unrelated_branch','2026-11-10T14:00:00Z',branch='other')['status']=='recorded'
+        db.execute('reset role')
+        assert db.execute("select count(*) from public.tf_evidence where workspace_id=%s and kind='review_delay' and active",(ciw,)).fetchone()[0]==0
+        passed.append('re-request gets new evidence and changed target branch resolves prior risk')
+        # Proposal approval must fail when an active source was replaced after proposal creation.
+        db.execute('set local role service_role')
+        pending=ingest_review(review_delivery[6],'waiting','2026-11-10T15:00:00Z','2026-11-09T15:00:00Z')
+        db.execute('reset role')
+        # Keep the fixture evidence recent relative to the CI runner for existing approval freshness checks.
+        db.execute("update public.tf_evidence set observed_at=now()-interval '1 minute' where id=%s",(pending['evidence_id'],))
+        identity(owner)
+        q=db.execute("select public.tf_mutate(%s,'proposal',%s::jsonb,'')",(ciw,json.dumps({'title':'Review recovery','explanation':'Evidence-backed','source':'rules','base_plan_version':1,'actions':[{'task_id':cit,'field':'priority','before':'normal','after':'critical'}],'evidence_ids':[pending['evidence_id']],'risk_id':pending['evidence_id']}))).fetchone()[0]
+        db.execute('reset role')
+        db.execute('set local role service_role')
+        # Use the actual database clock so the newer observation supersedes the current fixture.
+        stamp=db.execute("select now()::text").fetchone()[0]
+        assert ingest_review(review_delivery[7],'inactive',stamp,pr_state='closed')['status']=='recorded'
+        identity(owner)
+        denied('resolved review invalidates pending approval',lambda:db.execute("select public.tf_mutate(%s,'decision',%s::jsonb,'review-decision')",(ciw,json.dumps({'proposal_id':q['id'],'decision':'approve','base_plan_version':1}))),'PT409')
+        db.execute('reset role')
+        assert db.execute("select priority,version from public.tf_tasks where id=%s",(cit,)).fetchone()==('normal',1)
+        assert db.execute("select plan_version from public.tf_workspaces where id=%s",(ciw,)).fetchone()[0]==1
+        passed.append('resolved review cannot authorize stale proposal or mutate task')
+
+        # TIC prospective learning: no historical timestamp fabrication, no raw personal export.
+        lw,lt=str(uuid4()),str(uuid4())
+        db.execute("insert into public.tf_workspaces(id,name,is_demo) values(%s,'Learning test',false)",(lw,))
+        db.execute("insert into public.tf_memberships(workspace_id,user_id,role,name,email,available_hours,availability_start,availability_end) values(%s,%s,'owner','Learning Owner','owner@example.test',24,now()-interval '1 day',now()+interval '3 days')",(lw,owner))
+        db.execute("insert into public.tf_memberships(workspace_id,user_id,role,name,email) values(%s,%s,'member','Learning Member','member@example.test')",(lw,member))
+        db.execute("insert into public.tf_tasks(id,workspace_id,key,title,owner_id,estimate_hours,due_at,created_at) values(%s,%s,'L-1','Learning sample',%s,8,now()+interval '2 days',now()-interval '1 hour')",(lt,lw,owner))
+        def learning(op, task_id=None, enable=None, workspace=lw):
+            return db.execute("select public.tf_learning(%s,%s,%s,%s)",(workspace,op,task_id,enable)).fetchone()[0]
+        identity(owner)
+        assert not learning('status')['enabled']
+        denied('learning capture without consent denied',lambda:learning('capture',lt),'42501')
+        identity(member)
+        denied('member cannot enable learning',lambda:learning('consent',enable=True),'42501')
+        denied('member cannot export learning samples',lambda:learning('export'),'42501')
+        identity(outsider)
+        denied('outsider learning status denied',lambda:learning('status'),'42501')
+        identity(owner)
+        assert learning('consent',enable=True)['enabled']
+        assert learning('capture',lt)['status']=='missing_evidence'
+        db.execute('reset role')
+        db.execute('set local role service_role')
+        db.execute("select public.tf_ingest_github_ci(%s,%s,'example/learning',5,10,1,'main','failure',now()-interval '1 minute')",(lw,lt))
+        db.execute("select public.tf_ingest_github_review(%s,%s,%s,'example/learning',8,123,%s,'main','main','waiting',now()-interval '30 hours',now()-interval '1 minute','open',false)",(lw,lt,owner,str(uuid4())))
+        identity(owner)
+        assert learning('capture',lt)['status']=='captured'
+        assert learning('capture',lt)['status']=='already_captured'
+        assert learning('status')['samples']==1 and learning('status')['labeled']==0
+        assert learning('export')['rows']==[]
+        assert db.execute("select plan_version from public.tf_workspaces where id=%s",(lw,)).fetchone()[0]==1
+        db.execute("select public.tf_mutate(%s,'status',%s::jsonb,'')",(lw,json.dumps({'task_id':lt,'status':'done','expected_version':1})))
+        rows=learning('export')['rows']
+        assert len(rows)==1 and rows[0]['completed_at'] is not None
+        assert len(rows[0]['features'])==12 and rows[0]['features']['ci_failures']==1
+        assert 'task_id' not in rows[0] and 'name' not in rows[0]
+        db.execute('reset role')
+        db.execute("update public.tf_tasks set due_at=due_at+interval '1 day' where id=%s",(lt,))
+        identity(owner)
+        assert learning('export')['rows']==[]
+        assert learning('consent',enable=False)['samples']==0
+        denied('export after revocation denied',lambda:learning('export'),'42501')
+        db.execute('reset role')
+        assert db.execute("select count(*) from teamflow_private.tf_learning_samples where workspace_id=%s",(lw,)).fetchone()[0]==0
+        passed.append('learning opt-in, role boundaries, authoritative snapshots, outcome labeling, revision exclusion and purge')
+
+        # Recovery capacity is checked at approval time, even if the plan version did not change.
+        rw,rt=str(uuid4()),str(uuid4())
+        db.execute("insert into public.tf_workspaces(id,name,is_demo) values(%s,'Recovery capacity test',false)",(rw,))
+        db.execute("insert into public.tf_memberships(workspace_id,user_id,role,name,email) values(%s,%s,'owner','Owner','owner@example.test')",(rw,owner))
+        db.execute("insert into public.tf_memberships(workspace_id,user_id,role,name,email,available_hours,availability_start,availability_end) values(%s,%s,'member','Member','member@example.test',12,now()-interval '2 days',now()-interval '1 day')",(rw,member))
+        db.execute("insert into public.tf_tasks(id,workspace_id,key,title,owner_id) values(%s,%s,'R-1','Review test',%s)",(rt,rw,owner))
+        identity(owner)
+        q=db.execute("select public.tf_mutate(%s,'proposal',%s::jsonb,'')",(rw,json.dumps({'title':'Review coverage','explanation':'Fixture','source':'rules','base_plan_version':1,'actions':[{'task_id':rt,'field':'reviewer_id','before':None,'after':member}]}))).fetchone()[0]
+        decision={'proposal_id':q['id'],'decision':'approve','base_plan_version':1}
+        denied('expired recovery capacity blocks approval',lambda:db.execute("select public.tf_mutate(%s,'decision',%s::jsonb,'expired-review')",(rw,json.dumps(decision))),'PT409')
+        assert db.execute("select reviewer_id from public.tf_tasks where id=%s",(rt,)).fetchone()[0] is None
+        assert db.execute("select plan_version from public.tf_workspaces where id=%s",(rw,)).fetchone()[0]==1
+        db.execute('reset role')
+        db.execute("update public.tf_memberships set availability_start=now()-interval '1 day',availability_end=now()+interval '1 day' where workspace_id=%s and user_id=%s",(rw,member))
+        identity(owner)
+        assert db.execute("select public.tf_mutate(%s,'decision',%s::jsonb,'valid-review')",(rw,json.dumps(decision))).fetchone()[0]['status']=='approved'
+        assert str(db.execute("select reviewer_id from public.tf_tasks where id=%s",(rt,)).fetchone()[0])==member
+        db.execute('reset role')
+        passed.append('dated recovery approval guard rolls back expired assignments and accepts current capacity')
         prepare_sync = runpy.run_path(str(ROOT/'scripts/prepare-github-sync.py'))['prepare']
         def sync(runs):
             sql, _ = prepare_sync(w,'T-1','example/repo',"Build ' $sync$",runs)

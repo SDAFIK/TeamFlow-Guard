@@ -1,0 +1,12 @@
+import { expect,it } from "vitest";
+import { reviewMappings,reviewObservation } from "./github-review-observation";
+const w="d92d765b-9b79-4fe3-a494-ae4000000001",t="6cf69563-82e6-49a4-9cf7-a04000000001",r="11111111-1111-4111-8111-111111111111";
+const mapping={workspace_id:w,pull_number:7,task_id:t,github_reviewer_id:12,reviewer_id:r};
+const pull={number:7,state:"open",draft:false,base:{ref:"main",repo:{id:29}},requested_reviewers:[{id:12}]};
+const event=(event:string,created_at:string,id=12)=>({event,created_at,requested_reviewer:{id}});
+const input={mapping,repositoryId:29,repository:"org/repo",branch:"main",pull,timeline:[event("review_requested","2026-11-12T00:00:00Z")],now:new Date("2026-11-13T00:00:00Z")};
+it("derives review waiting time from the explicit request event",()=>{expect(reviewObservation(input)).toMatchObject({status:"waiting",waiting_hours:24,task_id:t,reviewer_id:r});});
+it("uses latest request after re-request regardless of order",()=>{expect(reviewObservation({...input,timeline:[event("review_requested","2026-11-12T12:00:00Z"),event("review_request_removed","2026-11-12T06:00:00Z"),...input.timeline]}).waiting_hours).toBe(12);});
+it("does not flag closed, draft, unrequested or wrong-branch PRs",()=>{for(const p of [{...pull,state:"closed"},{...pull,draft:true},{...pull,requested_reviewers:[]},{...pull,base:{...pull.base,ref:"other"}}])expect(reviewObservation({...input,pull:p}).waiting_hours).toBeNull();});
+it("abstains on missing, truncated, conflicting, future or unrelated history",()=>{for(const timeline of [[],Array(100).fill(input.timeline[0]),[event("review_requested","2026-11-14T00:00:00Z")],[event("review_requested","2026-11-12T00:00:00Z",99)],[...input.timeline,event("review_request_removed","2026-11-12T00:00:00Z")]])expect(reviewObservation({...input,timeline}).status).toBe("unknown_history");});
+it("rejects wrong PR identity and duplicate reviewer mappings",()=>{expect(()=>reviewObservation({...input,pull:{...pull,number:8}})).toThrow();expect(()=>reviewObservation({...input,pull:{...pull,base:{ref:"main",repo:{id:30}}}})).toThrow();expect(()=>reviewMappings(JSON.stringify([mapping,mapping]),w)).toThrow();expect(reviewMappings(JSON.stringify([mapping]),r)).toEqual([]);});

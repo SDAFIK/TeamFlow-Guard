@@ -44,6 +44,7 @@ import {
   type Integrations,
 } from "@/lib/api";
 import Login from "./login";
+import { IntelligenceCenter } from "./intelligence-center";
 import { DashboardHero, WorkspaceLoader } from "./brand-motion";
 import { DashboardAnalytics, DashboardTeam, WorkspaceSearch } from "./premium-dashboard";
 import { AuditHistory } from "./audit-history";
@@ -68,6 +69,7 @@ import {
 
 type View =
   | "overview"
+  | "intelligence"
   | "risks"
   | "tasks"
   | "dependencies"
@@ -77,6 +79,7 @@ type View =
   | "settings";
 const navigation = [
   { label: "Overview", view: "overview", icon: LayoutDashboard },
+  { label: "TIC Intelligence", view: "intelligence", icon: Sparkles },
   { label: "Risk Center", view: "risks", icon: TriangleAlert },
   { label: "Task Board", view: "tasks", icon: Columns3 },
   { label: "Dependencies", view: "dependencies", icon: GitBranch },
@@ -85,6 +88,7 @@ const navigation = [
   { label: "Audit Log", view: "audit", icon: ScrollText },
 ] as const;
 const titles: Record<View, [string, string]> = {
+  intelligence: ["TIC Intelligence", "Understand evidence, delivery pressure and model controls."],
   overview: [
     "Delivery overview",
     "See the signals. Understand the impact. Decide with confidence.",
@@ -484,18 +488,19 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
               <i />
               {data?.is_demo ? "Labeled demo" : "Saved workspace"}
             </span>
-            {data && data.members.length > 0 && <div className="avatar-stack">
+            {data && data.members.length > 0 && <button type="button" className="avatar-stack team-avatar-action" aria-label={`View team capacity (${data.members.length} members)`} onClick={()=>navigate("team")}>
               {data?.members.slice(0, 3).map((m, i) => (
                 <span
                   key={m.id}
                   className={`avatar small color-${i}`}
                   title={m.name}
                 >
-                  {m.name[0]}
+                  {m.name.trim().split(/\s+/).slice(0,2).map(word=>word[0]?.toUpperCase()).join("")}
                 </span>
               ))}
               {data.members.length > 3 && <span className="team-count">+{data.members.length - 3}</span>}
-            </div>}
+            <span className="team-avatar-label">{data.members.length} {data.members.length===1?"member":"members"}</span>
+            </button>}
           </div>
         </header>
         <main id="main" tabIndex={-1} aria-busy={busy}>
@@ -564,13 +569,14 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                   Stored in PostgreSQL
                 </span>
                 <span>Plan v{data.plan_version}</span>
-                <span>{data.fixture_label}</span>
+                {data.fixture_label&&<span>{data.fixture_label}</span>}
               </div>
               <div className="view-content" key={view}>
                 {receipt&&receipt.workspace===data.project.id&&<section className="panel recovery-receipt" aria-label="Recovery decision recorded">
                   <JourneySteps current={3}/><h2>{receipt.decision==='approve'?'Approved plan saved':'Proposal rejected — plan unchanged'}</h2><p>{receipt.title}</p><p>The decision is recorded in your workspace history. {receipt.decision==='approve'?'Check the updated task assignments and follow up on the source signal.':'No proposed changes were applied.'}</p>
                   <div className="dialog-actions"><button className="primary" onClick={()=>{setReceipt(null);navigate('tasks');}}>View current plan</button><button className="secondary" onClick={()=>{setReceipt(null);navigate('audit');}}>View decision history</button><button className="text-link" onClick={()=>setReceipt(null)}>Dismiss receipt</button></div>
                 </section>}
+                {view === "intelligence" && <IntelligenceCenter key={data.project.id} workspace={data.project.id} onRisk={id=>setRiskId(id)}/>}
                 {view === "overview" && (
                   <>
                     <DashboardHero demoAction={data.is_demo&&lead?"Replay demo scenario":projects.some(p=>p.is_demo&&p.id!==data.project.id)?"Open demo workspace":"Explore dependencies"} onDemo={()=>{if(data.is_demo&&lead){setDemo(true);return;}const sample=projects.find(p=>p.is_demo&&p.id!==data.project.id);if(sample)switchWorkspace(sample.id);else navigate("dependencies");}} onGithub={()=>openConnections("github")} githubLinked={Boolean(integrations.github_repository)}/>
@@ -1011,10 +1017,10 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                 )}
                 {view === "team" && (
                   <>
-                    <section className="team-connect-strip panel"><div><span className="section-kicker">SHARED WORKSPACE</span><h2>Bring your team together</h2><p>Invite teammates, manage access and review their shared capacity.</p></div><button className="primary" onClick={()=>openConnections("team")}><UserPlus size={17}/> Team & invitations</button></section>
+                    <section className="team-connect-strip panel"><div className="team-connect-copy"><span className="section-kicker">SHARED WORKSPACE</span><h2>Bring your team together</h2><p>Invite teammates, manage access and review their shared capacity.</p></div><button className="primary" onClick={()=>openConnections("team")}><UserPlus size={17}/> Team & invitations</button></section>
                     {data.project.role !== "viewer" && data.members.find((m) => m.id === user.id) && (
                       <AvailabilityForm
-                        dated={integrations?.ai_provider === "gemini"}
+                        dated={true}
                         key={data.as_of}
                         member={data.members.find((m) => m.id === user.id)!}
                         projectId={data.project.id}
@@ -1354,7 +1360,8 @@ function DemoDialog({data,graph,onClose,onReplay}: {data:Overview;graph:Graph|nu
   const scenarios=[
     {id:"ci_failure",title:"CI check fails",description:"A failed build threatens dependent work."},
     {id:"review_delay",title:"PR review delayed",description:"A review waits 48 hours."},
-    {id:"capacity",title:"Teammate unavailable",description:"An owner has fewer hours for two days."},
+    {id:"dependency",title:"Upstream work blocked",description:"Trace the downstream tasks that depend on a blocked item."},
+    {id:"capacity",title:"Capacity disruption",description:"A teammate shares reduced availability for two days."},
     {id:"ci_pass",title:"CI check passes again",description:"Resolve the matching CI signal."},
   ];
   const tasks=eligible.filter(t=>owner==="all"||t.owner_id===owner);
@@ -1365,6 +1372,7 @@ function DemoDialog({data,graph,onClose,onReplay}: {data:Overview;graph:Graph|nu
   async function run(){if(!selected||busy)return;setBusy(true);setError("");try{await onReplay(kind,task);}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
   return <Modal title="Replay a demo event" onClose={onClose} wide>
     <div className="demo-disclosure"><Play size={20}/><p><strong>Guided rehearsal · fictional evidence</strong><br/>Choose a scenario and the work it affects. Replays never pretend to be live GitHub activity or change the approved plan.</p></div>
+    <div className="demo-journey" aria-label="Demo walkthrough"><span><b>1</b> Replay signal</span><span><b>2</b> Inspect impact</span><span><b>3</b> Review a recovery</span><span><b>4</b> Decide &amp; audit</span></div>
     <div className="demo-step-label">01 · Choose a scenario</div>
     <div className="demo-scenario-grid" role="group" aria-label="Demo scenarios">{scenarios.map(s=><button key={s.id} type="button" className={kind===s.id?"chosen":""} aria-pressed={kind===s.id} disabled={busy} onClick={()=>setKind(s.id)}><strong>{s.title}</strong><small>{s.description}</small></button>)}</div>
     <div className="demo-step-label">02 · Choose a teammate and task</div>
