@@ -262,6 +262,41 @@ async function event(payload,valid=true,type="workflow_run",delivery=randomUUID(
     const after=await call(ownerPage,demoBase+"/dashboard");assert.equal(after.tasks.length,2);assert.ok(after.tasks.every(t=>t.priority==="normal"));
     if(process.env.TEAMFLOW_ARTIFACT_DIR)await ownerPage.screenshot({path:path.join(process.env.TEAMFLOW_ARTIFACT_DIR,"03-gemini-proposal.png"),fullPage:true});
     console.log("PASS second fresh rehearsal, Gemini HTTP fixture, persisted Gemini proposal and unchanged task priorities");
+    // Exercise the actual graph interaction and the human approval boundary.
+    await ownerPage.goto(BASE+"/dependencies");
+    await ownerPage.getByRole("heading",{name:"Dependency map",exact:true}).waitFor();
+    await ownerPage.getByRole("button",{name:"Vertical",exact:true}).click();
+    await ownerPage.getByRole("button",{name:"Horizontal",exact:true}).waitFor();
+    await ownerPage.getByRole("button",{name:"Horizontal",exact:true}).click();
+    await ownerPage.getByRole("button",{name:"Fit all",exact:true}).click();
+    const first=after.tasks[0],second=after.tasks[1];
+    await ownerPage.getByLabel("Find dependency task").selectOption(first.id);
+    await ownerPage.getByLabel("Selected task impact").waitFor();
+    await ownerPage.getByLabel("Find dependency task").selectOption("");
+    await ownerPage.getByRole("button",{name:"Fit all",exact:true}).click();
+    await ownerPage.getByRole("button",{name:"Connect tasks",exact:true}).click();
+    const source=ownerPage.locator('.react-flow__node[data-id="'+first.id+'"] .react-flow__handle.source');
+    const target=ownerPage.locator('.react-flow__node[data-id="'+second.id+'"] .react-flow__handle.target');
+    await source.waitFor();await target.waitFor();
+    await ownerPage.waitForTimeout(450);
+    const a=await source.boundingBox(),b=await target.boundingBox();assert.ok(a&&b,"connection handles visible");
+    await ownerPage.mouse.move(a.x+a.width/2,a.y+a.height/2);await ownerPage.mouse.down();
+    await ownerPage.mouse.move(b.x+b.width/2,b.y+b.height/2,{steps:20});await ownerPage.mouse.up();
+    await ownerPage.getByRole("heading",{name:"Propose a dependency",exact:true}).waitFor();
+    await ownerPage.getByRole("button",{name:"Validate & create proposal"}).click();
+    await ownerPage.getByRole("heading",{name:"Propose a dependency",exact:true}).waitFor({state:"hidden"});
+    const pendingLink=(await call(ownerPage,demoBase+"/proposals")).find(p=>p.actions.some(a=>a.field==="dependency"&&a.task_id===second.id&&a.after===first.id));
+    assert.ok(pendingLink&&pendingLink.status==="pending");
+    assert.equal((await call(ownerPage,demoBase+"/dependencies")).edges.length,0);
+    await call(ownerPage,"/proposals/"+pendingLink.id+"/decision","POST",{decision:"approve",base_plan_version:pendingLink.base_plan_version},200,{"Idempotency-Key":randomUUID()});
+    const linked=await call(ownerPage,demoBase+"/dependencies?selected="+first.id);
+    assert.ok(linked.edges.some(e=>e.predecessor_id===first.id&&e.successor_id===second.id));
+    assert.ok(linked.downstream_ids.includes(second.id));
+    await call(ownerPage,demoBase+"/dependencies/validate","POST",{predecessor_id:second.id,successor_id:first.id},422);
+    await ownerPage.goto(BASE+"/dependencies");
+    await ownerPage.getByRole("heading",{name:"Dependency map",exact:true}).waitFor();
+    if(process.env.TEAMFLOW_ARTIFACT_DIR)await ownerPage.screenshot({path:path.join(process.env.TEAMFLOW_ARTIFACT_DIR,"04-dependency-desktop.png"),fullPage:true});
+    console.log("PASS graph orientation, focus, visual connection proposal, human approval, saved edge and cycle rejection");
   }
  }finally{if(browser)await browser.close();await stop();fs.rmSync(fixtureDir,{recursive:true,force:true});}
 })().catch(e=>{console.error(String(e.message).split("\n")[0]);process.exitCode=1;});
