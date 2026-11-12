@@ -1,0 +1,26 @@
+name: TeamFlow isolated GitHub live sandbox
+on:
+  push:
+    branches: [codex/github-live-sandbox]
+    paths:
+      - '.github/workflows/teamflow-github-live-sandbox.yml'
+      - 'docs/fixtures/github-live-sandbox-state.txt'
+permissions:
+  contents: read
+jobs:
+  synthetic-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Emit isolated pass or failure
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "$(cat docs/fixtures/github-live-sandbox-state.txt)" in
+            pass) echo "Synthetic sandbox check passed";;
+            fail) echo "Synthetic sandbox check failed"; exit 1;;
+            *) echo "Invalid sandbox fixture"; exit 2;;
+          esac
