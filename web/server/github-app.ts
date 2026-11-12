@@ -1,4 +1,5 @@
 import { createSign, createHmac, timingSafeEqual } from "node:crypto";
+import { reviewObservation, type ReviewMapping } from "./github-review-observation";
 import { repositorySlug, type PublicRun } from "./github-public";
 export type AppBinding = {workspace_id:string;installation_id:number;repository_id:number;repository:string};
 export type AppConfig = {appId?:string;privateKey?:string;bindings?:string;webhookSecret?:string};
@@ -69,4 +70,17 @@ export function webhookMatchesBinding(c:AppConfig,event:string,payload:unknown){
   if(!["workflow_run","pull_request"].includes(event))return false;
   const p=obj(payload), i=obj(p.installation), r=obj(p.repository);
   return parseBindings(c.bindings).some(b=>b.installation_id===i.id&&b.repository_id===r.id);
+}
+
+export async function appReviewObservation(c:AppConfig,w:string,branch:string,mapping:ReviewMapping,transport:typeof fetch=fetch){
+  const b=bindingForWorkspace(c,w);
+  if(!b||mapping.workspace_id.toLowerCase()!==w.toLowerCase())throw Error("GitHub App not authorized for workspace.");
+  const minted=obj(await github("/app/installations/"+b.installation_id+"/access_tokens",jwt(c),transport,{repository_ids:[b.repository_id],permissions:{metadata:"read",pull_requests:"read"}}));
+  if(typeof minted.token!=="string"||!minted.token)throw Error("GitHub App token unavailable.");
+  const token=minted.token,slug=b.repository;
+  const repo=obj(await github("/repos/"+slug,token,transport));
+  if(repo.id!==b.repository_id||typeof repo.full_name!=="string"||repo.full_name.toLowerCase()!==slug.toLowerCase())throw Error("GitHub repository identity changed.");
+  const pull=await github("/repos/"+slug+"/pulls/"+mapping.pull_number,token,transport);
+  const timeline=await github("/repos/"+slug+"/issues/"+mapping.pull_number+"/timeline?per_page=100",token,transport);
+  return reviewObservation({mapping,repositoryId:b.repository_id,repository:slug,branch,pull,timeline,now:new Date()});
 }
