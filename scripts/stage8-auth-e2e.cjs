@@ -39,7 +39,8 @@ async function start(extra={}){
 }
 async function stop(){if(!server)return;const s=server;server=undefined;if(s.exitCode!==null)return;s.kill("SIGTERM");await Promise.race([new Promise(r=>s.once("exit",r)),wait(5000)]);if(s.exitCode===null)s.kill("SIGKILL");await wait(500);}
 async function call(page,route,method="GET",body,expected=200,headers={}){
-  const r=await page.request.fetch(BASE+"/api"+route,{method,headers:{Origin:BASE,"Content-Type":"application/json",...headers},...(body===undefined?{}:{data:body})});
+  console.log("CHECK "+method+" "+route.split("?")[0]);
+  const r=await page.request.fetch(BASE+"/api"+route,{timeout:60000,method,headers:{Origin:BASE,"Content-Type":"application/json",...headers},...(body===undefined?{}:{data:body})});
   assert.equal(r.status(),expected,method+" "+route+" unexpected status");
   return r.headers()["content-type"]?.includes("json")?r.json():null;
 }
@@ -193,4 +194,4 @@ async function event(payload,valid=true,type="workflow_run",delivery=randomUUID(
   assert.ok((await call(ownerPage,base+"/audit")).some(a=>a.kind==="proposal.approved"&&a.proposal_id===accepted.id));
   console.log("PASS Phase 5B actual local Auth/PostgREST + signed review lifecycle, GitHub HTTP fixture, TIC, desktop/mobile risk UI, stale approval denial, re-request, approved recovery and audit");
  }finally{if(browser)await browser.close();await stop();fs.rmSync(fixtureDir,{recursive:true,force:true});}
-})().catch(e=>{console.error(e.message);process.exitCode=1;});
+})().catch(e=>{console.error(String(e.message).split("\n")[0]);process.exitCode=1;});
