@@ -163,3 +163,27 @@ create function public.tf_learning(w uuid,operation text,t uuid,enable boolean) 
 language sql security invoker set search_path='' as $$ select teamflow_private.learning(w,operation,t,enable) $$;
 revoke all on function public.tf_learning(uuid,text,uuid,boolean) from public,anon,service_role;
 grant execute on function public.tf_learning(uuid,text,uuid,boolean) to authenticated;
+
+-- Recheck dated capacity at actual approval, not just proposal generation.
+-- All applied task mutations roll back if this guard rejects the transition.
+create function teamflow_private.guard_recovery_capacity() returns trigger
+language plpgsql security definer set search_path='' as $$
+declare a jsonb; candidate uuid; m public.tf_memberships; load_hours integer; stamp timestamptz:=clock_timestamp();
+begin
+ if new.status<>'approved' or old.status<>'pending' or new.source not in ('rules','gemini') then return new; end if;
+ if exists(select 1 from public.tf_workspaces w where w.id=new.workspace_id and w.is_demo) then return new; end if;
+ for a in select value from jsonb_array_elements(new.actions) where value->>'field' in ('owner_id','reviewer_id') loop
+  candidate:=(a->>'after')::uuid;
+  select * into m from public.tf_memberships x where x.workspace_id=new.workspace_id and x.user_id=candidate
+   and x.role<>'viewer' and x.availability_start<=stamp and x.availability_end>stamp;
+  if not found then raise exception 'Recovery availability expired or unavailable; regenerate proposal' using errcode='PT409'; end if;
+  select coalesce(sum(case when t.owner_id=candidate then t.estimate_hours else 0 end+
+    case when t.reviewer_id=candidate then 2 else 0 end),0) into load_hours
+   from public.tf_tasks t where t.workspace_id=new.workspace_id and not t.archived and t.status<>'done';
+  if load_hours>m.available_hours then raise exception 'Recovery assignment exceeds current dated capacity; regenerate proposal' using errcode='PT409'; end if;
+ end loop;
+ return new;
+end $$;
+revoke all on function teamflow_private.guard_recovery_capacity() from public,anon,authenticated,service_role;
+create trigger tf_recovery_capacity_guard before update of status on public.tf_proposals
+for each row execute function teamflow_private.guard_recovery_capacity();

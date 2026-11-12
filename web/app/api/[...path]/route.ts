@@ -15,7 +15,6 @@ import { configured } from "@/server/gemini";
 import { allowedOrigin, authRedirectOrigin } from "@/server/origin";
 import { createHash, randomBytes } from "node:crypto";
 import { auditPage } from "@/server/audit-page";
-import { buildRecoveryOptions, githubReviewReviewer } from "@/domain/recovery-options";
 import { recentPublicRuns, verifyPublicRepository } from "@/server/github-public";
 import { githubAppConfig, bindingForWorkspace, githubAppReady, appRepositoryActivity, appReviewObservation } from "@/server/github-app";
 import { workspaceCIMappings } from "@/server/github-evidence";
@@ -277,7 +276,8 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       const state = await snapshot(client, await scopedWorkspace(client, "tf_evidence", riskId));
       const risk = risksFor(state.tasks,state.edges,state.evidence,state.members,state.workspace.review_threshold_hours,new Date(),state.workspace.tracked_branch).find(r=>r.id===riskId);
       if (!risk?.active || risk.stale_evidence) throw new HttpError(409,"Risk evidence is resolved or stale. Refresh the source first.");
-      return answer({ options: buildRecoveryOptions(state.tasks,state.edges,state.members,risk.evidence.task_id,risk.evidence.kind,Date.now(),githubReviewReviewer(risk.evidence)), simulations:simulateRecovery(state.tasks,state.edges,state.members,risk.evidence), plan_version: state.workspace.plan_version });
+      const simulations=simulateRecovery(state.tasks,state.edges,state.members,risk.evidence);
+      return answer({ options: simulations.filter(o=>o.feasible), simulations, plan_version: state.workspace.plan_version });
     }
     if (path[0] === "risks" && path[2] === "analyze" && request.method === "POST") {
       const riskId = z.uuid().parse(path[1]); const id = await scopedWorkspace(client, "tf_evidence", riskId);

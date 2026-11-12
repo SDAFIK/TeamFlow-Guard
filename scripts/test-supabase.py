@@ -309,6 +309,26 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
         db.execute('reset role')
         assert db.execute("select count(*) from teamflow_private.tf_learning_samples where workspace_id=%s",(lw,)).fetchone()[0]==0
         passed.append('learning opt-in, role boundaries, authoritative snapshots, outcome labeling, revision exclusion and purge')
+
+        # Recovery capacity is checked at approval time, even if the plan version did not change.
+        rw,rt=str(uuid4()),str(uuid4())
+        db.execute("insert into public.tf_workspaces(id,name,is_demo) values(%s,'Recovery capacity test',false)",(rw,))
+        db.execute("insert into public.tf_memberships(workspace_id,user_id,role,name,email) values(%s,%s,'owner','Owner','owner@example.test')",(rw,owner))
+        db.execute("insert into public.tf_memberships(workspace_id,user_id,role,name,email,available_hours,availability_start,availability_end) values(%s,%s,'member','Member','member@example.test',12,now()-interval '2 days',now()-interval '1 day')",(rw,member))
+        db.execute("insert into public.tf_tasks(id,workspace_id,key,title,owner_id) values(%s,%s,'R-1','Review test',%s)",(rt,rw,owner))
+        identity(owner)
+        q=db.execute("select public.tf_mutate(%s,'proposal',%s::jsonb,'')",(rw,json.dumps({'title':'Review coverage','explanation':'Fixture','source':'rules','base_plan_version':1,'actions':[{'task_id':rt,'field':'reviewer_id','before':None,'after':member}]}))).fetchone()[0]
+        decision={'proposal_id':q['id'],'decision':'approve','base_plan_version':1}
+        denied('expired recovery capacity blocks approval',lambda:db.execute("select public.tf_mutate(%s,'decision',%s::jsonb,'expired-review')",(rw,json.dumps(decision))),'PT409')
+        assert db.execute("select reviewer_id from public.tf_tasks where id=%s",(rt,)).fetchone()[0] is None
+        assert db.execute("select plan_version from public.tf_workspaces where id=%s",(rw,)).fetchone()[0]==1
+        db.execute('reset role')
+        db.execute("update public.tf_memberships set availability_start=now()-interval '1 day',availability_end=now()+interval '1 day' where workspace_id=%s and user_id=%s",(rw,member))
+        identity(owner)
+        assert db.execute("select public.tf_mutate(%s,'decision',%s::jsonb,'valid-review')",(rw,json.dumps(decision))).fetchone()[0]['status']=='approved'
+        assert str(db.execute("select reviewer_id from public.tf_tasks where id=%s",(rt,)).fetchone()[0])==member
+        db.execute('reset role')
+        passed.append('dated recovery approval guard rolls back expired assignments and accepts current capacity')
         prepare_sync = runpy.run_path(str(ROOT/'scripts/prepare-github-sync.py'))['prepare']
         def sync(runs):
             sql, _ = prepare_sync(w,'T-1','example/repo',"Build ' $sync$",runs)
