@@ -5,6 +5,7 @@ import { snapshot, mutate, HttpError, databaseError, uiRole, type Client } from 
 import { risksFor } from "@/domain/risk-engine";
 import { taskIntelligence } from "@/domain/tic-features";
 import { projectIntelligence } from "@/domain/tic-v2-project";
+import { v2ModelInfo } from "@/domain/tic-v2-model";
 import { downstream, validateGraph } from "@/domain/graph";
 import { actionSchema } from "@/domain/proposal";
 import { recovery } from "@/server/recovery";
@@ -130,6 +131,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
           case "tasks": return answer(state.tasks);
           case "dependencies": return answer({ nodes: state.tasks, edges: state.edges, plan_version: state.workspace.plan_version, selected_task_id: selected, downstream_ids: selected ? downstream(state.tasks.map(t => t.id), state.edges, selected) : [], upstream_ids: selected ? downstream(state.tasks.map(t => t.id), state.edges, selected, true) : [] });
           case "risks": return answer(risks());
+          case "model-info": return answer(v2ModelInfo);
           case "project-intelligence": {
             if(path.length!==3)throw new HttpError(404,"Resource unavailable");
             return answer(projectIntelligence({tasks:state.tasks,edges:state.edges,evidence:state.evidence,members:state.members,trackedBranch:state.workspace.tracked_branch,threshold:state.workspace.review_threshold_hours,now:new Date(),role:state.role,planVersion:state.workspace.plan_version}));
