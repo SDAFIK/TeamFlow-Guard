@@ -3,6 +3,7 @@ import { z } from "zod";
 import { supabaseServer } from "@/server/supabase";
 import { snapshot, mutate, HttpError, databaseError, uiRole, type Client } from "@/server/state";
 import { risksFor } from "@/domain/risk-engine";
+import { taskIntelligence } from "@/domain/tic-features";
 import { downstream, validateGraph } from "@/domain/graph";
 import { actionSchema } from "@/domain/proposal";
 import { recovery } from "@/server/recovery";
@@ -127,6 +128,13 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
           case "tasks": return answer(state.tasks);
           case "dependencies": return answer({ nodes: state.tasks, edges: state.edges, plan_version: state.workspace.plan_version, selected_task_id: selected, downstream_ids: selected ? downstream(state.tasks.map(t => t.id), state.edges, selected) : [], upstream_ids: selected ? downstream(state.tasks.map(t => t.id), state.edges, selected, true) : [] });
           case "risks": return answer(risks());
+          case "intelligence": {
+            if(path.length!==3)throw new HttpError(404,"Resource unavailable");
+            const taskId=z.uuid().parse(request.nextUrl.searchParams.get("task"));
+            const result=taskIntelligence({tasks:state.tasks,edges:state.edges,evidence:state.evidence,members:state.members,trackedBranch:state.workspace.tracked_branch,isDemo:state.workspace.is_demo,now:new Date()},taskId);
+            if(!result)throw new HttpError(404,"Task unavailable");
+            return answer({...result,plan_version:state.workspace.plan_version});
+          }
           case "proposals": return answer(state.proposals);
           case "audit": return answer(state.audit);
           case "integrations": { const bound = appBinding(); return answer({ ai_configured: configured(), ai_provider: "gemini", ai_model: process.env.GEMINI_MODEL ?? null, github_configured: Boolean(bound || state.workspace.github_repository) || state.evidence.some(e => e.origin === 'github'), github_repository: bound?.repository ?? state.workspace.github_repository, github_app_bound: Boolean(bound), github_evidence_imported: state.evidence.some(e => e.origin === 'github'), mode: state.workspace.is_demo ? "demo" : "manual" }); }
