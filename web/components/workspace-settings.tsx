@@ -1,15 +1,18 @@
 "use client";
 
 import { Fragment, useCallback, useEffect, useState } from "react";
-import { Check, ClipboardCopy, LockKeyhole, MailPlus, ShieldCheck, Users } from "lucide-react";
+import { Check, ClipboardCopy, LockKeyhole, MailPlus, Send, ShieldCheck, Users } from "lucide-react";
 import { api } from "@/lib/api";
 import { Busy } from "./ui";
+import { GithubConnection } from "./github-connection";
+import { IntegrationReadiness } from "./integration-readiness";
 
 type Role = "owner" | "manager" | "member" | "viewer";
 type Member = { id: string; name: string; email: string; role: Role };
 type Settings = {
   id: string; name: string; description: string; tracked_branch: string;
   review_threshold_hours: number; plan_version: number; my_role: Role; members: Member[];
+  invitation_email_configured?: boolean;
 };
 type Invitation = {
   id: string; email: string; role: Role; expires_at: string;
@@ -31,6 +34,9 @@ export function WorkspaceSettings({ id, onSaved }: { id: string; onSaved: () => 
   const [email, setEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<Exclude<Role, "owner">>("member");
   const [link, setLink] = useState("");
+  const [invitedEmail, setInvitedEmail] = useState("");
+  const [sendEmail, setSendEmail] = useState(false);
+  const [memberQuery, setMemberQuery] = useState("");
   const [roleChange, setRoleChange] = useState<{ id: string; name: string; role: Exclude<Role, "owner"> } | null>(null);
   const [refreshedAt, setRefreshedAt] = useState(0);
 
@@ -61,12 +67,12 @@ export function WorkspaceSettings({ id, onSaved }: { id: string; onSaved: () => 
     return () => { active = false; };
   }, [id]);
 
-  async function perform(action: () => Promise<void>, message: string) {
+  async function perform(action: () => Promise<void | string>, message: string) {
     if (busy) return;
     setBusy(true); setError(""); setNotice("");
     try {
-      await action();
-      setNotice(message);
+      const outcome = await action();
+      setNotice(typeof outcome === "string" ? outcome : message);
       const results = await Promise.allSettled([load(), onSaved()]);
       if (results.some(result => result.status === "rejected")) {
         setError("The change was saved, but the latest workspace data could not be refreshed. Use Refresh to try again.");
@@ -87,6 +93,7 @@ export function WorkspaceSettings({ id, onSaved }: { id: string; onSaved: () => 
 
   const manager = settings.my_role === "owner" || settings.my_role === "manager";
   const owner = settings.my_role === "owner";
+  const visibleMembers = settings.members.filter(member => (member.name + " " + member.email).toLowerCase().includes(memberQuery.trim().toLowerCase()));
 
   return (
     <>
@@ -135,8 +142,10 @@ export function WorkspaceSettings({ id, onSaved }: { id: string; onSaved: () => 
           <h2 id="team-access-title">Your team</h2>
           <p>{settings.members.length} {settings.members.length === 1 ? "member" : "members"} share this plan.</p>
         </div>
+        <label className="field-help">Find a teammate<input type="search" value={memberQuery} onChange={event => setMemberQuery(event.target.value)} placeholder="Search name or email" aria-label="Search team members"/></label>
         <div className="settings-member-list">
-          {settings.members.map(member => (
+          {visibleMembers.length === 0 && <p className="field-help">No teammates match your search.</p>}
+          {visibleMembers.map(member => (
             <Fragment key={member.id}>
               <div className="settings-member-row">
                 <span className="avatar">{member.name[0] || "?"}</span>
@@ -167,14 +176,18 @@ export function WorkspaceSettings({ id, onSaved }: { id: string; onSaved: () => 
           <div className="invite-panel">
             <div className="settings-section-header">
               <h3><MailPlus size={19}/> Invite a teammate</h3>
-              <p>Generate a private invitation for one email address. It expires in seven days. TeamFlow Guard does not send the email automatically.</p>
+              <p>Invite someone by their email address. A private link is bound to that email and expires in seven days. You can send it directly when delivery is configured, or share it manually.</p>
             </div>
             <form className="form-grid" onSubmit={event => {
               event.preventDefault();
               void perform(async () => {
-                const result = await api<{token:string}>(`/projects/${id}/invitations`, {method:"POST",body:JSON.stringify({email,role:inviteRole})});
-                setLink(`${window.location.origin}/join#${result.token}`);
+                const result = await api<{token:string;invite_url?:string|null;email_status?:string}>(`/projects/${id}/invitations`, {method:"POST",body:JSON.stringify({email,role:inviteRole,send_email:sendEmail && Boolean(settings.invitation_email_configured)})});
+                setLink(result.invite_url ?? `${window.location.origin}/join#${result.token}`);
+                setInvitedEmail(email.trim());
                 setEmail("");
+                if (result.email_status === "accepted") return "Invitation accepted by the email provider. Delivery to the inbox is not yet confirmed.";
+                if (result.email_status === "unconfirmed") return "Invitation created. Email delivery could not be confirmed; copy or share the private link instead.";
+                if (result.email_status === "not_configured") return "Invitation created. Direct email is unavailable; copy or share the private link instead.";
               }, "Invitation created. Copy and share the private link securely.");
             }}>
               <label>Teammate email
@@ -187,11 +200,13 @@ export function WorkspaceSettings({ id, onSaved }: { id: string; onSaved: () => 
                   {owner && <option value="manager">Manager — approve changes</option>}
                 </select>
               </label>
+              {settings.invitation_email_configured ? <label className="invite-send-option form-full"><input type="checkbox" checked={sendEmail} disabled={busy} onChange={event => setSendEmail(event.target.checked)}/> Send invitation email now</label> : <p className="field-help form-full">Direct email is not configured for this workspace. You can still share a private link or open an email draft.</p>}
               <button className="secondary" disabled={busy} type="submit"><MailPlus size={16}/> Generate invitation link</button>
             </form>
             {link && <div className="invitation-link">
               <label>Private invitation link<input readOnly value={link} onFocus={event => event.target.select()} aria-describedby="invitation-help"/></label>
               <button className="primary" onClick={() => void navigator.clipboard.writeText(link).then(() => setNotice("Invitation link copied.")).catch(() => setError("Clipboard is unavailable. Select the link and copy it manually."))}><ClipboardCopy size={16}/> Copy link</button>
+              <a className="secondary invite-email-action" href={`mailto:${encodeURIComponent(invitedEmail)}?subject=${encodeURIComponent("Join my TeamFlow Guard workspace")}&body=${encodeURIComponent(`I've invited you to join our TeamFlow Guard workspace. Sign in using ${invitedEmail}, then open this private invitation link (expires in seven days):\n\n${link}\n\nPlease don't forward it.`)}`}><Send size={16}/> Open email draft</a>
               <p id="invitation-help">Only send this to the invited email owner. The link is shown until you leave the page.</p>
             </div>}
             {invites.length > 0 && <div className="pending-invitations"><h3>Recent invitations</h3>
@@ -200,7 +215,8 @@ export function WorkspaceSettings({ id, onSaved }: { id: string; onSaved: () => 
                 const status = invite.accepted_at ? "Accepted" : invite.revoked_at ? "Revoked" : expired ? "Expired" : `Expires ${new Date(invite.expires_at).toLocaleDateString()}`;
                 return <div className="settings-member-row" key={invite.id}>
                   <div className="settings-member-name"><strong>{invite.email}</strong><small>{invite.role} · {status}</small></div>
-                  {!invite.accepted_at && !invite.revoked_at && !expired && <button className="text-link" disabled={busy} onClick={() => void perform(async () => {await api(`/projects/${id}/invitations/${invite.id}/revoke`,{method:"POST"});}, "Invitation revoked.")}>Revoke</button>}
+                  {!invite.accepted_at && !invite.revoked_at && !expired && <button className="text-link" disabled={busy} onClick={() => void perform(async () => {await api(`/projects/${id}/invitations/${invite.id}/revoke`,{method:"POST"});setLink("");}, "Invitation revoked. To replace it, choose Renew on this row.")}>Revoke</button>}
+                  {!invite.accepted_at && (invite.revoked_at || expired) && invite.role !== "owner" && (owner || invite.role !== "manager") && <button className="text-link" disabled={busy} onClick={() => {setEmail(invite.email);setInviteRole(invite.role as Exclude<Role,"owner">);setLink("");setNotice("Recipient and role filled in. Generate a new link to renew the invitation.");}}>Renew invitation</button>}
                 </div>;
               })}
             </div>}
@@ -209,6 +225,8 @@ export function WorkspaceSettings({ id, onSaved }: { id: string; onSaved: () => 
         {error && <p className="error" role="alert">{error}</p>}
         {notice && <p className="success-banner" role="status"><Check size={16}/>{notice}</p>}
       </section>
+      <IntegrationReadiness key={id} workspaceId={id}/>
+      <GithubConnection workspaceId={id} planVersion={settings.plan_version} canManage={manager} onChanged={async () => { await load(); await onSaved(); }}/>
     </>
   );
 }

@@ -1,0 +1,19 @@
+name: Stage 7 migration scaffold (disposable)
+on:
+  push:
+    branches: [codex/stage7-intelligent-risk]
+    paths: ['.github/workflows/stage7-migration-name.yml']
+permissions:
+  contents: read
+jobs:
+  scaffold:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Generate local migration filename only
+        run: |
+          npx --yes supabase@2.79.0 migration new github_webhook_evidence
+          ls supabase/migrations/*_github_webhook_evidence.sql

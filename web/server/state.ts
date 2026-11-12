@@ -5,7 +5,7 @@ import type { EvidenceRecord, Availability } from "@/domain/risk-engine";
 import type { Edge } from "@/domain/graph";
 export type Client = Awaited<ReturnType<typeof supabaseServer>>;
 export type State = {
-  workspace: { id: string; name: string; description: string; is_demo: boolean; fixture_label: string; plan_version: number; review_threshold_hours: number; tracked_branch: string };
+  workspace: { id: string; name: string; description: string; is_demo: boolean; fixture_label: string; plan_version: number; review_threshold_hours: number; tracked_branch: string; github_repository: string | null };
   role: "owner" | "manager" | "member" | "viewer";
   members: (Overview["members"][number] & Availability)[];
   tasks: (Task & { due_at: string | null })[]; edges: Edge[]; evidence: EvidenceRecord[]; proposals: Proposal[]; audit: Audit[];

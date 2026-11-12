@@ -11,6 +11,10 @@ import { allowedOrigin } from "@/server/origin";
 import { createHash, randomBytes } from "node:crypto";
 import { auditPage } from "@/server/audit-page";
 import { buildRecoveryOptions } from "@/domain/recovery-options";
+import { recentPublicRuns, verifyPublicRepository } from "@/server/github-public";
+import { githubAppConfig, bindingForWorkspace, githubAppReady, appRepositoryActivity } from "@/server/github-app";
+import { workspaceCIMappings } from "@/server/github-evidence";
+import { invitationEmailConfigured, invitationURL, sendInvitationEmail, type InvitationEmailStatus } from "@/server/invitation-email";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -74,6 +78,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
     }
     const { data: { user }, error: authError } = await client.auth.getUser();
     if (authError || !user) throw new HttpError(401, "Sign in to continue");
+    const inviteEmailConfig = { RESEND_API_KEY: process.env.RESEND_API_KEY, TEAMFLOW_INVITE_EMAIL_FROM: process.env.TEAMFLOW_INVITE_EMAIL_FROM, APP_BASE_URL: process.env.APP_BASE_URL };
     const workspaceWrite=async(w:string|null,operation:string,input:unknown)=>{
       const result=await client.rpc('tf_workspace_write',{w,operation,body:input});
       if(result.error) databaseError(result.error);return result.data;
@@ -100,6 +105,8 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
         return answer(await auditPage(client, z.uuid().parse(path[1]), user.id, request.nextUrl.searchParams));
       }
       const id = z.uuid().parse(path[1]); const state = await snapshot(client, id);
+      const appConfig = githubAppConfig();
+      const appBinding = () => state.workspace.is_demo ? undefined : bindingForWorkspace(appConfig,id);
       const risks = () => risksFor(state.tasks, state.edges, state.evidence, state.members, state.workspace.review_threshold_hours, new Date(), state.workspace.tracked_branch);
       if (request.method === "GET") {
         const selected = request.nextUrl.searchParams.get("selected");
@@ -110,8 +117,31 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
           case "risks": return answer(risks());
           case "proposals": return answer(state.proposals);
           case "audit": return answer(state.audit);
-          case "integrations": return answer({ ai_configured: configured(), ai_provider: "gemini", ai_model: process.env.GEMINI_MODEL ?? null, github_configured: state.evidence.some(e => e.origin === 'github'), mode: state.workspace.is_demo ? "demo" : "manual" });
-          case "settings": return answer({...state.workspace,my_role:state.role,members:state.members});
+          case "integrations": { const bound = appBinding(); return answer({ ai_configured: configured(), ai_provider: "gemini", ai_model: process.env.GEMINI_MODEL ?? null, github_configured: Boolean(bound || state.workspace.github_repository) || state.evidence.some(e => e.origin === 'github'), github_repository: bound?.repository ?? state.workspace.github_repository, github_app_bound: Boolean(bound), github_evidence_imported: state.evidence.some(e => e.origin === 'github'), mode: state.workspace.is_demo ? "demo" : "manual" }); }
+          case "settings": return answer({...state.workspace,my_role:state.role,members:state.members,invitation_email_configured:!state.workspace.is_demo && invitationEmailConfigured(inviteEmailConfig)});
+          case "github-readiness": {
+            const bound=appBinding();
+            const rows=bound?workspaceCIMappings(process.env.TEAMFLOW_GITHUB_CI_MAPPINGS,id):[];
+            const mappings=rows.map(m=>{const task=state.tasks.find(t=>t.id===m.task_id);return {workflow_id:m.workflow_id,task_id:m.task_id,task_key:task?.key??null,task_title:task?.title??null,valid:Boolean(task)};});
+            return answer({repository:bound?.repository??state.workspace.github_repository,app_bound:Boolean(bound),app_credentials:Boolean(bound&&githubAppReady(appConfig)),webhook_configured:Boolean(bound&&appConfig.webhookSecret?.trim()),ingestion_configured:Boolean(bound&&process.env.TEAMFLOW_GITHUB_INGEST_KEY?.trim()),mappings,tracked_branch:state.workspace.tracked_branch,email_configured:!state.workspace.is_demo&&invitationEmailConfigured(inviteEmailConfig),is_demo:state.workspace.is_demo});
+          }
+          case "github": {
+            const bound = appBinding();
+            if (bound) {
+              const base = {connected:true,repository:bound.repository,mode:"app",runs:[],pulls:[],deliveries:[],observed_at:null};
+              if (!githubAppReady(appConfig)) return answer({...base,warning:"GitHub App credentials are not configured."});
+              try { return answer({...base,...await appRepositoryActivity(appConfig,id,state.workspace.tracked_branch)}); }
+              catch { return answer({...base,warning:"GitHub App access could not be verified. Ask your administrator."}); }
+            }
+            const repository = state.workspace.github_repository;
+            if (!repository) return answer({ connected: false, repository: null, runs: [], warning: null });
+            try {
+              const runs = await recentPublicRuns(repository, state.workspace.tracked_branch);
+              return answer({ connected: true, repository, runs, warning: null });
+            } catch {
+              return answer({ connected: true, repository, runs: [], warning: "GitHub activity is temporarily unavailable. Your workspace link is unchanged." });
+            }
+          }
           case "invitations": {
             if(!['owner','manager'].includes(state.role)) throw new HttpError(403,'Manager access required');
             const result=await client.from('tf_invites').select('id,email,role,created_at,expires_at,accepted_at,revoked_at').eq('workspace_id',id).order('created_at',{ascending:false}).limit(50);
@@ -123,11 +153,34 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
         const input=z.object({name:z.string().trim().min(2).max(100),description:z.string().max(1000),tracked_branch:z.string().trim().min(1).max(100),review_threshold_hours:z.number().int().min(1).max(168),base_plan_version:z.number().int().positive()}).strict().parse(body);
         return answer(await workspaceWrite(id,'settings',input));
       }
+      if (path[2] === "github" && path.length === 3 && request.method === "POST") {
+        if (!['owner', 'manager'].includes(state.role)) throw new HttpError(403, "Manager access required");
+        if (appBinding()) throw new HttpError(409, "This workspace uses an administrator-authorized GitHub App repository.");
+        const input = z.object({ repository: z.string().min(3).max(160).nullable(), base_plan_version: z.number().int().positive() }).strict().parse(body);
+        let repository: string | null = null;
+        if (input.repository !== null) {
+          try { repository = await verifyPublicRepository(input.repository); }
+          catch (cause) {
+            const message = (cause as Error).message;
+            throw new HttpError(message.includes('right now') || (cause as Error).name === 'TimeoutError' ? 503 : 422, message);
+          }
+        }
+        const result = await client.rpc("tf_github_link", { w: id, repo: repository, expected_version: input.base_plan_version });
+        if (result.error) databaseError(result.error);
+        return answer({ repository: result.data.github_repository, plan_version: result.data.plan_version });
+      }
       if(path[2]==='invitations' && path.length===3 && request.method==='POST') {
-        const input=z.object({email:z.email().max(254),role:z.enum(['manager','member','viewer'])}).strict().parse(body);
+        const input=z.object({email:z.email().max(254),role:z.enum(['manager','member','viewer']),send_email:z.boolean().default(false)}).strict().parse(body);
         const token=randomBytes(32).toString('hex');
-        const invitation=await workspaceWrite(id,'invite',{...input,token_hash:createHash('sha256').update(token).digest('hex')});
-        return answer({...invitation,token});
+        const invitation=await workspaceWrite(id,'invite',{email:input.email,role:input.role,token_hash:createHash('sha256').update(token).digest('hex')});
+        // Only after the RPC authorizes and commits the email-bound invitation. Demo data never sends mail.
+        let email_status: InvitationEmailStatus = "not_requested";
+        if(input.send_email) {
+          email_status = state.workspace.is_demo ? "not_configured" : await sendInvitationEmail({
+            id:invitation.id,email:invitation.email,role:input.role,workspace:state.workspace.name,token,
+          },inviteEmailConfig);
+        }
+        return answer({...invitation,token,invite_url:invitationURL(token,inviteEmailConfig),email_status});
       }
       if(path[2]==='invitations' && path[4]==='revoke' && request.method==='POST') return answer(await workspaceWrite(id,'revoke_invite',{invite_id:z.uuid().parse(path[3])}));
       if(path[2]==='members' && path[4]==='role' && request.method==='PUT') {

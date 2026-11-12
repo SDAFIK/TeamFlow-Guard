@@ -1,5 +1,25 @@
 # Phase progress
 
+## Stage 6 — GitHub App monitoring, 12 November 2026 (review branch)
+
+- Stage 4 run #43 and Stage 5 run #45 passed, including desktop/mobile simulated browser checks. Earlier screenshot selector error is fixed.
+- Added administrator-configured workspace bindings to one repository, scoped read-only GitHub App installation tokens, immutable repository identity checks, CI/open PR monitoring, signature-verified webhook receiver and filtered delivery history. Added focused unit and simulated mobile viewer checks. No database migration.
+- Real GitHub App installation, credential setup, live webhook reachability and real authenticated acceptance remain pending. No paid resources or production changes. See `docs/STAGE6_GITHUB_APP.md`. CI results pending on current head.
+
+## Stage 5 — team collaboration, 12 November 2026 (review branch)
+
+- Added optional server-only Resend delivery after the existing authorized invite RPC. No provider configuration or live delivery; demo workspaces never send email. Provider acceptance is not inbox delivery, and failures retain the manual private link.
+- Added searchable members, explicit renewal of expired/revoked invitations with fresh tokens, a recent saved audit activity modal and improved visible-workspace polling (20 seconds, not WebSocket realtime). Pending invitations must be revoked before renewal; no old token is recovered or stored in plaintext.
+- Added focused unit tests for configuration, canonical URL, recipient, idempotency and failure handling. GitHub CI and authenticated browser acceptance are release gates; no test success claimed before results. No paid resources, production schema or deployment changes.
+
+## Stage 4 — team invitations, public GitHub linking and dependency map, 11 November 2026
+
+- Added a server-validated public-repository link with per-workspace role checks, version-checked audited Supabase RPC migration, read-only GitHub Actions summaries, and explicit handling for unavailable/private repositories. It does not authorize private GitHub repositories or import CI data as risk evidence.
+- Added an email-draft action for the existing email-bound invitation flow. Email sending remains a user action, not an automatic delivery service.
+- Rebuilt the dependency map into stable left-to-right topological layers with upstream/downstream path emphasis, risk outlines, minimap, controls, more legible responsive visuals and reduced-motion handling. Added 6 focused tests. No production data changes.
+- Local verification: **116 unit tests**, TypeScript and ESLint pass; Next.js webpack production build compiled and generated routes successfully. The browser mock test was attempted but blocked by Chromium sandbox socket permissions; do not mark browser checks passed. New Supabase migration has not been executed on hosted data and this stage is **not deployed**.
+- Release steps and limitations: `docs/STAGE4_TEAM_GITHUB_GRAPH.md`.
+
 ## Stage 2 — user journey and product UX hardening, 11 November 2026
 
 - Reworked role-aware overview priority, trustworthy task progress, task/due-date attention order, dependency validation feedback, empty graph/list guidance, task archiving confirmation, workspace settings and invitation/role administration. Added final-layer responsive navy/teal design refinements; fixed missing shared form-grid styling seen on the previous hosted site.

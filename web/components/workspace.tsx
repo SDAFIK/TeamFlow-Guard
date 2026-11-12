@@ -40,6 +40,7 @@ import {
   type Integrations,
 } from "@/lib/api";
 import Login from "./login";
+import { DashboardHero, WorkspaceLoader } from "./brand-motion";
 import { AuditHistory } from "./audit-history";
 import { EmptyWorkspaceWelcome, WorkspaceChecklist } from "./onboarding";
 import { getDeliveryFocus, getDeliveryProgress } from "@/domain/delivery-guidance";
@@ -48,6 +49,7 @@ import { JourneySteps } from './journey-steps';
 import { TaskManager } from "./task-manager";
 import { WorkspaceSetup } from './workspace-management';
 import { WorkspaceSettings } from './workspace-settings';
+import { WorkspaceActivity } from "./workspace-activity";
 import DependencyMap from "./dependency-map";
 import { Brand, Badge, Busy, Empty, Modal, statusLabels } from "./ui";
 import {
@@ -135,14 +137,16 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
     [filter, setFilter] = useState("all"),
     [board, setBoard] = useState(true);
   const navRef = useRef<HTMLElement>(null);
+  const loadSequence = useRef(0);
   const load = useCallback(async (id?: string, selected?: string) => {
+    const request = ++loadSequence.current;
     try {
       const me = await api<Person>("/me");
       const list = await api<Project[]>("/projects");
+      if (request !== loadSequence.current) return;
       const saved=localStorage.getItem(`teamflow.workspace.${me.id}`);
       const target = id ?? (list.some(p=>p.id===saved)?saved:undefined) ?? list[0]?.id;
       if (target) {
-        localStorage.setItem(`teamflow.workspace.${me.id}`,target);
         const base = `/projects/${target}`;
         const [overview, g, r, p, a, i] = await Promise.all([
           api<Overview>(base + "/dashboard"),
@@ -154,6 +158,8 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
           api<Audit[]>(base + "/audit"),
           api<Integrations>(base + "/integrations"),
         ]);
+        if (request !== loadSequence.current) return;
+        localStorage.setItem(`teamflow.workspace.${me.id}`,target);
         setData(overview);
         setGraph(g);
         setRisks(r);
@@ -165,12 +171,13 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
       setUser(me);
       setError("");
     } catch (e) {
+      if (request !== loadSequence.current) return;
       if (e instanceof ApiError && e.status === 401) {
         setUser(null);
         setData(null);
       } else setError((e as Error).message);
     } finally {
-      setBusy(false);
+      if (request === loadSequence.current) setBusy(false);
     }
   }, []);
   useEffect(() => {
@@ -178,13 +185,21 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
+  const activeWorkspaceId = data?.project.id;
+  const selectedGraphTask = graph?.selected_task_id ?? undefined;
+  const activeUserId = user?.id;
   useEffect(()=>{
-    if(!user||!data||taskId||proposalId||manageTask||workspaceSetup||view==='settings')return;
-    const update=()=>{if(document.visibilityState==='visible')void load(data.project.id);};
+    if(!activeUserId||!activeWorkspaceId||taskId||riskId||proposalId||manageTask||workspaceSetup||dependencyDialog||demo||receipt||view==='settings')return;
+    let refreshing = false;
+    const update=()=>{if(document.visibilityState==='visible' && !refreshing) {
+      refreshing=true;
+      void load(activeWorkspaceId,selectedGraphTask).finally(()=>{refreshing=false;});
+    }};
     const timer=window.setInterval(update,20_000);
     window.addEventListener('focus',update);
-    return()=>{window.clearInterval(timer);window.removeEventListener('focus',update);};
-  },[user,data,taskId,proposalId,manageTask,workspaceSetup,view,load]);
+    document.addEventListener('visibilitychange',update);
+    return()=>{window.clearInterval(timer);window.removeEventListener('focus',update);document.removeEventListener('visibilitychange',update);};
+  },[activeUserId,activeWorkspaceId,selectedGraphTask,taskId,riskId,proposalId,manageTask,workspaceSetup,dependencyDialog,demo,receipt,view,load]);
   useEffect(() => {
     if (!menu) return;
     const previous = document.activeElement as HTMLElement;
@@ -249,6 +264,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
   async function logout() {
     try {
       await api("/auth/logout", { method: "POST" });
+      loadSequence.current++;
       setUser(null);
       setData(null);
       setMenu(false);
@@ -259,10 +275,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
   }
   if (busy && !user)
     return (
-      <div className="initial">
-        <Brand />
-        <Busy text="Opening your workspace…" />
-      </div>
+      <WorkspaceLoader/>
     );
   if (!user) return <Login onLogin={() => load()} initialError={error} />;
   const activeRisks = risks.filter((r) => r.active).sort((a,b)=>Number(a.stale_evidence)-Number(b.stale_evidence)||b.affected_task_ids.length-a.affected_task_ids.length||({high:3,medium:2,low:1}[b.severity]??0)-({high:3,medium:2,low:1}[a.severity]??0)),
@@ -499,6 +512,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                   <p>{titles[view][1]}</p>
                 </div>
                 <div className="heading-actions">
+                  <WorkspaceActivity key={data.project.id} entries={audit} onViewAll={()=>navigate("audit")}/>
                   <button
                     className={`icon-button refresh-button ${busy ? "spin" : ""}`}
                     aria-label="Refresh data"
@@ -531,6 +545,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                 </section>}
                 {view === "overview" && (
                   <>
+                    <DashboardHero/>
                     {!data.is_demo && !activeRisks.length && (data.tasks.length < 2 || data.members.length < 2 || graph.edges.length === 0) && (
                       <WorkspaceChecklist
                         workspaceName={data.project.name}
@@ -818,6 +833,16 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                   </>
                 )}
                 {view === "risks" && (
+                  <>
+                  <section className="risk-command" aria-label="Risk protection overview">
+                    <div className="risk-command-intro"><span className="section-kicker">DELIVERY INTELLIGENCE</span><h2>See the impact. Protect the plan.</h2><p>Verified signals, mapped work and human-reviewed recovery.</p></div>
+                    <div className="risk-command-metrics">
+                      <div><TriangleAlert size={19}/><strong>{activeRisks.length}</strong><span>Active risks</span></div>
+                      <div><GitBranch size={19}/><strong>{new Set(activeRisks.flatMap(r=>r.affected_task_ids)).size}</strong><span>Affected tasks</span></div>
+                      <div><ShieldCheck size={19}/><strong>{activeRisks.filter(r=>r.evidence.origin==="github").length}</strong><span>GitHub signals</span></div>
+                    </div>
+                    <p className="risk-command-note">A passing CI run resolves its matching CI signal, not every project risk. Plan changes require approval.</p>
+                  </section>
                   <section className="panel">
                     <div className="panel-head">
                       <div>
@@ -869,6 +894,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                       </Empty>
                     )}
                   </section>
+                  </>
                 )}
                 {view === "tasks" && (
                   <>
@@ -1255,16 +1281,18 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                         <div>
                           <strong>GitHub</strong>
                           <p>
-                            {integrations.github_configured
-                                ? "Workflow evidence imported by an operator. Sync is manual; check source timestamps."
-                              : "No live repository connection. Demo events are labeled."}
+                            {integrations.github_repository
+                              ? `${integrations.github_app_bound ? "GitHub App repository" : "Public repository"} ${integrations.github_repository} linked read-only. Recent activity appears above; risk evidence import remains manual.`
+                              : integrations.github_evidence_imported
+                                ? "Historical workflow evidence was imported manually. No live repository linked."
+                                : "No public repository linked. Demo events are labeled."}
                           </p>
                         </div>
                         <Badge
                           value={
-                            integrations.github_configured
-                                ? "manual sync"
-                              : "not connected"
+                            integrations.github_repository
+                              ? "read-only link"
+                              : integrations.github_evidence_imported ? "manual evidence" : "not connected"
                           }
                         />
                       </div>

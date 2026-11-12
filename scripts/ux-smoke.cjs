@@ -20,15 +20,15 @@ const firstTask = {
 
 function model(role) {
   const store = {
-    role, version: 1, tasks: [firstTask], edges: [], proposals: [], audit: [],
+    role, version: 1, tasks: [firstTask], edges: [], proposals: [], audit: [{id:"mock-audit-1",actor_id:OWNER,actor_name:"Asha (mock)",kind:"workspace.created",summary:"Workspace created (simulated)",created_at:new Date().toISOString(),plan_version:1,changes:[]}], githubRepo:null,
     members: [
       {id:OWNER,name:"Asha (mock)",email:"asha@example.invalid",role:role==="viewer"?"viewer":"lead",specialty:"Product",available_hours:24},
       {id:OTHER,name:"Jin (mock)",email:"jin@example.invalid",role:"contributor",specialty:"Frontend",available_hours:20},
     ],
-    invites: [], settings: {
+    invites: [{id:"expired-fixture",email:"expired.person@example.invalid",role:"member",expires_at:new Date(Date.now()-86400000).toISOString(),accepted_at:null,revoked_at:null}], emailRequests:[], settings: {
       id: WORKSPACE, name: "Sample UX workspace", description: "Isolated browser fixture",
       tracked_branch: "main", review_threshold_hours: 24, plan_version: 1,
-      my_role: role === "viewer" ? "viewer" : "owner",
+      my_role: role === "viewer" ? "viewer" : "owner", invitation_email_configured:role!=="viewer",
     },
   };
   return store;
@@ -65,6 +65,18 @@ async function mockApi(page, state) {
     if (pathname === `${base}/settings` && method==="GET") return json({
       ...state.settings,plan_version:state.version,members:state.members.map(m=>({...m,role:m.id===OWNER?state.settings.my_role:"member"})),
     });
+    if (pathname === `${base}/github-readiness` && method==="GET") return json({repository:state.githubRepo,app_bound:false,app_credentials:false,webhook_configured:false,ingestion_configured:false,mappings:[],tracked_branch:"main",email_configured:state.settings.invitation_email_configured,is_demo:false});
+    if (pathname === `${base}/github` && method==="GET" && state.role==="viewer") return json({connected:true,repository:"fixture/private-repo",mode:"app",runs:[],warning:null,pulls:[{number:7,title:"Private PR (simulated)",draft:false,updated_at:new Date().toISOString(),html_url:"https://github.com/fixture/private-repo/pull/7"}],deliveries:[{id:1,event:"workflow_run",action:"completed",status_code:202,delivered_at:new Date().toISOString()}],observed_at:new Date().toISOString()});
+    if (pathname === `${base}/github` && method==="GET") return json({
+      connected:!!state.githubRepo,repository:state.githubRepo,warning:null,
+      runs:state.githubRepo?[{id:99,name:"Validation (simulated)",status:"completed",conclusion:"success",html_url:`https://github.com/${state.githubRepo}/actions/runs/99`,created_at:"2026-11-10T12:00:00Z"}]:[],
+    });
+    if (pathname === `${base}/github` && method==="POST") {
+      if (state.role === "viewer") return json({message:"Manager access required"},403);
+      state.githubRepo=input.repository?.replace("https://github.com/", "") ?? null;
+      state.version++;
+      return json({repository:state.githubRepo,plan_version:state.version});
+    }
     if (pathname === `${base}/settings` && method==="PUT") {
       if (state.role==="viewer") return json({message:"Manager access required"},403);
       Object.assign(state.settings,input);
@@ -72,9 +84,11 @@ async function mockApi(page, state) {
     }
     if (pathname === `${base}/invitations` && method==="GET") return json(state.invites);
     if (pathname === `${base}/invitations` && method==="POST") {
-      const invitation={id:"e7a2cf3c-3063-4cc5-a49f-c5c000000001",email:input.email,role:input.role,expires_at:"2026-12-31T12:00:00Z",accepted_at:null,revoked_at:null};
+      if(state.role==="viewer") return json({message:"Manager access required"},403);
+      const invitation={id:"mock-invite-"+state.invites.length,email:input.email,role:input.role,expires_at:new Date(Date.now()+7*86400000).toISOString(),accepted_at:null,revoked_at:null};
       state.invites.push(invitation);
-      return json({...invitation,token:"a".repeat(64)});
+      if(input.send_email) state.emailRequests.push(input.email);
+      return json({...invitation,token:state.invites.length.toString(16).padStart(64,"a"),email_status:input.send_email?"accepted":"not_requested"});
     }
     if (pathname === `${base}/tasks` && method==="POST") {
       if (state.role==="viewer") return json({message:"Read-only access"},403);
@@ -111,11 +125,20 @@ async function run(viewport, role="lead") {
     await page.getByRole("heading",{name:"Delivery overview"}).waitFor();
     await page.getByRole("region",{name:"Your next action"}).waitFor();
     await page.getByRole("progressbar",{name:"Completed tasks"}).waitFor();
+    await page.getByRole("region",{name:"TeamFlow Guard brand hero"}).waitFor();
+    const hero=page.getByRole("img",{name:"TeamFlow Guard — See risks early. Keep humans in control."});
+    await hero.waitFor();
+    await page.waitForFunction(()=>{const img=document.querySelector(".brand-hero-art");return img&&img.complete&&img.naturalWidth>0;});
+    await page.getByRole("button",{name:"Recent team activity",exact:true}).click();
+    await page.getByRole("dialog",{name:"Recent team activity"}).getByText("Workspace created (simulated)").waitFor();
+    await page.getByRole("button",{name:"Close activity",exact:true}).click();
 
-    if (viewport.width<600) {
-      await page.getByRole("button",{name:"Open navigation"}).click();
-    }
-    await page.getByRole("button",{name:"Task Board"}).click();
+    if (viewport.width<600) await page.getByRole("button",{name:"Open navigation"}).click();
+    await page.getByRole("button",{name:"Risk Center",exact:true}).click();
+    await page.getByRole("region",{name:"Risk protection overview"}).waitFor();
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1),false,"risk overview has no overflow");
+    if (viewport.width<600) await page.getByRole("button",{name:"Open navigation"}).click();
+    await page.getByRole("button",{name:"Task Board",exact:true}).click();
     if (role==="lead") {
       await page.getByRole("button",{name:"Create task",exact:true}).first().click();
       await page.getByRole("dialog",{name:"Create a task"}).waitFor();
@@ -130,7 +153,7 @@ async function run(viewport, role="lead") {
     }
 
     if (viewport.width<600) await page.getByRole("button",{name:"Open navigation"}).click();
-    await page.getByRole("button",{name:"Dependencies"}).click();
+    await page.getByRole("button",{name:"Dependencies",exact:true}).click();
     await page.getByRole("heading",{name:"Dependency map"}).waitFor();
     if(role==="lead") {
       await page.getByRole("button",{name:"Propose dependency"}).click();
@@ -145,20 +168,43 @@ async function run(viewport, role="lead") {
 
     if (viewport.width<600) await page.getByRole("button",{name:"Open navigation"}).click();
     await page.getByRole("button",{name:"Settings",exact:true}).click();
-    await page.getByRole("heading",{name:"Your team"}).waitFor();
+    await page.getByRole("heading",{name:"Your team",exact:true}).waitFor();
+    await page.getByRole("region",{name:"Integration readiness"}).getByText("Repository authorization",{exact:true}).waitFor();
+    await page.getByRole("searchbox",{name:"Search team members"}).fill("Jin");
+    await page.locator(".settings-member-list").getByText("Jin (mock)",{exact:true}).waitFor();
+    assert.equal(await page.locator(".settings-member-list").getByText("Asha (mock)",{exact:true}).count(),0);
+    await page.getByRole("searchbox",{name:"Search team members"}).fill("");
     if(role==="lead") {
       await page.getByLabel("Teammate email").fill("new.person@example.invalid");
       await page.getByRole("button",{name:"Generate invitation link"}).click();
       await page.getByRole("textbox",{name:"Private invitation link"}).waitFor();
+      const emailDraft = page.getByRole("link",{name:"Open email draft"});
+      assert.match(await emailDraft.getAttribute("href"),/^mailto:/,"invitation offers a real email draft");
+      await page.getByRole("button",{name:"Renew invitation",exact:true}).click();
+      assert.equal(await page.getByLabel("Teammate email").inputValue(),"expired.person@example.invalid");
+      await page.getByRole("checkbox",{name:"Send invitation email now"}).check();
+      await page.getByRole("button",{name:"Generate invitation link",exact:true}).click();
+      await page.getByText("Invitation accepted by the email provider. Delivery to the inbox is not yet confirmed.",{exact:true}).waitFor();
+      assert.deepEqual(state.emailRequests,["expired.person@example.invalid"],"only explicitly requested simulated email");
+      await page.getByLabel("Repository URL or owner/name").fill("SDAFIK/TeamFlow-Guard");
+      await page.getByRole("button",{name:"Link repository"}).click();
+      await page.getByText("Public GitHub repository linked",{exact:true}).waitFor();
+      await page.getByText("Validation (simulated)").waitFor();
+      assert.equal(state.githubRepo,"SDAFIK/TeamFlow-Guard","GitHub link persisted in the simulated workspace");
     } else {
       assert.equal(await page.getByRole("button",{name:"Generate invitation link"}).count(),0,"viewer cannot invite");
+      assert.equal(await page.getByRole("button",{name:"Link repository"}).count(),0,"viewer cannot link repositories");
+      await page.getByText("GitHub App repository configured",{exact:true}).waitFor();
+      await page.getByText("#7 Private PR (simulated)",{exact:true}).waitFor();
+      await page.getByText("workflow run · completed",{exact:true}).waitFor();
+      assert.equal(await page.getByRole("checkbox",{name:"Send invitation email now"}).count(),0,"viewer cannot send invitations");
     }
     const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1);
     assert.equal(overflow,false,`horizontal overflow at ${label}`);
     assert.deepEqual(failures,[],`client errors at ${label}`);
     fs.mkdirSync("evidence",{recursive:true});
     await page.screenshot({path:path.join("evidence",`ux-mock-${label}.png`),fullPage:true});
-    console.log(`PASS ${label}: workspace → tasks → dependencies → team/permissions; no overflow or page errors`);
+    console.log(`PASS ${label}: simulated tasks, dependencies, email invites, public GitHub link and team permissions; no overflow or page errors`);
   } finally {await browser.close();}
 }
 
