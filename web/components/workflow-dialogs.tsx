@@ -23,6 +23,8 @@ import { dependencyFeedback } from "@/domain/dependency-feedback";
 import { Modal, Badge, Busy, statusLabels } from "./ui";
 import { JourneySteps } from './journey-steps';
 import type { RecoveryOption } from '@/domain/recovery-options';
+import type { simulateRecovery } from '@/domain/tic-v2-recovery';
+type RecoverySimulation=ReturnType<typeof simulateRecovery>[number];
 
 type Member = Overview["members"][number];
 export function TaskDialog({
@@ -243,10 +245,11 @@ export function RiskDialog({
     [error, setError] = useState("");
   const [stage,setStage]=useState<'understand'|'compare'>('understand');
   const [options,setOptions]=useState<RecoveryOption[]>([]);
+  const [simulations,setSimulations]=useState<RecoverySimulation[]>([]);
   async function compare() {
     if(integrations.ai_provider!=='gemini'){await analyze('rules');return;}
     setPending('options');setError('');
-    try { const result=await api<{options:RecoveryOption[]}>(`/risks/${risk.id}/recovery-options`);setOptions(result.options);setStage('compare'); }
+    try { const result=await api<{options:RecoveryOption[];simulations?:RecoverySimulation[]}>(`/risks/${risk.id}/recovery-options`);setOptions(result.options);setSimulations(result.simulations??[]);setStage('compare'); }
     catch(e){setError((e as Error).message);}finally{setPending('');}
   }
   async function analyze(mode: string, strategy?: string) {
@@ -327,7 +330,8 @@ export function RiskDialog({
       </div>}
       {stage==='compare'&&<section aria-label="Recovery alternatives">
         <p>These choices come from plan constraints and reported availability. Compare the tradeoffs, then review one change. AI can explain and select from the same allowed actions.</p>
-        <div className="recovery-options">{options.map(option=><article className="recovery-option" key={option.id}><span className="section-kicker">RULE-BASED OPTION</span><h3>{option.title}</h3><p>{option.effect}</p><p className="option-tradeoff"><strong>Tradeoff:</strong> {option.tradeoff}</p><button className="secondary" aria-label={`Review ${option.title}`} disabled={readOnly||!!pending} onClick={()=>analyze('rules',option.id)}>Review this option<ArrowRight size={16}/></button></article>)}</div>
+        <div className="recovery-options">{options.map(option=><article className="recovery-option" key={option.id}><span className="section-kicker">RULE-BASED OPTION</span><h3>{option.title}</h3><p>{option.effect}</p><p className="option-tradeoff"><strong>Tradeoff:</strong> {option.tradeoff}</p>{simulations.filter(s=>s.id===option.id).map(s=><div key={s.id}><p><strong>Simulation:</strong> {s.affected_task_ids.length} unfinished dependent tasks. Source risk is not resolved by this action.</p>{s.capacity.map(c=><p key={c.member_id}>Estimated workload: {c.before_hours}h → {c.after_hours}h; {c.available_hours}h reported available.</p>)}<p className="field-help">No guaranteed delay reduction.</p></div>)}<button className="secondary" aria-label={`Review ${option.title}`} disabled={readOnly||!!pending} onClick={()=>analyze('rules',option.id)}>Review this option<ArrowRight size={16}/></button></article>)}</div>
+        {simulations.filter(s=>!s.feasible).map(s=><p className="warning" key={s.id}>{s.title} is unavailable: {s.explanation}</p>)}
         {!options.length&&<p className="warning">No feasible change is available. Keep the current plan and discuss the constraint with your team.</p>}
         <button className="text-link" disabled={!!pending} onClick={()=>setStage('understand')}>Back to evidence & impact</button>
       </section>}
@@ -343,7 +347,7 @@ export function RiskDialog({
         {stage==='compare'&&<>
         <button
           className="primary"
-          disabled={readOnly || !!pending || !risk.active || !integrations.ai_configured}
+          disabled={readOnly || !!pending || !risk.active || !integrations.ai_configured || !options.length}
           onClick={() => analyze(integrations.ai_provider ?? "gemini")}
         >
           {pending === (integrations.ai_provider ?? "gemini") ? (
@@ -357,7 +361,7 @@ export function RiskDialog({
         </button>
         <button
           className="secondary"
-          disabled={readOnly || !!pending || !risk.active}
+          disabled={readOnly || !!pending || !risk.active || !options.length}
           onClick={() => analyze("rules")}
         >
           {pending === "rules" ? <Busy /> : "Review combined rule-based plan"}

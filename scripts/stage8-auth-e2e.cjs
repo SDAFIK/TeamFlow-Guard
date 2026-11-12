@@ -193,5 +193,29 @@ async function event(payload,valid=true,type="workflow_run",delivery=randomUUID(
   assert.equal(final.tasks.find(t=>t.id===next.id).priority,"critical");
   assert.ok((await call(ownerPage,base+"/audit")).some(a=>a.kind==="proposal.approved"&&a.proposal_id===accepted.id));
   console.log("PASS Phase 5B actual local Auth/PostgREST + signed review lifecycle, GitHub HTTP fixture, TIC, desktop/mobile risk UI, stale approval denial, re-request, approved recovery and audit");
+  if(process.env.TEAMFLOW_ACCEPT_TIC_V2==="1"){
+    const report=await call(ownerPage,base+"/project-intelligence");
+    assert.equal(report.critical_effort_hours,20);assert.equal(report.controls.can_approve,true);
+    const info=await call(memberPage,base+"/model-info");
+    assert.equal(info.real_predictions_enabled,false);assert.equal(info.demo_example,null);
+    await call(outsiderPage,base+"/project-intelligence","GET",undefined,404);
+    for(const page of [ownerPage,memberPage]){
+      await page.goto(BASE+"/intelligence");
+      const section=page.getByRole("region",{name:"TIC intelligence center"});
+      await section.getByText("Critical dependency effort",{exact:true}).waitFor();
+      await section.getByText("Tasks needing attention",{exact:true}).waitFor();
+      await page.getByRole("region",{name:"Continuous learning controls"}).waitFor();
+      assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+    }
+    const learn=await call(ownerPage,base+"/learning");
+    assert.equal(learn.enabled,false);assert.equal(learn.can_manage,true);
+    await call(memberPage,base+"/learning","POST",{operation:"consent",enable:true},403);
+    assert.equal((await call(ownerPage,base+"/learning","POST",{operation:"consent",enable:true})).enabled,true);
+    assert.equal((await call(ownerPage,base+"/learning","POST",{operation:"capture",task_id:next.id})).status,"missing_evidence");
+    assert.equal((await call(ownerPage,base+"/learning?export=1")).rows.length,0);
+    await call(memberPage,base+"/learning?export=1","GET",undefined,403);
+    assert.equal((await call(ownerPage,base+"/learning","POST",{operation:"consent",enable:false})).enabled,false);
+    console.log("PASS TIC V2 authenticated project/model APIs, desktop/mobile Intelligence Center and owner-only learning controls");
+  }
  }finally{if(browser)await browser.close();await stop();fs.rmSync(fixtureDir,{recursive:true,force:true});}
 })().catch(e=>{console.error(String(e.message).split("\n")[0]);process.exitCode=1;});

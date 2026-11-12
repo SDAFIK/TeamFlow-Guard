@@ -6,7 +6,7 @@ import { api } from "@/lib/api";
 import { Busy } from "./ui";
 
 type Run = { id: number; name: string; status: string; conclusion: string | null; html_url: string; created_at: string };
-type Connection = { connected: boolean; repository: string | null; runs: Run[]; warning: string | null; mode?:"app"; pulls?:{number:number;title:string;draft:boolean;html_url:string;updated_at:string}[]; deliveries?:{id:number;event:string;action:string|null;status_code:number;delivered_at:string}[]; observed_at?:string|null };
+type Connection = { connected: boolean; repository: string | null; runs: Run[]; warning: string | null; mode?:"app"; pulls?:{number:number;title:string;draft:boolean;html_url:string;updated_at:string}[]; deliveries?:{id:string;event:string;action:string|null;status_code:number;delivered_at:string}[]; observed_at?:string|null };
 
 export function GithubConnection({ workspaceId, planVersion, canManage, onChanged }: {
   workspaceId: string; planVersion: number; canManage: boolean; onChanged: () => Promise<void>;

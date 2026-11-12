@@ -44,6 +44,7 @@ import {
   type Integrations,
 } from "@/lib/api";
 import Login from "./login";
+import { IntelligenceCenter } from "./intelligence-center";
 import { DashboardHero, WorkspaceLoader } from "./brand-motion";
 import { DashboardAnalytics, DashboardTeam, WorkspaceSearch } from "./premium-dashboard";
 import { AuditHistory } from "./audit-history";
@@ -68,6 +69,7 @@ import {
 
 type View =
   | "overview"
+  | "intelligence"
   | "risks"
   | "tasks"
   | "dependencies"
@@ -77,6 +79,7 @@ type View =
   | "settings";
 const navigation = [
   { label: "Overview", view: "overview", icon: LayoutDashboard },
+  { label: "TIC Intelligence", view: "intelligence", icon: Sparkles },
   { label: "Risk Center", view: "risks", icon: TriangleAlert },
   { label: "Task Board", view: "tasks", icon: Columns3 },
   { label: "Dependencies", view: "dependencies", icon: GitBranch },
@@ -85,6 +88,7 @@ const navigation = [
   { label: "Audit Log", view: "audit", icon: ScrollText },
 ] as const;
 const titles: Record<View, [string, string]> = {
+  intelligence: ["TIC Intelligence", "Understand evidence, delivery pressure and model controls."],
   overview: [
     "Delivery overview",
     "See the signals. Understand the impact. Decide with confidence.",
@@ -572,6 +576,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                   <JourneySteps current={3}/><h2>{receipt.decision==='approve'?'Approved plan saved':'Proposal rejected — plan unchanged'}</h2><p>{receipt.title}</p><p>The decision is recorded in your workspace history. {receipt.decision==='approve'?'Check the updated task assignments and follow up on the source signal.':'No proposed changes were applied.'}</p>
                   <div className="dialog-actions"><button className="primary" onClick={()=>{setReceipt(null);navigate('tasks');}}>View current plan</button><button className="secondary" onClick={()=>{setReceipt(null);navigate('audit');}}>View decision history</button><button className="text-link" onClick={()=>setReceipt(null)}>Dismiss receipt</button></div>
                 </section>}
+                {view === "intelligence" && <IntelligenceCenter key={data.project.id} workspace={data.project.id} onRisk={id=>setRiskId(id)}/>}
                 {view === "overview" && (
                   <>
                     <DashboardHero demoAction={data.is_demo&&lead?"Replay demo scenario":projects.some(p=>p.is_demo&&p.id!==data.project.id)?"Open demo workspace":"Explore dependencies"} onDemo={()=>{if(data.is_demo&&lead){setDemo(true);return;}const sample=projects.find(p=>p.is_demo&&p.id!==data.project.id);if(sample)switchWorkspace(sample.id);else navigate("dependencies");}} onGithub={()=>openConnections("github")} githubLinked={Boolean(integrations.github_repository)}/>

@@ -4,6 +4,10 @@ import { supabaseServer } from "@/server/supabase";
 import { snapshot, mutate, HttpError, databaseError, uiRole, type Client } from "@/server/state";
 import { risksFor } from "@/domain/risk-engine";
 import { taskIntelligence } from "@/domain/tic-features";
+import { projectIntelligence } from "@/domain/tic-v2-project";
+import { v2ModelInfo, scoreV2 } from "@/domain/tic-v2-model";
+import { simulateRecovery } from "@/domain/tic-v2-recovery";
+import v2Artifact from "@/domain/models/tic-v2-synthetic.json";
 import { downstream, validateGraph } from "@/domain/graph";
 import { actionSchema } from "@/domain/proposal";
 import { recovery } from "@/server/recovery";
@@ -11,7 +15,6 @@ import { configured } from "@/server/gemini";
 import { allowedOrigin, authRedirectOrigin } from "@/server/origin";
 import { createHash, randomBytes } from "node:crypto";
 import { auditPage } from "@/server/audit-page";
-import { buildRecoveryOptions, githubReviewReviewer } from "@/domain/recovery-options";
 import { recentPublicRuns, verifyPublicRepository } from "@/server/github-public";
 import { githubAppConfig, bindingForWorkspace, githubAppReady, appRepositoryActivity, appReviewObservation } from "@/server/github-app";
 import { workspaceCIMappings } from "@/server/github-evidence";
@@ -129,6 +132,16 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
           case "tasks": return answer(state.tasks);
           case "dependencies": return answer({ nodes: state.tasks, edges: state.edges, plan_version: state.workspace.plan_version, selected_task_id: selected, downstream_ids: selected ? downstream(state.tasks.map(t => t.id), state.edges, selected) : [], upstream_ids: selected ? downstream(state.tasks.map(t => t.id), state.edges, selected, true) : [] });
           case "risks": return answer(risks());
+          case "learning": {
+            if(path.length!==3)throw new HttpError(404,"Resource unavailable");
+            const operation=request.nextUrl.searchParams.get("export")==="1"?"export":"status";
+            const result=await client.rpc("tf_learning",{w:id,operation,t:null,enable:null});if(result.error)databaseError(result.error);return answer(result.data);
+          }
+          case "model-info": return answer({...v2ModelInfo, demo_example:state.workspace.is_demo?scoreV2(v2Artifact.parity_input,true):null});
+          case "project-intelligence": {
+            if(path.length!==3)throw new HttpError(404,"Resource unavailable");
+            return answer(projectIntelligence({tasks:state.tasks,edges:state.edges,evidence:state.evidence,members:state.members,trackedBranch:state.workspace.tracked_branch,threshold:state.workspace.review_threshold_hours,now:new Date(),role:state.role,planVersion:state.workspace.plan_version}));
+          }
           case "intelligence": {
             if(path.length!==3)throw new HttpError(404,"Resource unavailable");
             const taskId=z.uuid().parse(request.nextUrl.searchParams.get("task"));
@@ -224,6 +237,10 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
         try { validateGraph(state.tasks.map(t => t.id), [...state.edges, edge]); } catch (e) { throw new HttpError(422, (e as Error).message); }
         return answer({ message: "Dependency is valid. Submit a proposal to apply it." });
       }
+      if(path[2]==="learning"&&path.length===3&&request.method==="POST"){
+        const input=z.discriminatedUnion("operation",[z.object({operation:z.literal("consent"),enable:z.boolean()}).strict(),z.object({operation:z.literal("capture"),task_id:z.uuid()}).strict()]).parse(body);
+        const result=await client.rpc("tf_learning",{w:id,operation:input.operation,t:input.operation==="capture"?input.task_id:null,enable:input.operation==="consent"?input.enable:null});if(result.error)databaseError(result.error);return answer(result.data);
+      }
       if (path[2] === "proposals" && request.method === "POST") {
         const input = z.object({ title: z.string().min(3).max(140), base_plan_version: z.number().int().positive(), actions: z.array(actionSchema).min(1).max(8) }).strict().parse(body);
         return answer(await mutate(client, id, "proposal", { ...input, explanation: "Human-authored change; review current constraints before approval.", source: "manual", evidence_ids: [], assumptions: ["This is a human-authored proposal, not AI analysis."] }));
@@ -259,7 +276,8 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       const state = await snapshot(client, await scopedWorkspace(client, "tf_evidence", riskId));
       const risk = risksFor(state.tasks,state.edges,state.evidence,state.members,state.workspace.review_threshold_hours,new Date(),state.workspace.tracked_branch).find(r=>r.id===riskId);
       if (!risk?.active || risk.stale_evidence) throw new HttpError(409,"Risk evidence is resolved or stale. Refresh the source first.");
-      return answer({ options: buildRecoveryOptions(state.tasks,state.edges,state.members,risk.evidence.task_id,risk.evidence.kind,Date.now(),githubReviewReviewer(risk.evidence)), plan_version: state.workspace.plan_version });
+      const simulations=simulateRecovery(state.tasks,state.edges,state.members,risk.evidence);
+      return answer({ options: simulations.filter(o=>o.feasible), simulations, plan_version: state.workspace.plan_version });
     }
     if (path[0] === "risks" && path[2] === "analyze" && request.method === "POST") {
       const riskId = z.uuid().parse(path[1]); const id = await scopedWorkspace(client, "tf_evidence", riskId);
