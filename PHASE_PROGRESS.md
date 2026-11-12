@@ -1,5 +1,11 @@
 # Phase progress
 
+## Stage 6 — GitHub App monitoring, 12 November 2026 (review branch)
+
+- Stage 4 run #43 and Stage 5 run #45 passed, including desktop/mobile simulated browser checks. Earlier screenshot selector error is fixed.
+- Added administrator-configured workspace bindings to one repository, scoped read-only GitHub App installation tokens, immutable repository identity checks, CI/open PR monitoring, signature-verified webhook receiver and filtered delivery history. Added focused unit and simulated mobile viewer checks. No database migration.
+- Real GitHub App installation, credential setup, live webhook reachability and real authenticated acceptance remain pending. No paid resources or production changes. See `docs/STAGE6_GITHUB_APP.md`. CI results pending on current head.
+
 ## Stage 5 — team collaboration, 12 November 2026 (review branch)
 
 - Added optional server-only Resend delivery after the existing authorized invite RPC. No provider configuration or live delivery; demo workspaces never send email. Provider acceptance is not inbox delivery, and failures retain the manual private link.

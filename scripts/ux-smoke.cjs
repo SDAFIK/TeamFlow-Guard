@@ -65,6 +65,7 @@ async function mockApi(page, state) {
     if (pathname === `${base}/settings` && method==="GET") return json({
       ...state.settings,plan_version:state.version,members:state.members.map(m=>({...m,role:m.id===OWNER?state.settings.my_role:"member"})),
     });
+    if (pathname === `${base}/github` && method==="GET" && state.role==="viewer") return json({connected:true,repository:"fixture/private-repo",mode:"app",runs:[],warning:null,pulls:[{number:7,title:"Private PR (simulated)",draft:false,updated_at:new Date().toISOString(),html_url:"https://github.com/fixture/private-repo/pull/7"}],deliveries:[{id:1,event:"workflow_run",action:"completed",status_code:202,delivered_at:new Date().toISOString()}],observed_at:new Date().toISOString()});
     if (pathname === `${base}/github` && method==="GET") return json({
       connected:!!state.githubRepo,repository:state.githubRepo,warning:null,
       runs:state.githubRepo?[{id:99,name:"Validation (simulated)",status:"completed",conclusion:"success",html_url:`https://github.com/${state.githubRepo}/actions/runs/99`,created_at:"2026-11-10T12:00:00Z"}]:[],
@@ -185,6 +186,9 @@ async function run(viewport, role="lead") {
     } else {
       assert.equal(await page.getByRole("button",{name:"Generate invitation link"}).count(),0,"viewer cannot invite");
       assert.equal(await page.getByRole("button",{name:"Link repository"}).count(),0,"viewer cannot link repositories");
+      await page.getByText("GitHub App repository configured",{exact:true}).waitFor();
+      await page.getByText("#7 Private PR (simulated)",{exact:true}).waitFor();
+      await page.getByText("workflow run · completed",{exact:true}).waitFor();
       assert.equal(await page.getByRole("checkbox",{name:"Send invitation email now"}).count(),0,"viewer cannot send invitations");
     }
     const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1);
