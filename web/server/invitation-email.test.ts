@@ -41,6 +41,18 @@ describe("optional invitation delivery", () => {
     expect(body.html).toContain("&lt;img");
     expect(body.html).not.toContain("<img src=x");
   });
+  it("uses Gmail only when configured and preserves recipient and link",async()=>{
+    const transport=vi.fn<typeof fetch>();
+    const gmail=vi.fn().mockResolvedValue(true);
+    const cfg={APP_BASE_URL:config.APP_BASE_URL,TEAMFLOW_GMAIL_USER:"sender@gmail.com",TEAMFLOW_GMAIL_APP_PASSWORD:"abcd efgh ijkl mnop"};
+    expect(invitationEmailConfigured(cfg)).toBe(true);
+    expect(await sendInvitationEmail(invite,cfg,transport,gmail)).toBe("accepted");
+    expect(gmail).toHaveBeenCalledWith(expect.objectContaining({from:"sender@gmail.com",to:invite.email,html:expect.stringContaining("/join#"+invite.token)}),"abcdefghijklmnop");
+    expect(transport).not.toHaveBeenCalled();
+    gmail.mockResolvedValue(false);
+    expect(await sendInvitationEmail(invite,cfg,transport,gmail)).toBe("unconfirmed");
+    expect(invitationEmailConfigured({...cfg,TEAMFLOW_GMAIL_APP_PASSWORD:""})).toBe(false);
+  });
   it("preserves the invitation on provider rejection or a network failure", async () => {
     const transport = vi.fn<typeof fetch>().mockResolvedValue(new Response("rate limited", { status: 429 }));
     expect(await sendInvitationEmail(invite, config, transport)).toBe("unconfirmed");
