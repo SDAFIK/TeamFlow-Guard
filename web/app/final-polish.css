@@ -474,3 +474,16 @@ dialog .field-grid { gap: 18px; }
 .invite-send-option { display: flex; align-items: center; gap: .6rem; }
 .invite-send-option input[type="checkbox"] { width: 1.1rem; height: 1.1rem; min-height: 0; flex: 0 0 auto; accent-color: #0d9488; }
 .settings-panel input[type="search"] { display: block; width: 100%; margin: .4rem 0 .8rem; }
+
+/* Stage 7: evidence-first risk command center */
+.risk-command{display:grid;gap:20px;padding:clamp(18px,3vw,32px);margin-bottom:20px;border:1px solid #386a73;border-radius:18px;background:radial-gradient(ellipse at 100% 0%,#1a505044,transparent 65%),linear-gradient(135deg,#152d40,#101e30);box-shadow:var(--shadow-panel)}
+.risk-command-intro h2{font-size:clamp(24px,3vw,34px);letter-spacing:-.8px;margin:8px 0}
+.risk-command-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.risk-command-metrics>div{display:grid;gap:8px;padding:16px;border-radius:12px;background:#0b1c2b;border:1px solid #395568;min-width:0;transition:border-color 180ms ease,transform 180ms ease}
+.risk-command-metrics>div:hover{border-color:#6ab9ac;transform:translateY(-2px)}
+.risk-command-metrics svg{color:var(--teal)}.risk-command-metrics>div:first-child svg{color:var(--red)}
+.risk-command-metrics strong{font-size:30px;line-height:1;font-variant-numeric:tabular-nums}
+.risk-command-metrics span{font-size:12px;color:var(--muted);overflow-wrap:anywhere}
+.risk-command-note{font-size:12px;margin:0;padding-top:14px;border-top:1px solid #355367}
+@media(max-width:600px){.risk-command{gap:14px;padding:16px}.risk-command-metrics{gap:7px}.risk-command-metrics>div{padding:10px;gap:6px}.risk-command-metrics strong{font-size:24px}.risk-command-metrics span{font-size:11px}}
+@media(prefers-reduced-motion:reduce){.risk-command-metrics>div{transition:none}.risk-command-metrics>div:hover{transform:none}}
