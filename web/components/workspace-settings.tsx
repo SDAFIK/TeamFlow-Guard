@@ -35,7 +35,7 @@ export function WorkspaceSettings({ id, onSaved, focus }: { id: string; onSaved:
   const [inviteRole, setInviteRole] = useState<Exclude<Role, "owner">>("member");
   const [link, setLink] = useState("");
   const [invitedEmail, setInvitedEmail] = useState("");
-  const [sendEmail, setSendEmail] = useState(true);
+  const [sendEmail, setSendEmail] = useState(false);
   const [memberQuery, setMemberQuery] = useState("");
   const [roleChange, setRoleChange] = useState<{ id: string; name: string; role: Exclude<Role, "owner"> } | null>(null);
   const [refreshedAt, setRefreshedAt] = useState(0);
@@ -186,6 +186,7 @@ export function WorkspaceSettings({ id, onSaved, focus }: { id: string; onSaved:
                 const result = await api<{token:string;invite_url?:string|null;email_status?:string}>(`/projects/${id}/invitations`, {method:"POST",body:JSON.stringify({email,role:inviteRole,send_email:sendEmail && Boolean(settings.invitation_email_configured)})});
                 setLink(result.invite_url ?? `${window.location.origin}/join#${result.token}`);
                 setInvitedEmail(email.trim());
+                setSendEmail(false);
                 setEmail("");
                 if (result.email_status === "accepted") return "Invitation accepted by the email provider. Delivery to the inbox is not yet confirmed.";
                 if (result.email_status === "unconfirmed") return "Invitation created. Email delivery could not be confirmed; copy or share the private link instead.";

@@ -194,6 +194,11 @@ async function run(viewport, role="lead") {
       await page.getByRole("textbox",{name:"Private invitation link"}).waitFor();
       const emailDraft = page.getByRole("link",{name:"Open email draft"});
       assert.match(await emailDraft.getAttribute("href"),/^mailto:/,"invitation offers a real email draft");
+      const gmailDraft=page.getByRole("link",{name:"Open Gmail draft",exact:true});
+      const gmailURL=new URL(await gmailDraft.getAttribute("href"));
+      assert.equal(gmailURL.origin,"https://mail.google.com");
+      assert.equal(gmailURL.searchParams.get("to"),"new.person@example.invalid");
+      assert.match(gmailURL.searchParams.get("body"),/\/join#[a-f0-9]+/,"Gmail draft retains the private invitation link");
       await page.getByRole("button",{name:"Renew invitation",exact:true}).click();
       assert.equal(await page.getByLabel("Teammate email").inputValue(),"expired.person@example.invalid");
       await page.getByRole("checkbox",{name:"Send invitation email now"}).check();
