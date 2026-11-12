@@ -2,7 +2,8 @@ import "server-only";
 import { createHash } from "node:crypto";
 import { risksFor } from "@/domain/risk-engine";
 import { type Client, type State, mutate, snapshot, HttpError, databaseError } from "./state";
-import { generate, PROMPT_VERSION } from "./gemini";
+import { PROMPT_VERSION } from "./gemini";
+import { generateRecovery } from "./recovery-provider";
 import { buildRecoveryOptions } from "@/domain/recovery-options";
 export async function recovery(client: Client, state: State, riskId: string, mode: string, key: string, strategy?: string) {
   if (state.role === "viewer") throw new HttpError(403, "Viewers cannot generate proposals.");
@@ -29,7 +30,7 @@ export async function recovery(client: Client, state: State, riskId: string, mod
     }
     runId = run.id;
     try {
-      const result = await generate(context, [riskId], options.length);
+      const result = await generateRecovery("gemini", context, [riskId], options.length);
       if (!result.candidate.action_indices.length) throw new HttpError(422, "Gemini found no supported recovery action. Review the evidence manually.");
       body = { ...body, title: result.candidate.title, explanation: result.candidate.explanation, source: "gemini", actions: result.candidate.action_indices.map(i => options[i]), assumptions: result.candidate.assumptions };
       const saved = await client.rpc("tf_analysis_finish", { w: state.workspace.id, run_id: runId, proposal: body, usage: result.usage, latency_ms: result.latency_ms });

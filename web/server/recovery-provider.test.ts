@@ -1,0 +1,16 @@
+import { afterEach, beforeEach, expect, it, vi } from "vitest";
+vi.mock("server-only",()=>({}));
+vi.mock("./gemini",()=>({configured:()=>true,generate:vi.fn()}));
+import { generateRecovery, providerReady } from "./recovery-provider";
+import { generate } from "./gemini";
+const id="11111111-1111-4111-8111-111111111111";
+const candidate={title:"Recovery",explanation:"Review the evidence",evidence_ids:[id],action_indices:[0],assumptions:["Uncertain impact"],requires_human_approval:true};
+const response=(value:unknown=candidate)=>new Response(JSON.stringify({status:"completed",output:[{type:"message",content:[{type:"output_text",text:JSON.stringify(value)}]}],usage:{total_tokens:42}}));
+beforeEach(()=>{vi.stubEnv("TEAMFLOW_OPENAI_ALLOW_PAID","true");vi.stubEnv("OPENAI_API_KEY","test-only");vi.stubEnv("OPENAI_MODEL","test-model");});
+afterEach(()=>{vi.unstubAllEnvs();vi.clearAllMocks();});
+it("preserves the existing Gemini provider",async()=>{await generateRecovery("gemini",{},[id],1);expect(generate).toHaveBeenCalledWith({},[id],1);});
+it("never calls OpenAI without explicit paid opt-in",async()=>{vi.stubEnv("TEAMFLOW_OPENAI_ALLOW_PAID","false");const fetcher=vi.fn();expect(providerReady("openai")).toBe(false);await expect(generateRecovery("openai",{},[id],1,fetcher)).rejects.toMatchObject({status:503});expect(fetcher).not.toHaveBeenCalled();});
+it("uses strict structured output and validates the candidate",async()=>{const fetcher=vi.fn().mockResolvedValue(response());const result=await generateRecovery("openai",{},[id],1,fetcher);expect(result.candidate).toEqual(candidate);expect(result.usage).toEqual({total_tokens:42});const body=JSON.parse(fetcher.mock.calls[0][1].body);expect(body.store).toBe(false);expect(body.text.format.strict).toBe(true);expect(fetcher.mock.calls[0][0]).toBe("https://api.openai.com/v1/responses");});
+it("rejects unsupported action and invented evidence",async()=>{for(const c of [{...candidate,action_indices:[1]},{...candidate,evidence_ids:["22222222-2222-4222-8222-222222222222"]}])await expect(generateRecovery("openai",{},[id],1,vi.fn().mockResolvedValue(response(c)))).rejects.toMatchObject({status:503});});
+it("rejects refusals and incomplete responses",async()=>{for(const data of [{status:"incomplete"},{status:"completed",output:[{type:"message",content:[{type:"refusal",refusal:"no"}]}]}])await expect(generateRecovery("openai",{},[id],1,vi.fn().mockResolvedValue(new Response(JSON.stringify(data))))).rejects.toMatchObject({status:503});});
+it("handles quota and bounds evidence before transport",async()=>{const fetcher=vi.fn().mockResolvedValue(new Response("",{status:429}));await expect(generateRecovery("openai",{x:"a".repeat(24001)},[id],1,fetcher)).rejects.toMatchObject({status:422});expect(fetcher).not.toHaveBeenCalled();await expect(generateRecovery("openai",{},[id],1,fetcher)).rejects.toMatchObject({status:429});});
