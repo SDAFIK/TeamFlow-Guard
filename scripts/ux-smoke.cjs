@@ -65,6 +65,7 @@ async function mockApi(page, state) {
     if (pathname === `${base}/settings` && method==="GET") return json({
       ...state.settings,plan_version:state.version,members:state.members.map(m=>({...m,role:m.id===OWNER?state.settings.my_role:"member"})),
     });
+    if (pathname === `${base}/github-readiness` && method==="GET") return json({repository:state.githubRepo,app_bound:false,app_credentials:false,webhook_configured:false,ingestion_configured:false,mappings:[],tracked_branch:"main",email_configured:state.settings.invitation_email_configured,is_demo:false});
     if (pathname === `${base}/github` && method==="GET" && state.role==="viewer") return json({connected:true,repository:"fixture/private-repo",mode:"app",runs:[],warning:null,pulls:[{number:7,title:"Private PR (simulated)",draft:false,updated_at:new Date().toISOString(),html_url:"https://github.com/fixture/private-repo/pull/7"}],deliveries:[{id:1,event:"workflow_run",action:"completed",status_code:202,delivered_at:new Date().toISOString()}],observed_at:new Date().toISOString()});
     if (pathname === `${base}/github` && method==="GET") return json({
       connected:!!state.githubRepo,repository:state.githubRepo,warning:null,
@@ -164,6 +165,7 @@ async function run(viewport, role="lead") {
     if (viewport.width<600) await page.getByRole("button",{name:"Open navigation"}).click();
     await page.getByRole("button",{name:"Settings",exact:true}).click();
     await page.getByRole("heading",{name:"Your team",exact:true}).waitFor();
+    await page.getByRole("region",{name:"Integration readiness"}).getByText("Repository authorization",{exact:true}).waitFor();
     await page.getByRole("searchbox",{name:"Search team members"}).fill("Jin");
     await page.locator(".settings-member-list").getByText("Jin (mock)",{exact:true}).waitFor();
     assert.equal(await page.locator(".settings-member-list").getByText("Asha (mock)",{exact:true}).count(),0);
