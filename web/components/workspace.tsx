@@ -137,6 +137,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
     [menu, setMenu] = useState(false);
   const [manageTask, setManageTask] = useState<string | null>(null);
   const [demoBusy,setDemoBusy]=useState(false);
+  const [dependencyPair,setDependencyPair]=useState<{source:string;target:string}|null>(null);
   const [workspacePicker,setWorkspacePicker]=useState(false);
   const [settingsFocus,setSettingsFocus]=useState<"team"|"github"|null>(null);
   const [receipt,setReceipt]=useState<{title:string;decision:string;workspace:string;proposal:string}|null>(null);
@@ -965,7 +966,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                       </button>
                     </div>
                     {data.tasks.length < 2 && <p className="field-help">Add at least two tasks before proposing a dependency.</p>}
-                    <DependencyMap key={data.project.id} graph={graph} risks={risks} onSelect={selectTask} members={data.members} onOpenTask={setTaskId} expanded/>
+                    <DependencyMap key={data.project.id} graph={graph} risks={risks} onSelect={selectTask} members={data.members} onOpenTask={setTaskId} onConnectProposal={data.project.role==="viewer"?undefined:(source,target)=>{setDependencyPair({source,target});setDependencyDialog(true);}} expanded/>
                   </>
                 )}
                 {view === "decisions" && (
@@ -1287,7 +1288,8 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
         <DependencyDialog
           data={data}
           graph={graph}
-          onClose={() => setDependencyDialog(false)}
+          initialPair={dependencyPair}
+          onClose={() => {setDependencyDialog(false);setDependencyPair(null);}}
           onSaved={async () => {
             await refresh();
             setNotice(

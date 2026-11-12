@@ -535,17 +535,19 @@ export function ProposalDialog({
 export function DependencyDialog({
   data,
   graph,
+  initialPair,
   onClose,
   onSaved,
 }: {
   data: Overview;
   graph: Graph;
+  initialPair?:{source:string;target:string}|null;
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
   const candidates = data.tasks.filter((task) => task.status !== "done");
-  const [before, setBefore] = useState(data.tasks[0]?.id ?? ""),
-    [after, setAfter] = useState(candidates.find((task) => task.id !== data.tasks[0]?.id)?.id ?? ""),
+  const [before, setBefore] = useState(initialPair?.source??data.tasks[0]?.id??""),
+    [after, setAfter] = useState(initialPair?.target??candidates.find((task) => task.id !== (initialPair?.source??data.tasks[0]?.id))?.id??""),
     [error, setError] = useState(""),
     [pending, setPending] = useState(false);
   const guidance = dependencyFeedback(data.tasks.map(t=>t.id), graph.edges, before, after);

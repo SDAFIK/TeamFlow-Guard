@@ -12,27 +12,30 @@ import {
   type NodeProps,
   type ReactFlowInstance,
   type Edge,
+  type Connection,
 } from "@xyflow/react";
-import { GitBranch, ArrowUpRight, Maximize2, RotateCcw } from "lucide-react";
+import { GitBranch, ArrowUpRight, Maximize2, RotateCcw, ArrowRight, ArrowDown, Link2 } from "lucide-react";
 import type { Graph, Risk, Task, Person } from "@/lib/api";
+import { downstream, validateGraph } from "@/domain/graph";
 import { layoutDependencyGraph } from "@/domain/graph-layout";
 import { Badge, statusLabels } from "./ui";
 import "@xyflow/react/dist/style.css";
 
-type TaskNode = Node<{ task: Task; flag: string; risky: boolean; owner: string; dimmed: boolean }, "task">;
+type TaskNode = Node<{ task: Task; flag: string; risky: boolean; owner: string; dimmed: boolean; vertical:boolean; connectable:boolean }, "task">;
 function TaskCard({ data }: NodeProps<TaskNode>) {
   return (
     <div className={`graph-task ${data.flag} ${data.risky ? "has-risk" : ""} ${data.dimmed?"dimmed":""}`}>
-      <Handle type="target" position={Position.Left} isConnectable={false} />
+      <Handle type="target" position={data.vertical?Position.Top:Position.Left} isConnectable={data.connectable} />
       <small>{data.task.key}</small>
       <strong>{data.task.title}</strong>
-      <span className="graph-owner">{data.owner}</span>
+      <span className="graph-owner">{data.owner} · {data.task.estimate_hours}h</span>
       <Badge value={data.flag === "risk" ? "at risk" : data.task.status} />
-      <Handle type="source" position={Position.Right} isConnectable={false} />
+      <Handle type="source" position={data.vertical?Position.Bottom:Position.Right} isConnectable={data.connectable} />
     </div>
   );
 }
 const nodeTypes = { task: TaskCard };
+function downstreamIds(graph:Graph,id:string){return downstream(graph.nodes.map(t=>t.id),graph.edges,id); }
 export default function DependencyMap({
   graph,
   risks,
@@ -41,6 +44,7 @@ export default function DependencyMap({
   expanded = false,
   members = [],
   onOpenTask,
+  onConnectProposal,
 }: {
   graph: Graph;
   risks: Risk[];
@@ -49,34 +53,42 @@ export default function DependencyMap({
   expanded?: boolean;
   members?: Person[];
   onOpenTask?: (id:string)=>void;
+  onConnectProposal?: (source:string,target:string)=>void;
 }) {
+  const [vertical,setVertical]=useState(false);
+  const [linkMode,setLinkMode]=useState(false);
+  const [linkError,setLinkError]=useState("");
   const [positions,setPositions]=useState<Record<string,{x:number;y:number}>>({});
   const flow=useRef<ReactFlowInstance<TaskNode>|null>(null);
   const selected=graph.nodes.find(t=>t.id===graph.selected_task_id);
-  const fit=()=>void flow.current?.fitView({padding:.22,maxZoom:1.1,duration:0});
+  const fit=()=>void flow.current?.fitView({padding:.16,maxZoom:1.15,duration:350});
   const reset=()=>{setPositions({});requestAnimationFrame(fit);};
-  const focus=(id:string)=>{onSelect(id);if(id)void flow.current?.fitView({nodes:[{id}],padding:.45,maxZoom:1.2,duration:0});};
+  const focus=(id:string)=>{onSelect(id);if(id)void flow.current?.fitView({nodes:[{id}],padding:.3,maxZoom:1.15,duration:350});};
+  const changeDirection=()=>{setVertical(v=>!v);setPositions({});};
+  const connect=(c:Connection)=>{if(!c.source||!c.target||!onConnectProposal)return;try{if(graph.edges.some(e=>e.predecessor_id===c.source&&e.successor_id===c.target))throw Error("This dependency already exists.");if(graph.nodes.find(t=>t.id===c.target)?.status==="done")throw Error("Completed tasks cannot receive a new dependency.");validateGraph(graph.nodes.map(t=>t.id),[...graph.edges,{predecessor_id:c.source,successor_id:c.target}]);setLinkError("");setLinkMode(false);onConnectProposal(c.source,c.target);}catch(e){setLinkError((e as Error).message);}};
   const { nodes, edges, invalid } = useMemo(() => {
     const layout = layoutDependencyGraph(graph.nodes, graph.edges);
     const riskIds = new Set(
       risks.filter((r) => r.active).map((r) => r.evidence.task_id),
     );
+    const propagated=new Set<string>();
+    if(!layout.invalid)for(const id of riskIds)for(const affected of downstreamIds(graph,id))propagated.add(affected);
     const upstream = new Set(graph.upstream_ids);
     const downstream = new Set(graph.downstream_ids);
     const nodes: TaskNode[] = graph.nodes.map((task) => {
       return {
         id: task.id,
         type: "task",
-        position: positions[task.id]??layout.positions[task.id],
+        position: positions[task.id]??(vertical?{x:layout.positions[task.id].y*1.65,y:layout.positions[task.id].depth*210}:layout.positions[task.id]),
         data: {
-          task,
+          task, vertical, connectable:expanded&&linkMode&&Boolean(onConnectProposal),
           owner: members.find(m=>m.id===task.owner_id)?.name??"Unassigned",
           dimmed: Boolean(graph.selected_task_id&&graph.selected_task_id!==task.id&&!upstream.has(task.id)&&!downstream.has(task.id)&&!riskIds.has(task.id)),
           risky: riskIds.has(task.id),
           flag: graph.selected_task_id === task.id ? "selected"
             : downstream.has(task.id) ? "affected"
             : upstream.has(task.id) ? "upstream"
-            : riskIds.has(task.id) ? "risk" : "",
+            : riskIds.has(task.id) ? "risk" : propagated.has(task.id) ? "propagated" : "",
         },
         draggable: expanded,
         ariaLabel: `${task.key}: ${task.title}. ${task.status}. Click to inspect dependencies.`,
@@ -89,24 +101,25 @@ export default function DependencyMap({
       const onPrerequisitePath = graph.selected_task_id &&
         upstream.has(edge.predecessor_id) &&
         (edge.successor_id === graph.selected_task_id || upstream.has(edge.successor_id));
-      const color = onImpactPath ? "#32d5b5" : onPrerequisitePath ? "#80aaf6" : "#52718a";
+      const riskPath=(riskIds.has(edge.predecessor_id)||propagated.has(edge.predecessor_id))&&propagated.has(edge.successor_id);
+      const color = onImpactPath ? "#e0ad69" : onPrerequisitePath ? "#80aaf6" : riskPath ? "#fb8c9e" : "#7195b0";
       return {
       id: `${edge.predecessor_id}-${edge.successor_id}`,
       source: edge.predecessor_id,
       target: edge.successor_id,
-      type: "default",
-      animated: Boolean(onImpactPath),
+      type: "smoothstep",
+      animated: Boolean(onImpactPath||riskPath),
       markerEnd: { type: MarkerType.ArrowClosed, color },
       style: {
         stroke: color,
-        strokeWidth: onImpactPath || onPrerequisitePath ? 2.6 : 1.5,
+        strokeWidth: onImpactPath || onPrerequisitePath || riskPath ? 3 : 2,
         opacity: graph.selected_task_id && !onImpactPath && !onPrerequisitePath ? 0.48 : 1,
       },
     }; });
     return { nodes, edges, invalid: layout.invalid };
-  }, [graph, risks, positions, members, expanded]);
+  }, [graph, risks, positions, members, expanded,vertical,linkMode,onConnectProposal]);
   return (
-    <section className={`panel graph-panel ${expanded ? "expanded" : ""}`}>
+    <section className={`panel graph-panel graph-v3 ${expanded ? "expanded" : ""}`}>
       <div className="panel-head">
         <div>
           <span className="section-kicker">CONNECTED WORK</span>
@@ -125,12 +138,13 @@ export default function DependencyMap({
       </div>
       {graph.nodes.length === 0 ? (
         <div className="graph-empty"><GitBranch size={30}/><h3>No tasks to connect yet</h3><p>Add your first task. The dependency map will show saved tasks and their connections.</p></div>
-      ) : <>{expanded&&<div className="graph-tools"><label>Find a task<select aria-label="Find dependency task" value={graph.selected_task_id??""} onChange={e=>focus(e.target.value)}><option value="">All tasks</option>{graph.nodes.map(t=><option key={t.id} value={t.id}>{t.key} · {t.title}</option>)}</select></label><button className="secondary" onClick={fit}><Maximize2 size={15}/> Fit all</button><button className="secondary" onClick={reset}><RotateCcw size={15}/> Reset layout</button></div>}<div className="graph-legend" aria-label="Map legend">
+      ) : <>{expanded&&<div className="graph-tools"><label>Find a task<select aria-label="Find dependency task" value={graph.selected_task_id??""} onChange={e=>focus(e.target.value)}><option value="">All tasks</option>{graph.nodes.map(t=><option key={t.id} value={t.id}>{t.key} · {t.title}</option>)}</select></label><button className="secondary" onClick={changeDirection}>{vertical?<ArrowRight size={16}/>:<ArrowDown size={16}/>} {vertical?"Horizontal":"Vertical"}</button>{onConnectProposal&&<button className="secondary" aria-pressed={linkMode} onClick={()=>{setLinkMode(v=>!v);setLinkError("");}}><Link2 size={16}/> {linkMode?"Cancel linking":"Connect tasks"}</button>}<button className="secondary" onClick={fit}><Maximize2 size={15}/> Fit all</button><button className="secondary" onClick={reset}><RotateCcw size={15}/> Reset layout</button></div>}<div className="graph-legend" aria-label="Map legend">
         <span><i className="legend-dot selected"/> Selected</span>
         <span><i className="legend-dot upstream"/> Prerequisite</span>
         <span><i className="legend-dot affected"/> Downstream</span>
-        <span><i className="legend-dot risk"/> Risk</span>
+        <span><i className="legend-dot risk"/> Risk</span><span><i className="legend-dot propagated"/> Risk impact</span>
       </div>
+      {linkMode&&<p className="graph-link-hint">Drag from a task output to another task input. A connection creates a proposal, never an immediate plan change.</p>}{linkError&&<p role="alert" className="error">{linkError}</p>}
       {invalid && <p role="alert" className="error">Some saved links are invalid or cyclic. The map is showing a safe fallback layout; ask a manager to review dependencies.</p>}
       <div className="graph-canvas">
         <ReactFlow
@@ -138,25 +152,27 @@ export default function DependencyMap({
           edges={edges}
           nodeTypes={nodeTypes}
           fitView
-          fitViewOptions={{ padding: 0.22, maxZoom: 1.05 }}
+          fitViewOptions={{ padding: 0.12, maxZoom: 1.15 }}
           minZoom={0.2}
           maxZoom={1.8}
-          nodesConnectable={false}
+          nodesConnectable={expanded&&linkMode&&Boolean(onConnectProposal)}
+          onConnect={connect}
           nodesDraggable={expanded}
           onInit={instance=>{flow.current=instance;}}
           onNodeDrag={(_,node)=>setPositions(prev=>({...prev,[node.id]:node.position}))}
           onNodeDragStop={(_,node)=>setPositions(prev=>({...prev,[node.id]:node.position}))}
           onPaneClick={()=>onSelect("")}
           onNodeClick={(_, node) => onSelect(node.id)}
+          onNodeDoubleClick={(_,node)=>focus(node.id)}
           nodesFocusable
           colorMode="dark"
         >
           <Background color="#263849" gap={22} size={1} />
           <Controls showInteractive={false} />
-          <MiniMap pannable zoomable className="graph-minimap" nodeColor={node => {
+          {expanded&&<MiniMap pannable zoomable className="graph-minimap" nodeColor={node => {
             const flag = (node.data as TaskNode["data"]).flag;
             return flag === "selected" ? "#32d5b5" : flag === "affected" ? "#e0ad69" : flag === "upstream" ? "#80aaf6" : "#52718a";
-          }}/>
+          }}/>}
         </ReactFlow>
       </div></>}
       <div className="graph-caption">
