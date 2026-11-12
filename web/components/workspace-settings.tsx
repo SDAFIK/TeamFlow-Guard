@@ -5,6 +5,7 @@ import { Check, ClipboardCopy, LockKeyhole, MailPlus, Send, ShieldCheck, Users }
 import { api } from "@/lib/api";
 import { Busy } from "./ui";
 import { GithubConnection } from "./github-connection";
+import { IntegrationReadiness } from "./integration-readiness";
 
 type Role = "owner" | "manager" | "member" | "viewer";
 type Member = { id: string; name: string; email: string; role: Role };
@@ -224,6 +225,7 @@ export function WorkspaceSettings({ id, onSaved }: { id: string; onSaved: () => 
         {error && <p className="error" role="alert">{error}</p>}
         {notice && <p className="success-banner" role="status"><Check size={16}/>{notice}</p>}
       </section>
+      <IntegrationReadiness key={id} workspaceId={id}/>
       <GithubConnection workspaceId={id} planVersion={settings.plan_version} canManage={manager} onChanged={async () => { await load(); await onSaved(); }}/>
     </>
   );
