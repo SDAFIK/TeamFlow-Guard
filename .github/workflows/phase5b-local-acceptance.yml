@@ -1,7 +1,7 @@
-name: Phase 5B isolated review acceptance
+name: TeamFlow combined authenticated acceptance
 on:
   push:
-    branches: [codex/tic-risk-model]
+    branches: [codex/tic-risk-model, codex/tic-v2]
     paths:
       - '.github/workflows/phase5b-local-acceptance.yml'
       - 'scripts/stage8-auth-e2e.cjs'
@@ -9,6 +9,8 @@ on:
       - 'web/server/github-*.ts'
       - 'web/app/api/**'
       - 'web/domain/**'
+      - 'web/components/**'
+      - 'web/app/intelligence/**'
       - 'supabase/migrations/**'
   workflow_dispatch:
 permissions:
@@ -48,6 +50,7 @@ jobs:
       - name: Authenticated browser and signed CI/review fixture journey
         env:
           NODE_PATH: ${{ github.workspace }}/web/node_modules
+          TEAMFLOW_ACCEPT_TIC_V2: ${{ github.ref_name == 'codex/tic-v2' && '1' || '0' }}
         run: node scripts/stage8-auth-e2e.cjs
       - name: Stop disposable Supabase
         if: always()
