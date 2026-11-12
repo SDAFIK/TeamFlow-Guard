@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   Background,
@@ -56,6 +56,9 @@ export default function DependencyMap({
   onConnectProposal?: (source:string,target:string)=>void;
 }) {
   const [vertical,setVertical]=useState(false);
+  const initialized=useRef(false);
+  useEffect(()=>{if(window.matchMedia("(max-width: 680px)").matches)setVertical(true);},[]);
+  useEffect(()=>{if(!initialized.current)return;const timer=window.setTimeout(()=>void flow.current?.fitView({padding:.16,maxZoom:1.15,duration:350}),100);return()=>window.clearTimeout(timer);},[vertical]);
   const [linkMode,setLinkMode]=useState(false);
   const [linkError,setLinkError]=useState("");
   const [positions,setPositions]=useState<Record<string,{x:number;y:number}>>({});
@@ -69,7 +72,7 @@ export default function DependencyMap({
   const { nodes, edges, invalid } = useMemo(() => {
     const layout = layoutDependencyGraph(graph.nodes, graph.edges);
     const riskIds = new Set(
-      risks.filter((r) => r.active).map((r) => r.evidence.task_id),
+      risks.filter((r) => r.active && !r.stale_evidence).map((r) => r.evidence.task_id),
     );
     const propagated=new Set<string>();
     if(!layout.invalid)for(const id of riskIds)for(const affected of downstreamIds(graph,id))propagated.add(affected);
@@ -158,7 +161,7 @@ export default function DependencyMap({
           nodesConnectable={expanded&&linkMode&&Boolean(onConnectProposal)}
           onConnect={connect}
           nodesDraggable={expanded}
-          onInit={instance=>{flow.current=instance;}}
+          onInit={instance=>{flow.current=instance;initialized.current=true;}}
           onNodeDrag={(_,node)=>setPositions(prev=>({...prev,[node.id]:node.position}))}
           onNodeDragStop={(_,node)=>setPositions(prev=>({...prev,[node.id]:node.position}))}
           onPaneClick={()=>onSelect("")}

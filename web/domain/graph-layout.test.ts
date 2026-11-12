@@ -31,6 +31,14 @@ describe("dependency layout", () => {
     expect(unique.size).toBe(tasks.length);
   });
 
+  it("handles branching, merging and disconnected components without overlapping cards",()=>{
+    const nodes=Array.from({length:24},(_,i)=>({id:String(i),key:"TASK-"+String(i).padStart(2,"0")}));
+    const links=[{predecessor_id:"0",successor_id:"1"},{predecessor_id:"0",successor_id:"2"},{predecessor_id:"1",successor_id:"3"},{predecessor_id:"2",successor_id:"3"},...Array.from({length:15},(_,i)=>({predecessor_id:String(i+4),successor_id:String(i+5)}))];
+    const r=layoutDependencyGraph(nodes,links);expect(r.invalid).toBe(false);
+    for(const e of links)expect(r.positions[e.successor_id].x).toBeGreaterThan(r.positions[e.predecessor_id].x);
+    const p=Object.values(r.positions);for(let i=0;i<p.length;i++)for(let j=i+1;j<p.length;j++)expect(Math.abs(p[i].x-p[j].x)>=248||Math.abs(p[i].y-p[j].y)>=132).toBe(true);
+    expect(layoutDependencyGraph([...nodes].reverse(),[...links].reverse())).toEqual(r);
+  });
   it("flags broken or cyclic links without hiding tasks", () => {
     const cyclic = layoutDependencyGraph(tasks, [...edges, { predecessor_id: "release", successor_id: "design" }]);
     expect(cyclic.invalid).toBe(true);

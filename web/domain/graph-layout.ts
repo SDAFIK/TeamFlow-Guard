@@ -47,8 +47,12 @@ export function layoutDependencyGraph<T extends Item>(tasks: T[], edges: Edge[])
     for (const id of ids) depth.set(id, 0);
   }
 
+  // Keep isolated tasks in a separate lane so they do not distort connected chains.
+  const isolated=ids.filter(id=>!incoming.get(id)!.size&&!outgoing.get(id)!.size);
+  const isolatedSet=new Set(isolated);
   const columns = new Map<number, string[]>();
   for (const id of ids) {
+    if(!invalid&&isolatedSet.has(id))continue;
     const column = depth.get(id)!;
     columns.set(column, [...(columns.get(column) ?? []), id]);
   }
@@ -68,10 +72,11 @@ export function layoutDependencyGraph<T extends Item>(tasks: T[], edges: Edge[])
   const maxRows = Math.max(1, ...[...columns.values()].map(col => col.length));
   const positions: Record<string, Positioned> = {};
   for (const [column, entries] of columns) {
-    const offset = ((maxRows - entries.length) * 142) / 2;
+    const offset = ((maxRows - entries.length) * 190) / 2;
     entries.forEach((id, index) => {
-      positions[id] = { x: column * 302, y: offset + index * 142, depth: column };
+      positions[id] = { x: column * 340, y: offset + index * 190, depth: column };
     });
   }
+  if(!invalid)isolated.forEach((id,index)=>{positions[id]={x:(index%4)*340,y:(maxRows+1+Math.floor(index/4))*190,depth:index%4};});
   return { positions, invalid };
 }
