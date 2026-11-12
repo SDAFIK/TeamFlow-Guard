@@ -8,6 +8,11 @@ if(process.env.VERCEL_ENV==="preview"&&process.env.VERCEL_GIT_COMMIT_REF==="code
  const sign=createSign("RSA-SHA256");sign.update(body);const jwt=body+"."+sign.sign(key.replace(/\\n/g,"\n"),"base64url");
  const headers={Accept:"application/vnd.github+json",Authorization:"Bearer "+jwt,"X-GitHub-Api-Version":"2022-11-28","Content-Type":"application/json","User-Agent":"TeamFlow-Guard"};
  const api=async(path,method="GET")=>{const r=await fetch("https://api.github.com"+path,{method,headers,signal:AbortSignal.timeout(15000)});if(!r.ok)throw Error("GitHub API HTTP "+r.status+" "+path);const raw=await r.text();return raw?JSON.parse(raw.replace(/"id"\s*:\s*(\d{16,})(?=\s*[,}])/g,'"id":"$1"')):null;};
+ const origin="https://teamflow-guard.vercel.app";
+ const health=await fetch(origin+"/api/health",{redirect:"error",signal:AbortSignal.timeout(15000)});const h=await health.json();
+ if(health.status!==200||h.message!=="alive")throw Error("production health failed");
+ console.log("TEAMFLOW_FINAL_HEALTH: PASS HTTP 200");
+ for(const path of ["/","/login"]){const response=await fetch(origin+path,{redirect:"follow",signal:AbortSignal.timeout(15000)});const html=await response.text();if(response.status!==200||!html.toLowerCase().includes("teamflow"))throw Error("production page unavailable");console.log("TEAMFLOW_FINAL_PAGE: "+JSON.stringify({path,status:response.status}));}
  const app=await api("/app");if(app.id!==5735990)throw Error("wrong App");console.log("GITHUB_APP_EVENTS: "+JSON.stringify(app.events??[]));
  const cases=[["3853711283643744256",43324373557,"failure"],["3853711653560475648",43324780151,"success"]];
  const baseline=new Set((await api("/app/hook/deliveries?per_page=100")).map(d=>String(d.id)));
