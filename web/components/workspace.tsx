@@ -1272,7 +1272,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                           <strong>GitHub</strong>
                           <p>
                             {integrations.github_repository
-                              ? `Public repository ${integrations.github_repository} linked read-only. Recent runs appear above; risk evidence import remains manual.`
+                              ? `${integrations.github_app_bound ? "GitHub App repository" : "Public repository"} ${integrations.github_repository} linked read-only. Recent activity appears above; risk evidence import remains manual.`
                               : integrations.github_evidence_imported
                                 ? "Historical workflow evidence was imported manually. No live repository linked."
                                 : "No public repository linked. Demo events are labeled."}
