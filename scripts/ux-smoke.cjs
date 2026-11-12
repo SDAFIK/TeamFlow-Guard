@@ -125,6 +125,10 @@ async function run(viewport, role="lead") {
     await page.getByRole("heading",{name:"Delivery overview"}).waitFor();
     await page.getByRole("region",{name:"Your next action"}).waitFor();
     await page.getByRole("progressbar",{name:"Completed tasks"}).waitFor();
+    await page.getByRole("region",{name:"TeamFlow Guard brand hero"}).waitFor();
+    const hero=page.getByRole("img",{name:"TeamFlow Guard — See risks early. Keep humans in control."});
+    await hero.waitFor();
+    await page.waitForFunction(()=>{const img=document.querySelector(".brand-hero-art");return img&&img.complete&&img.naturalWidth>0;});
     await page.getByRole("button",{name:"Recent team activity",exact:true}).click();
     await page.getByRole("dialog",{name:"Recent team activity"}).getByText("Workspace created (simulated)").waitFor();
     await page.getByRole("button",{name:"Close activity",exact:true}).click();

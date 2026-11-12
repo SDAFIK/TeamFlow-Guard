@@ -40,6 +40,7 @@ import {
   type Integrations,
 } from "@/lib/api";
 import Login from "./login";
+import { DashboardHero, WorkspaceLoader } from "./brand-motion";
 import { AuditHistory } from "./audit-history";
 import { EmptyWorkspaceWelcome, WorkspaceChecklist } from "./onboarding";
 import { getDeliveryFocus, getDeliveryProgress } from "@/domain/delivery-guidance";
@@ -274,10 +275,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
   }
   if (busy && !user)
     return (
-      <div className="initial">
-        <Brand />
-        <Busy text="Opening your workspace…" />
-      </div>
+      <WorkspaceLoader/>
     );
   if (!user) return <Login onLogin={() => load()} initialError={error} />;
   const activeRisks = risks.filter((r) => r.active).sort((a,b)=>Number(a.stale_evidence)-Number(b.stale_evidence)||b.affected_task_ids.length-a.affected_task_ids.length||({high:3,medium:2,low:1}[b.severity]??0)-({high:3,medium:2,low:1}[a.severity]??0)),
@@ -547,6 +545,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                 </section>}
                 {view === "overview" && (
                   <>
+                    <DashboardHero/>
                     {!data.is_demo && !activeRisks.length && (data.tasks.length < 2 || data.members.length < 2 || graph.edges.length === 0) && (
                       <WorkspaceChecklist
                         workspaceName={data.project.name}

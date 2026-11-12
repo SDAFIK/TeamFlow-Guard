@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useRef } from "react";
 import { ShieldCheck, X, LoaderCircle } from "lucide-react";
+import { GuardMark } from "./brand-motion";
 
 export const statusLabels: Record<string, string> = {
   todo: "To do",
@@ -12,7 +13,7 @@ export function Brand() {
   return (
     <div className="brand">
       <span className="brand-mark">
-        <ShieldCheck size={27} strokeWidth={1.7} />
+        <GuardMark size={36}/>
       </span>
       <span>
         TeamFlow<span className="brand-guard">Guard</span>
