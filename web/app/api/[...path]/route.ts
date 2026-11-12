@@ -116,7 +116,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
           case "risks": return answer(risks());
           case "proposals": return answer(state.proposals);
           case "audit": return answer(state.audit);
-          case "integrations": return answer({ ai_configured: configured(), ai_provider: "gemini", ai_model: process.env.GEMINI_MODEL ?? null, github_configured: Boolean(state.workspace.github_repository) || state.evidence.some(e => e.origin === 'github'), github_repository: state.workspace.github_repository, github_evidence_imported: state.evidence.some(e => e.origin === 'github'), mode: state.workspace.is_demo ? "demo" : "manual" });
+          case "integrations": { const bound = appBinding(); return answer({ ai_configured: configured(), ai_provider: "gemini", ai_model: process.env.GEMINI_MODEL ?? null, github_configured: Boolean(bound || state.workspace.github_repository) || state.evidence.some(e => e.origin === 'github'), github_repository: bound?.repository ?? state.workspace.github_repository, github_app_bound: Boolean(bound), github_evidence_imported: state.evidence.some(e => e.origin === 'github'), mode: state.workspace.is_demo ? "demo" : "manual" }); }
           case "settings": return answer({...state.workspace,my_role:state.role,members:state.members,invitation_email_configured:!state.workspace.is_demo && invitationEmailConfigured(inviteEmailConfig)});
           case "github": {
             const bound = appBinding();
