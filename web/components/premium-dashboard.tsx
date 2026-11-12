@@ -5,7 +5,8 @@ import type {Overview,Risk} from "@/lib/api";
 import {Modal} from "./ui";
 
 const riskColors=["#fb858e","#f8c478","#54e2ce","#8caeff","#c0a1ff"];
-const riskLabel=(kind:string)=>({ci_failure:"CI failures",dependency:"Dependencies",review_delay:"Review delays",capacity:"Capacity",ci_pass:"CI checks"}[kind]??kind.replaceAll("_"," "));
+const riskLabels:Record<string,string>={ci_failure:"CI failures",dependency:"Dependencies",review_delay:"Review delays",capacity:"Capacity",ci_pass:"CI checks"};
+const riskLabel=(kind:string)=>riskLabels[kind]??kind.replaceAll("_"," ");
 export function DashboardTeam({data,onManage,onInvite}:{data:Overview;onManage:()=>void;onInvite:()=>void}){
  return <section className="panel premium-team-panel" aria-label="Team collaboration">
   <div className="panel-head"><div><span className="section-kicker">PEOPLE</span><h2>Team & collaboration</h2></div><button className="text-link" onClick={onManage}>Manage <ArrowRight size={14}/></button></div>
