@@ -60,7 +60,7 @@ async function mockApi(page, state) {
     if (pathname === `${base}/availability` && method==="PUT"){if(state.role==="viewer")return json({message:"Read-only access"},403);state.members[0].available_hours=input.hours;state.members[0].availability_start=input.start_at;state.members[0].availability_end=input.end_at;return json({message:"saved"});}
     if (pathname === `${base}/demo-events` && method==="POST"){state.replays.push(input);return json([]);}
     if (pathname === `${base}/proposals` && method==="GET") return json(state.proposals);
-    if (pathname === `${base}/audit`) return json(state.audit);
+    if (pathname === `${base}/audit`) return json(url.searchParams.has("limit") ? {items:state.audit,next_cursor:null} : state.audit);
     if (pathname === `${base}/integrations`) return json({
       ai_configured:false,ai_provider:"gemini",ai_model:null,github_configured:false,mode:"manual",
     });
@@ -238,8 +238,9 @@ async function run(viewport, role="lead") {
     if(viewport.width<600) await page.getByRole("button",{name:"Open navigation"}).click();
     await page.getByRole("button",{name:"Audit Log",exact:true}).click();
     await page.getByRole("heading",{name:"Audit log",exact:true}).waitFor();
+    await page.getByRole("region",{name:"Audit history"}).getByText("Workspace created (simulated)",{exact:true}).waitFor();
     if(viewport.width<600) await page.getByRole("button",{name:"Open navigation"}).click();
-    await page.getByRole("button",{name:"Decision Inbox",exact:true}).click();
+    await page.getByRole("button",{name:/^Decision Inbox(?:\s+\d+)?$/}).click();
     await page.getByRole("heading",{name:"Decision inbox",exact:true}).waitFor();
     if(role==="lead"){
       state.isDemo=true;
