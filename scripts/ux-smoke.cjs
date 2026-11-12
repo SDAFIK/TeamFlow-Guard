@@ -155,7 +155,7 @@ async function run(viewport, role="lead") {
 
     if (viewport.width<600) await page.getByRole("button",{name:"Open navigation"}).click();
     await page.getByRole("button",{name:"Settings",exact:true}).click();
-    await page.getByRole("heading",{name:"Your team"}).waitFor();
+    await page.getByRole("heading",{name:"Your team",exact:true}).waitFor();
     if(role==="lead") {
       await page.getByLabel("Teammate email").fill("new.person@example.invalid");
       await page.getByRole("button",{name:"Generate invitation link"}).click();
