@@ -12,6 +12,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { auditPage } from "@/server/audit-page";
 import { buildRecoveryOptions } from "@/domain/recovery-options";
 import { recentPublicRuns, verifyPublicRepository } from "@/server/github-public";
+import { githubAppConfig, bindingForWorkspace, githubAppReady, appRepositoryActivity } from "@/server/github-app";
 import { invitationEmailConfigured, invitationURL, sendInvitationEmail, type InvitationEmailStatus } from "@/server/invitation-email";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -103,6 +104,8 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
         return answer(await auditPage(client, z.uuid().parse(path[1]), user.id, request.nextUrl.searchParams));
       }
       const id = z.uuid().parse(path[1]); const state = await snapshot(client, id);
+      const appConfig = githubAppConfig();
+      const appBinding = () => state.workspace.is_demo ? undefined : bindingForWorkspace(appConfig,id);
       const risks = () => risksFor(state.tasks, state.edges, state.evidence, state.members, state.workspace.review_threshold_hours, new Date(), state.workspace.tracked_branch);
       if (request.method === "GET") {
         const selected = request.nextUrl.searchParams.get("selected");
@@ -116,6 +119,13 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
           case "integrations": return answer({ ai_configured: configured(), ai_provider: "gemini", ai_model: process.env.GEMINI_MODEL ?? null, github_configured: Boolean(state.workspace.github_repository) || state.evidence.some(e => e.origin === 'github'), github_repository: state.workspace.github_repository, github_evidence_imported: state.evidence.some(e => e.origin === 'github'), mode: state.workspace.is_demo ? "demo" : "manual" });
           case "settings": return answer({...state.workspace,my_role:state.role,members:state.members,invitation_email_configured:!state.workspace.is_demo && invitationEmailConfigured(inviteEmailConfig)});
           case "github": {
+            const bound = appBinding();
+            if (bound) {
+              const base = {connected:true,repository:bound.repository,mode:"app",runs:[],pulls:[],deliveries:[],observed_at:null};
+              if (!githubAppReady(appConfig)) return answer({...base,warning:"GitHub App credentials are not configured."});
+              try { return answer({...base,...await appRepositoryActivity(appConfig,id,state.workspace.tracked_branch)}); }
+              catch { return answer({...base,warning:"GitHub App access could not be verified. Ask your administrator."}); }
+            }
             const repository = state.workspace.github_repository;
             if (!repository) return answer({ connected: false, repository: null, runs: [], warning: null });
             try {
@@ -138,6 +148,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       }
       if (path[2] === "github" && path.length === 3 && request.method === "POST") {
         if (!['owner', 'manager'].includes(state.role)) throw new HttpError(403, "Manager access required");
+        if (appBinding()) throw new HttpError(409, "This workspace uses an administrator-authorized GitHub App repository.");
         const input = z.object({ repository: z.string().min(3).max(160).nullable(), base_plan_version: z.number().int().positive() }).strict().parse(body);
         let repository: string | null = null;
         if (input.repository !== null) {
