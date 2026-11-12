@@ -20,15 +20,15 @@ const firstTask = {
 
 function model(role) {
   const store = {
-    role, version: 1, tasks: [firstTask], edges: [], proposals: [], audit: [], githubRepo:null,
+    role, version: 1, tasks: [firstTask], edges: [], proposals: [], audit: [{id:"mock-audit-1",actor_id:OWNER,actor_name:"Asha (mock)",kind:"workspace.created",summary:"Workspace created (simulated)",created_at:new Date().toISOString(),plan_version:1,changes:[]}], githubRepo:null,
     members: [
       {id:OWNER,name:"Asha (mock)",email:"asha@example.invalid",role:role==="viewer"?"viewer":"lead",specialty:"Product",available_hours:24},
       {id:OTHER,name:"Jin (mock)",email:"jin@example.invalid",role:"contributor",specialty:"Frontend",available_hours:20},
     ],
-    invites: [], settings: {
+    invites: [{id:"expired-fixture",email:"expired.person@example.invalid",role:"member",expires_at:new Date(Date.now()-86400000).toISOString(),accepted_at:null,revoked_at:null}], emailRequests:[], settings: {
       id: WORKSPACE, name: "Sample UX workspace", description: "Isolated browser fixture",
       tracked_branch: "main", review_threshold_hours: 24, plan_version: 1,
-      my_role: role === "viewer" ? "viewer" : "owner",
+      my_role: role === "viewer" ? "viewer" : "owner", invitation_email_configured:role!=="viewer",
     },
   };
   return store;
@@ -82,9 +82,11 @@ async function mockApi(page, state) {
     }
     if (pathname === `${base}/invitations` && method==="GET") return json(state.invites);
     if (pathname === `${base}/invitations` && method==="POST") {
-      const invitation={id:"e7a2cf3c-3063-4cc5-a49f-c5c000000001",email:input.email,role:input.role,expires_at:"2026-12-31T12:00:00Z",accepted_at:null,revoked_at:null};
+      if(state.role==="viewer") return json({message:"Manager access required"},403);
+      const invitation={id:"mock-invite-"+state.invites.length,email:input.email,role:input.role,expires_at:new Date(Date.now()+7*86400000).toISOString(),accepted_at:null,revoked_at:null};
       state.invites.push(invitation);
-      return json({...invitation,token:"a".repeat(64)});
+      if(input.send_email) state.emailRequests.push(input.email);
+      return json({...invitation,token:state.invites.length.toString(16).padStart(64,"a"),email_status:input.send_email?"accepted":"not_requested"});
     }
     if (pathname === `${base}/tasks` && method==="POST") {
       if (state.role==="viewer") return json({message:"Read-only access"},403);
@@ -121,6 +123,9 @@ async function run(viewport, role="lead") {
     await page.getByRole("heading",{name:"Delivery overview"}).waitFor();
     await page.getByRole("region",{name:"Your next action"}).waitFor();
     await page.getByRole("progressbar",{name:"Completed tasks"}).waitFor();
+    await page.getByRole("button",{name:"Recent team activity",exact:true}).click();
+    await page.getByRole("dialog",{name:"Recent team activity"}).getByText("Workspace created (simulated)").waitFor();
+    await page.getByRole("button",{name:"Close activity",exact:true}).click();
 
     if (viewport.width<600) {
       await page.getByRole("button",{name:"Open navigation"}).click();
@@ -156,12 +161,22 @@ async function run(viewport, role="lead") {
     if (viewport.width<600) await page.getByRole("button",{name:"Open navigation"}).click();
     await page.getByRole("button",{name:"Settings",exact:true}).click();
     await page.getByRole("heading",{name:"Your team",exact:true}).waitFor();
+    await page.getByRole("searchbox",{name:"Search team members"}).fill("Jin");
+    await page.locator(".settings-member-list").getByText("Jin (mock)",{exact:true}).waitFor();
+    assert.equal(await page.locator(".settings-member-list").getByText("Asha (mock)",{exact:true}).count(),0);
+    await page.getByRole("searchbox",{name:"Search team members"}).fill("");
     if(role==="lead") {
       await page.getByLabel("Teammate email").fill("new.person@example.invalid");
       await page.getByRole("button",{name:"Generate invitation link"}).click();
       await page.getByRole("textbox",{name:"Private invitation link"}).waitFor();
       const emailDraft = page.getByRole("link",{name:"Open email draft"});
       assert.match(await emailDraft.getAttribute("href"),/^mailto:/,"invitation offers a real email draft");
+      await page.getByRole("button",{name:"Renew invitation",exact:true}).click();
+      assert.equal(await page.getByLabel("Teammate email").inputValue(),"expired.person@example.invalid");
+      await page.getByRole("checkbox",{name:"Send invitation email now"}).check();
+      await page.getByRole("button",{name:"Generate invitation link",exact:true}).click();
+      await page.getByText("Invitation accepted by the email provider. Delivery to the inbox is not yet confirmed.",{exact:true}).waitFor();
+      assert.deepEqual(state.emailRequests,["expired.person@example.invalid"],"only explicitly requested simulated email");
       await page.getByLabel("Repository URL or owner/name").fill("SDAFIK/TeamFlow-Guard");
       await page.getByRole("button",{name:"Link repository"}).click();
       await page.getByText("Public GitHub repository linked",{exact:true}).waitFor();
@@ -170,6 +185,7 @@ async function run(viewport, role="lead") {
     } else {
       assert.equal(await page.getByRole("button",{name:"Generate invitation link"}).count(),0,"viewer cannot invite");
       assert.equal(await page.getByRole("button",{name:"Link repository"}).count(),0,"viewer cannot link repositories");
+      assert.equal(await page.getByRole("checkbox",{name:"Send invitation email now"}).count(),0,"viewer cannot send invitations");
     }
     const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1);
     assert.equal(overflow,false,`horizontal overflow at ${label}`);

@@ -48,6 +48,7 @@ import { JourneySteps } from './journey-steps';
 import { TaskManager } from "./task-manager";
 import { WorkspaceSetup } from './workspace-management';
 import { WorkspaceSettings } from './workspace-settings';
+import { WorkspaceActivity } from "./workspace-activity";
 import DependencyMap from "./dependency-map";
 import { Brand, Badge, Busy, Empty, Modal, statusLabels } from "./ui";
 import {
@@ -135,14 +136,16 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
     [filter, setFilter] = useState("all"),
     [board, setBoard] = useState(true);
   const navRef = useRef<HTMLElement>(null);
+  const loadSequence = useRef(0);
   const load = useCallback(async (id?: string, selected?: string) => {
+    const request = ++loadSequence.current;
     try {
       const me = await api<Person>("/me");
       const list = await api<Project[]>("/projects");
+      if (request !== loadSequence.current) return;
       const saved=localStorage.getItem(`teamflow.workspace.${me.id}`);
       const target = id ?? (list.some(p=>p.id===saved)?saved:undefined) ?? list[0]?.id;
       if (target) {
-        localStorage.setItem(`teamflow.workspace.${me.id}`,target);
         const base = `/projects/${target}`;
         const [overview, g, r, p, a, i] = await Promise.all([
           api<Overview>(base + "/dashboard"),
@@ -154,6 +157,8 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
           api<Audit[]>(base + "/audit"),
           api<Integrations>(base + "/integrations"),
         ]);
+        if (request !== loadSequence.current) return;
+        localStorage.setItem(`teamflow.workspace.${me.id}`,target);
         setData(overview);
         setGraph(g);
         setRisks(r);
@@ -165,12 +170,13 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
       setUser(me);
       setError("");
     } catch (e) {
+      if (request !== loadSequence.current) return;
       if (e instanceof ApiError && e.status === 401) {
         setUser(null);
         setData(null);
       } else setError((e as Error).message);
     } finally {
-      setBusy(false);
+      if (request === loadSequence.current) setBusy(false);
     }
   }, []);
   useEffect(() => {
@@ -178,13 +184,21 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
+  const activeWorkspaceId = data?.project.id;
+  const selectedGraphTask = graph?.selected_task_id ?? undefined;
+  const activeUserId = user?.id;
   useEffect(()=>{
-    if(!user||!data||taskId||proposalId||manageTask||workspaceSetup||view==='settings')return;
-    const update=()=>{if(document.visibilityState==='visible')void load(data.project.id);};
+    if(!activeUserId||!activeWorkspaceId||taskId||riskId||proposalId||manageTask||workspaceSetup||dependencyDialog||demo||receipt||view==='settings')return;
+    let refreshing = false;
+    const update=()=>{if(document.visibilityState==='visible' && !refreshing) {
+      refreshing=true;
+      void load(activeWorkspaceId,selectedGraphTask).finally(()=>{refreshing=false;});
+    }};
     const timer=window.setInterval(update,20_000);
     window.addEventListener('focus',update);
-    return()=>{window.clearInterval(timer);window.removeEventListener('focus',update);};
-  },[user,data,taskId,proposalId,manageTask,workspaceSetup,view,load]);
+    document.addEventListener('visibilitychange',update);
+    return()=>{window.clearInterval(timer);window.removeEventListener('focus',update);document.removeEventListener('visibilitychange',update);};
+  },[activeUserId,activeWorkspaceId,selectedGraphTask,taskId,riskId,proposalId,manageTask,workspaceSetup,dependencyDialog,demo,receipt,view,load]);
   useEffect(() => {
     if (!menu) return;
     const previous = document.activeElement as HTMLElement;
@@ -249,6 +263,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
   async function logout() {
     try {
       await api("/auth/logout", { method: "POST" });
+      loadSequence.current++;
       setUser(null);
       setData(null);
       setMenu(false);
@@ -499,6 +514,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                   <p>{titles[view][1]}</p>
                 </div>
                 <div className="heading-actions">
+                  <WorkspaceActivity key={data.project.id} entries={audit} onViewAll={()=>navigate("audit")}/>
                   <button
                     className={`icon-button refresh-button ${busy ? "spin" : ""}`}
                     aria-label="Refresh data"
