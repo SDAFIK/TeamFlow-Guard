@@ -834,6 +834,16 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                   </>
                 )}
                 {view === "risks" && (
+                  <>
+                  <section className="risk-command" aria-label="Risk protection overview">
+                    <div className="risk-command-intro"><span className="section-kicker">DELIVERY INTELLIGENCE</span><h2>See the impact. Protect the plan.</h2><p>Verified signals, mapped work and human-reviewed recovery.</p></div>
+                    <div className="risk-command-metrics">
+                      <div><TriangleAlert size={19}/><strong>{activeRisks.length}</strong><span>Active risks</span></div>
+                      <div><GitBranch size={19}/><strong>{new Set(activeRisks.flatMap(r=>r.affected_task_ids)).size}</strong><span>Affected tasks</span></div>
+                      <div><ShieldCheck size={19}/><strong>{activeRisks.filter(r=>r.evidence.origin==="github").length}</strong><span>GitHub signals</span></div>
+                    </div>
+                    <p className="risk-command-note">A passing CI run resolves its matching CI signal, not every project risk. Plan changes require approval.</p>
+                  </section>
                   <section className="panel">
                     <div className="panel-head">
                       <div>
@@ -885,6 +895,7 @@ export default function Workspace({ initialRiskId, initialProposalId }: { initia
                       </Empty>
                     )}
                   </section>
+                  </>
                 )}
                 {view === "tasks" && (
                   <>
