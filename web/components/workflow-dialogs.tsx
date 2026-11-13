@@ -247,7 +247,6 @@ export function RiskDialog({
   const [options,setOptions]=useState<RecoveryOption[]>([]);
   const [simulations,setSimulations]=useState<RecoverySimulation[]>([]);
   async function compare() {
-    if(integrations.ai_provider!=='gemini'){await analyze('rules');return;}
     setPending('options');setError('');
     try { const result=await api<{options:RecoveryOption[];simulations?:RecoverySimulation[]}>(`/risks/${risk.id}/recovery-options`);setOptions(result.options);setSimulations(result.simulations??[]);setStage('compare'); }
     catch(e){setError((e as Error).message);}finally{setPending('');}
@@ -332,7 +331,7 @@ export function RiskDialog({
         <p>These choices come from plan constraints and reported availability. Compare the tradeoffs, then review one change. AI can explain and select from the same allowed actions.</p>
         <div className="recovery-options">{options.map(option=><article className="recovery-option" key={option.id}><span className="section-kicker">RULE-BASED OPTION</span><h3>{option.title}</h3><p>{option.effect}</p><p className="option-tradeoff"><strong>Tradeoff:</strong> {option.tradeoff}</p>{simulations.filter(s=>s.id===option.id).map(s=><div key={s.id}><p><strong>Simulation:</strong> {s.affected_task_ids.length} unfinished dependent tasks. Source risk is not resolved by this action.</p>{s.capacity.map(c=><p key={c.member_id}>Estimated workload: {c.before_hours}h → {c.after_hours}h; {c.available_hours}h reported available.</p>)}<p className="field-help">No guaranteed delay reduction.</p></div>)}<button className="secondary" aria-label={`Review ${option.title}`} disabled={readOnly||!!pending} onClick={()=>analyze('rules',option.id)}>Review this option<ArrowRight size={16}/></button></article>)}</div>
         {simulations.filter(s=>!s.feasible).map(s=><p className="warning" key={s.id}>{s.title} is unavailable: {s.explanation}</p>)}
-        {!options.length&&<p className="warning">No feasible change is available. Keep the current plan and discuss the constraint with your team.</p>}
+        {!options.length&&<p className="warning">No feasible plan change remains for this risk. If this is a demo, start a fresh AI rehearsal from TIC Intelligence. Otherwise refresh evidence or discuss the constraint with your team.</p>}
         <button className="text-link" disabled={!!pending} onClick={()=>setStage('understand')}>Back to evidence & impact</button>
       </section>}
       <div className="human-note">
@@ -362,9 +361,9 @@ export function RiskDialog({
         <button
           className="secondary"
           disabled={readOnly || !!pending || !risk.active || !options.length}
-          onClick={() => analyze("rules")}
+          onClick={() => analyze("rules",options[0]?.id)}
         >
-          {pending === "rules" ? <Busy /> : "Review combined rule-based plan"}
+          {pending === "rules" ? <Busy /> : "Use recommended rule-based option"}
         </button>
         </>}
       </div>
@@ -536,17 +535,19 @@ export function ProposalDialog({
 export function DependencyDialog({
   data,
   graph,
+  initialPair,
   onClose,
   onSaved,
 }: {
   data: Overview;
   graph: Graph;
+  initialPair?:{source:string;target:string}|null;
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
   const candidates = data.tasks.filter((task) => task.status !== "done");
-  const [before, setBefore] = useState(data.tasks[0]?.id ?? ""),
-    [after, setAfter] = useState(candidates.find((task) => task.id !== data.tasks[0]?.id)?.id ?? ""),
+  const [before, setBefore] = useState(initialPair?.source??data.tasks[0]?.id??""),
+    [after, setAfter] = useState(initialPair?.target??candidates.find((task) => task.id !== (initialPair?.source??data.tasks[0]?.id))?.id??""),
     [error, setError] = useState(""),
     [pending, setPending] = useState(false);
   const guidance = dependencyFeedback(data.tasks.map(t=>t.id), graph.edges, before, after);

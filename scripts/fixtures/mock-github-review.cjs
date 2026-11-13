@@ -10,6 +10,16 @@ if(fixture){
   const original=globalThis.fetch;
   globalThis.fetch=async(input,init)=>{
     const u=new URL(typeof input==="string"?input:input instanceof URL?input.href:input.url);
+    // Simulated Gemini HTTP transport is restricted to local Supabase and a fake key.
+    if(u.hostname==="generativelanguage.googleapis.com"){
+      assert.equal(process.env.GEMINI_API_KEY,"teamflow-local-fixture-key");
+      assert.match(u.pathname,/:generateContent$/);
+      const request=typeof init?.body==="string"?JSON.parse(init.body):await input.json();
+      const context=JSON.parse(request.contents.flatMap(c=>c.parts||[]).find(p=>typeof p.text==="string").text);
+      assert.ok(context.evidence?.[0]?.id&&context.candidates?.length>0);
+      const candidate={title:"Fixture Gemini recovery",explanation:"Prioritize investigation of the fictional CI failure. Human approval is required.",evidence_ids:[context.evidence[0].id],action_indices:[0],assumptions:["Fictional input; no delivery guarantee."],requires_human_approval:true};
+      return Response.json({candidates:[{content:{role:"model",parts:[{text:JSON.stringify(candidate)}]},finishReason:"STOP"}],usageMetadata:{promptTokenCount:20,candidatesTokenCount:25,totalTokenCount:45}});
+    }
     if(u.hostname!=="api.github.com")return original(input,init);
     assert.equal(u.protocol,"https:");
     const state=JSON.parse(fs.readFileSync(fixture,"utf8"));

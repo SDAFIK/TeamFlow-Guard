@@ -17,7 +17,11 @@ export function downstream(ids: string[], edges: Edge[], selected: string, rever
 }
 export function validateGraph(ids: string[], edges: Edge[]) {
   const remaining = new Map(ids.map(id => [id, 0]));
+  const unique=new Set<string>();
   for (const e of edges) {
+    const key=JSON.stringify([e.predecessor_id,e.successor_id]);
+    if(unique.has(key))throw Error("This dependency already exists");
+    unique.add(key);
     if (!remaining.has(e.predecessor_id) || !remaining.has(e.successor_id) || e.predecessor_id === e.successor_id) throw new Error("Invalid dependency");
     remaining.set(e.successor_id, remaining.get(e.successor_id)! + 1);
   }

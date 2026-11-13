@@ -35,6 +35,7 @@ import {
   api,
   ApiError,
   type Overview,
+  type Task,
   type Person,
   type Project,
   type Graph,
@@ -135,6 +136,8 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
     [notice, setNotice] = useState(""),
     [menu, setMenu] = useState(false);
   const [manageTask, setManageTask] = useState<string | null>(null);
+  const [demoBusy,setDemoBusy]=useState(false);
+  const [dependencyPair,setDependencyPair]=useState<{source:string;target:string}|null>(null);
   const [workspacePicker,setWorkspacePicker]=useState(false);
   const [settingsFocus,setSettingsFocus]=useState<"team"|"github"|null>(null);
   const [receipt,setReceipt]=useState<{title:string;decision:string;workspace:string;proposal:string}|null>(null);
@@ -285,6 +288,20 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
     setBusy(true);
     navigate("overview");
     void load(id);
+  }
+  async function freshAIRehearsal(){
+    if(!data?.is_demo||data.project.role!=="lead"||!user||demoBusy)return;
+    setDemoBusy(true);setError("");setNotice("");
+    let created=false;
+    try{
+      const base="/projects/"+data.project.id;
+      const task=await api<Task>(base+"/tasks",{method:"POST",body:JSON.stringify({key:"AI-"+crypto.randomUUID().slice(0,8).toUpperCase(),title:"AI rehearsal · CI failure",description:"Fictional rehearsal task. Compare rule-based recovery and Gemini before approval.",owner_id:user.id,estimate_hours:8,due_at:new Date(Date.now()+48*3600000).toISOString(),base_plan_version:data.plan_version})});
+      created=true;
+      const updated=await api<Risk[]>(base+"/demo-events",{method:"POST",body:JSON.stringify({kind:"ci_failure",task_id:task.id,event_key:crypto.randomUUID()})});
+      await refresh();const signal=updated.find(r=>r.active&&r.evidence.kind==="ci_failure"&&r.evidence.task_id===task.id);
+      if(signal)setRiskId(signal.id);else setNotice("Rehearsal created. Inspect the new task in Risk Center.");
+    }catch(e){if(created)await refresh();setError((created?"Fictional task created; replay its CI failure from the demo dialog. ":"")+(e as Error).message);}
+    finally{setDemoBusy(false);}
   }
   async function logout() {
     try {
@@ -576,7 +593,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                   <JourneySteps current={3}/><h2>{receipt.decision==='approve'?'Approved plan saved':'Proposal rejected — plan unchanged'}</h2><p>{receipt.title}</p><p>The decision is recorded in your workspace history. {receipt.decision==='approve'?'Check the updated task assignments and follow up on the source signal.':'No proposed changes were applied.'}</p>
                   <div className="dialog-actions"><button className="primary" onClick={()=>{setReceipt(null);navigate('tasks');}}>View current plan</button><button className="secondary" onClick={()=>{setReceipt(null);navigate('audit');}}>View decision history</button><button className="text-link" onClick={()=>setReceipt(null)}>Dismiss receipt</button></div>
                 </section>}
-                {view === "intelligence" && <IntelligenceCenter key={data.project.id} workspace={data.project.id} onRisk={id=>setRiskId(id)}/>}
+                {view === "intelligence" && <IntelligenceCenter key={data.project.id} workspace={data.project.id} onRisk={id=>setRiskId(id)} isDemo={Boolean(data.is_demo)} canRehearse={lead} aiConfigured={Boolean(integrations.ai_configured)} onRisks={()=>navigate("risks")} onDemo={()=>{const sample=projects.find(p=>p.is_demo);if(sample)switchWorkspace(sample.id);else setNotice("No demo workspace is available for this account.");}} onFreshDemo={freshAIRehearsal} demoBusy={demoBusy}/>}
                 {view === "overview" && (
                   <>
                     <DashboardHero demoAction={data.is_demo&&lead?"Replay demo scenario":projects.some(p=>p.is_demo&&p.id!==data.project.id)?"Open demo workspace":"Explore dependencies"} onDemo={()=>{if(data.is_demo&&lead){setDemo(true);return;}const sample=projects.find(p=>p.is_demo&&p.id!==data.project.id);if(sample)switchWorkspace(sample.id);else navigate("dependencies");}} onGithub={()=>openConnections("github")} githubLinked={Boolean(integrations.github_repository)}/>
@@ -949,7 +966,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                       </button>
                     </div>
                     {data.tasks.length < 2 && <p className="field-help">Add at least two tasks before proposing a dependency.</p>}
-                    <DependencyMap key={data.project.id} graph={graph} risks={risks} onSelect={selectTask} members={data.members} onOpenTask={setTaskId} expanded/>
+                    <DependencyMap key={data.project.id} graph={graph} risks={risks} onSelect={selectTask} members={data.members} onOpenTask={setTaskId} onConnectProposal={data.project.role==="viewer"?undefined:(source,target)=>{setDependencyPair({source,target});setDependencyDialog(true);}} expanded/>
                   </>
                 )}
                 {view === "decisions" && (
@@ -1271,7 +1288,8 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
         <DependencyDialog
           data={data}
           graph={graph}
-          onClose={() => setDependencyDialog(false)}
+          initialPair={dependencyPair}
+          onClose={() => {setDependencyDialog(false);setDependencyPair(null);}}
           onSaved={async () => {
             await refresh();
             setNotice(
