@@ -1,4 +1,5 @@
 import { beforeEach,afterEach,expect,it,vi } from "vitest";
+vi.mock("server-only",()=>({}));
 const mocks=vi.hoisted(()=>({rpc:vi.fn(),observe:vi.fn()}));
 vi.mock("@supabase/supabase-js",()=>({createClient:()=>({rpc:mocks.rpc})}));
 vi.mock("./github-app",async importOriginal=>({...await importOriginal<typeof import("./github-app")>(),appReviewObservation:mocks.observe}));
@@ -22,7 +23,7 @@ beforeEach(()=>{
   vi.stubEnv("TEAMFLOW_GITHUB_APP_BINDINGS",config.bindings);vi.stubEnv("GITHUB_APP_WEBHOOK_SECRET","fixture");
   vi.stubEnv("TEAMFLOW_GITHUB_REVIEW_MAPPINGS",JSON.stringify([mapping]));
   mocks.rpc.mockReset();mocks.observe.mockReset();
-  mocks.rpc.mockImplementation(async(name:string)=>({error:null,data:name==="tf_github_review_context"?"main":{status:"recorded"}}));
+  mocks.rpc.mockImplementation(async(name:string)=>({error:null,data:name==="tf_github_mapping_list"?{ci:[],reviews:[]}:name==="tf_github_review_context"?"main":{status:"recorded"}}));
   mocks.observe.mockResolvedValue(observation);
 });
 afterEach(()=>vi.unstubAllEnvs());
@@ -46,7 +47,7 @@ it("rejects tampering, invalid delivery and unrelated PR before network calls",a
   expect((await POST(request(payload,"pull_request","sha256="+"0".repeat(64)))).status).toBe(401);
   expect((await POST(request(payload,"pull_request",undefined,"bad"))).status).toBe(400);
   expect((await POST(request({...payload,pull_request:{number:8}}))).status).toBe(204);
-  expect(mocks.rpc).not.toHaveBeenCalled();expect(mocks.observe).not.toHaveBeenCalled();
+  expect(mocks.rpc).toHaveBeenCalledExactlyOnceWith("tf_github_mapping_list",{w,repo:"org/private",installation:19,repository:29});expect(mocks.observe).not.toHaveBeenCalled();
 });
 it("fails closed when context, GitHub or persistence is unavailable",async()=>{
   mocks.rpc.mockResolvedValueOnce({error:{message:"unavailable"},data:null});
