@@ -137,6 +137,8 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
     [menu, setMenu] = useState(false);
   const [manageTask, setManageTask] = useState<string | null>(null);
   const [demoBusy,setDemoBusy]=useState(false);
+  const [syncTime,setSyncTime]=useState<number|null>(null);
+  const [syncWarning,setSyncWarning]=useState(false);
   const [dependencyPair,setDependencyPair]=useState<{source:string;target:string}|null>(null);
   const [workspacePicker,setWorkspacePicker]=useState(false);
   const [settingsFocus,setSettingsFocus]=useState<"team"|"github"|null>(null);
@@ -181,6 +183,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
         setProposals(p);
         setAudit(a);
         setIntegrations(i);
+        setSyncTime(Date.now());setSyncWarning(false);
       } else setData(null);
       setProjects(list);
       setUser(me);
@@ -190,7 +193,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
       if (e instanceof ApiError && e.status === 401) {
         setUser(null);
         setData(null);
-      } else setError((e as Error).message);
+      } else {setError((e as Error).message);setSyncWarning(true);}
     } finally {
       if (request === loadSequence.current) setBusy(false);
     }
@@ -206,14 +209,16 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
   useEffect(()=>{
     if(!activeUserId||!activeWorkspaceId||taskId||riskId||proposalId||manageTask||workspaceSetup||dependencyDialog||demo||receipt||view==='settings')return;
     let refreshing = false;
+    const channel=typeof BroadcastChannel!=="undefined"?new BroadcastChannel("teamflow.workspace.sync"):null;
     const update=()=>{if(document.visibilityState==='visible' && !refreshing) {
       refreshing=true;
       void load(activeWorkspaceId,selectedGraphTask).finally(()=>{refreshing=false;});
     }};
-    const timer=window.setInterval(update,20_000);
+    const timer=window.setInterval(update,8_000);
+    if(channel)channel.onmessage=e=>{if(e.data===activeWorkspaceId)update();};
     window.addEventListener('focus',update);
     document.addEventListener('visibilitychange',update);
-    return()=>{window.clearInterval(timer);window.removeEventListener('focus',update);document.removeEventListener('visibilitychange',update);};
+    return()=>{window.clearInterval(timer);channel?.close();window.removeEventListener('focus',update);document.removeEventListener('visibilitychange',update);};
   },[activeUserId,activeWorkspaceId,selectedGraphTask,taskId,riskId,proposalId,manageTask,workspaceSetup,dependencyDialog,demo,receipt,view,load]);
   useEffect(() => {
     if (!menu) return;
@@ -252,6 +257,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
   async function refresh() {
     setBusy(true);
     await load(data?.project.id, graph?.selected_task_id ?? undefined);
+    if(data?.project.id&&typeof BroadcastChannel!=="undefined"){const channel=new BroadcastChannel("teamflow.workspace.sync");channel.postMessage(data.project.id);channel.close();}
   }
   function openWorkspaceSetup(mode:'create'|'join'='create') {
     setSetupMode(mode);
@@ -501,7 +507,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
           </div>
           {data&&<WorkspaceSearch key={data.project.id} data={data} risks={risks} onTask={setTaskId} onRisk={setRiskId} onPerson={()=>navigate("team")} onDependency={id=>{selectTask(id);navigate("dependencies");}}/>}
           <div className="topbar-right">
-            <span className="environment">
+            <span className="environment" title={syncWarning?"Last refresh failed":syncTime?`Synced ${new Date(syncTime).toLocaleTimeString()}`:"Workspace sync"}>
               <i />
               {data?.is_demo ? "Labeled demo" : "Saved workspace"}
             </span>

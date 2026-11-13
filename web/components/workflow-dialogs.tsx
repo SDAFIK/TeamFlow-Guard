@@ -246,6 +246,8 @@ export function RiskDialog({
   const [stage,setStage]=useState<'understand'|'compare'>('understand');
   const [options,setOptions]=useState<RecoveryOption[]>([]);
   const [simulations,setSimulations]=useState<RecoverySimulation[]>([]);
+  const [compareEngines,setCompareEngines]=useState(false);
+  const [engineResults,setEngineResults]=useState<{rules?:Proposal;ai?:Proposal}>({});
   async function compare() {
     setPending('options');setError('');
     try { const result=await api<{options:RecoveryOption[];simulations?:RecoverySimulation[]}>(`/risks/${risk.id}/recovery-options`);setOptions(result.options);setSimulations(result.simulations??[]);setStage('compare'); }
@@ -259,7 +261,7 @@ export function RiskDialog({
         `/risks/${risk.id}/analyze?mode=${mode}${strategy?`&strategy=${encodeURIComponent(strategy)}`:''}`,
         { method: "POST", headers: { "Idempotency-Key": crypto.randomUUID() } },
       );
-      await onProposal(result);
+      if(compareEngines){setEngineResults(previous=>({...previous,[mode==="rules"?"rules":"ai"]:result}));}else await onProposal(result);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -329,7 +331,10 @@ export function RiskDialog({
       </div>}
       {stage==='compare'&&<section aria-label="Recovery alternatives">
         <p>These choices come from plan constraints and reported availability. Compare the tradeoffs, then review one change. AI can explain and select from the same allowed actions.</p>
-        <div className="recovery-options">{options.map(option=><article className="recovery-option" key={option.id}><span className="section-kicker">RULE-BASED OPTION</span><h3>{option.title}</h3><p>{option.effect}</p><p className="option-tradeoff"><strong>Tradeoff:</strong> {option.tradeoff}</p>{simulations.filter(s=>s.id===option.id).map(s=><div key={s.id}><p><strong>Simulation:</strong> {s.affected_task_ids.length} unfinished dependent tasks. Source risk is not resolved by this action.</p>{s.capacity.map(c=><p key={c.member_id}>Estimated workload: {c.before_hours}h → {c.after_hours}h; {c.available_hours}h reported available.</p>)}<p className="field-help">No guaranteed delay reduction.</p></div>)}<button className="secondary" aria-label={`Review ${option.title}`} disabled={readOnly||!!pending} onClick={()=>analyze('rules',option.id)}>Review this option<ArrowRight size={16}/></button></article>)}</div>
+        <label className="engine-compare-toggle"><input type="checkbox" checked={compareEngines} disabled={!!pending||Object.keys(engineResults).length>0} onChange={e=>setCompareEngines(e.target.checked)}/> Compare rule-based and AI proposals side by side</label>
+        {compareEngines&&<p className="field-help">Each button creates one separate pending proposal. Nothing is approved automatically. You may review either proposal; approving one can make the other stale.</p>}
+        {compareEngines&&<div className="engine-comparison" aria-label="Engine comparison">{([{key:"rules",label:"Deterministic rules"},{key:"ai",label:integrations.ai_provider==="openai"?"OpenAI":"Gemini"}] as const).map(engine=>{const proposal=engineResults[engine.key];return <article className="recovery-option" key={engine.key}><span className="section-kicker">{engine.label}</span>{proposal?<><h3>{proposal.title}</h3><p>{proposal.explanation}</p><span className="source-tag">Pending · plan v{proposal.base_plan_version}</span><ul>{proposal.actions.map((action,i)=><li key={i}><strong>{tasks.find(t=>t.id===action.task_id)?.key??"Task"}</strong> · {action.field.replaceAll("_"," ")}: {String(action.before??"Not assigned")} → {String(action.after)}</li>)}</ul><button className="secondary" disabled={!!pending} onClick={()=>void onProposal(proposal)}>Review {engine.label} proposal<ArrowRight size={16}/></button></>:<p>{engine.key==="rules"?"Select a deterministic option below.":"Run AI analysis to compare its explanation and actions."}</p>}</article>;})}</div>}
+        <div className="recovery-options">{options.map(option=><article className="recovery-option" key={option.id}><span className="section-kicker">RULE-BASED OPTION</span><h3>{option.title}</h3><p>{option.effect}</p><p className="option-tradeoff"><strong>Tradeoff:</strong> {option.tradeoff}</p>{simulations.filter(s=>s.id===option.id).map(s=><div key={s.id}><p><strong>Simulation:</strong> {s.affected_task_ids.length} unfinished dependent tasks. Source risk is not resolved by this action.</p>{s.capacity.map(c=><p key={c.member_id}>Estimated workload: {c.before_hours}h → {c.after_hours}h; {c.available_hours}h reported available.</p>)}<p className="field-help">No guaranteed delay reduction.</p></div>)}<button className="secondary" aria-label={`Review ${option.title}`} disabled={readOnly||!!pending||Boolean(compareEngines&&engineResults.rules)} onClick={()=>analyze('rules',option.id)}>Review this option<ArrowRight size={16}/></button></article>)}</div>
         {simulations.filter(s=>!s.feasible).map(s=><p className="warning" key={s.id}>{s.title} is unavailable: {s.explanation}</p>)}
         {!options.length&&<p className="warning">No feasible plan change remains for this risk. If this is a demo, start a fresh AI rehearsal from TIC Intelligence. Otherwise refresh evidence or discuss the constraint with your team.</p>}
         <button className="text-link" disabled={!!pending} onClick={()=>setStage('understand')}>Back to evidence & impact</button>
@@ -346,7 +351,7 @@ export function RiskDialog({
         {stage==='compare'&&<>
         <button
           className="primary"
-          disabled={readOnly || !!pending || !risk.active || !integrations.ai_configured || !options.length}
+          disabled={readOnly || !!pending || !risk.active || !integrations.ai_configured || !options.length || Boolean(compareEngines&&engineResults.ai)}
           onClick={() => analyze(integrations.ai_provider ?? "gemini")}
         >
           {pending === (integrations.ai_provider ?? "gemini") ? (
@@ -360,7 +365,7 @@ export function RiskDialog({
         </button>
         <button
           className="secondary"
-          disabled={readOnly || !!pending || !risk.active || !options.length}
+          disabled={readOnly || !!pending || !risk.active || !options.length || Boolean(compareEngines&&engineResults.rules)}
           onClick={() => analyze("rules",options[0]?.id)}
         >
           {pending === "rules" ? <Busy /> : "Use recommended rule-based option"}

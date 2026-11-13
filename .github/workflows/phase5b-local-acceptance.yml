@@ -1,7 +1,7 @@
 name: TeamFlow combined authenticated acceptance
 on:
   push:
-    branches: [codex/tic-risk-model, codex/tic-v2, codex/tic-v2-demo-polish]
+    branches: [codex/tic-risk-model, codex/tic-v2, codex/tic-v2-demo-polish, codex/product-finish]
     paths:
       - '.github/workflows/phase5b-local-acceptance.yml'
       - 'scripts/stage8-auth-e2e.cjs'
@@ -51,7 +51,7 @@ jobs:
         env:
           NODE_PATH: ${{ github.workspace }}/web/node_modules
           TEAMFLOW_ARTIFACT_DIR: ${{ runner.temp }}/teamflow-ui-evidence
-          TEAMFLOW_ACCEPT_TIC_V2: ${{ (github.ref_name == 'codex/tic-v2' || github.ref_name == 'codex/tic-v2-demo-polish') && '1' || '0' }}
+          TEAMFLOW_ACCEPT_TIC_V2: ${{ (github.ref_name == 'codex/tic-v2' || github.ref_name == 'codex/tic-v2-demo-polish' || github.ref_name == 'codex/product-finish') && '1' || '0' }}
         run: node scripts/stage8-auth-e2e.cjs
       - name: Upload fictional UI evidence
         if: always()
