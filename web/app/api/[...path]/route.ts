@@ -16,9 +16,8 @@ import { allowedOrigin, authRedirectOrigin } from "@/server/origin";
 import { createHash, randomBytes } from "node:crypto";
 import { auditPage } from "@/server/audit-page";
 import { recentPublicRuns, verifyPublicRepository } from "@/server/github-public";
-import { githubAppConfig, bindingForWorkspace, githubAppReady, appRepositoryActivity, appReviewObservation } from "@/server/github-app";
-import { workspaceCIMappings } from "@/server/github-evidence";
-import { reviewMappings } from "@/server/github-review-observation";
+import { githubAppConfig, bindingForWorkspace, githubAppReady, appRepositoryActivity, appReviewObservation, appMappingCatalog } from "@/server/github-app";
+import { effectiveMappings, mappingInput, createWorkspaceMapping } from "@/server/github-workspace-mappings";
 import { invitationEmailConfigured, invitationURL, sendInvitationEmail, type InvitationEmailStatus } from "@/server/invitation-email";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -158,17 +157,25 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
             const taskId=z.uuid().parse(request.nextUrl.searchParams.get("task"));
             if(!state.tasks.some(t=>t.id===taskId))throw new HttpError(404,"Task unavailable");
             if(!appBinding())throw new HttpError(409,"Authorized GitHub App required");
-            const mappings=reviewMappings(process.env.TEAMFLOW_GITHUB_REVIEW_MAPPINGS,id).filter(m=>m.task_id===taskId);
+            const mappings=(await effectiveMappings(appBinding()!)).reviews.filter(m=>m.task_id===taskId);
             if(mappings.length!==1||!state.members.some(m=>m.id===mappings[0].reviewer_id))throw new HttpError(409,"An unambiguous task and reviewer mapping is required");
             try { const observation=await appReviewObservation(appConfig,id,state.workspace.tracked_branch,mappings[0]); return answer({...observation,threshold_hours:state.workspace.review_threshold_hours,delayed:observation.waiting_hours!==null&&observation.waiting_hours>state.workspace.review_threshold_hours,read_only:true}); }
             catch { throw new HttpError(503,"GitHub review evidence unavailable. Retry later."); }
           }
           case "github-readiness": {
             const bound=appBinding();
-            const rows=bound?workspaceCIMappings(process.env.TEAMFLOW_GITHUB_CI_MAPPINGS,id):[];
+            const effective=bound?await effectiveMappings(bound):{ci:[],reviews:[]};
+            const rows=effective.ci;
             const mappings=rows.map(m=>{const task=state.tasks.find(t=>t.id===m.task_id);return {workflow_id:m.workflow_id,task_id:m.task_id,task_key:task?.key??null,task_title:task?.title??null,valid:Boolean(task)};});
-            const review_mappings=bound?reviewMappings(process.env.TEAMFLOW_GITHUB_REVIEW_MAPPINGS,id).map(m=>({pull_number:m.pull_number,task_id:m.task_id,reviewer_id:m.reviewer_id,valid:state.tasks.some(t=>t.id===m.task_id)&&state.members.some(u=>u.id===m.reviewer_id&&u.role!=="viewer")})):[];
-            return answer({repository:bound?.repository??state.workspace.github_repository,app_bound:Boolean(bound),app_credentials:Boolean(bound&&githubAppReady(appConfig)),webhook_configured:Boolean(bound&&appConfig.webhookSecret?.trim()),ingestion_configured:Boolean(bound&&process.env.TEAMFLOW_GITHUB_INGEST_KEY?.trim()),mappings,review_mappings,tracked_branch:state.workspace.tracked_branch,email_configured:!state.workspace.is_demo&&invitationEmailConfigured(inviteEmailConfig),is_demo:state.workspace.is_demo});
+            const review_mappings=effective.reviews.map(m=>({pull_number:m.pull_number,task_id:m.task_id,reviewer_id:m.reviewer_id,valid:state.tasks.some(t=>t.id===m.task_id)&&state.members.some(u=>u.id===m.reviewer_id&&u.role!=="viewer")}));
+            return answer({repository:bound?.repository??state.workspace.github_repository,app_bound:Boolean(bound),app_credentials:Boolean(bound&&githubAppReady(appConfig)),webhook_configured:Boolean(bound&&appConfig.webhookSecret?.trim()),ingestion_configured:Boolean(bound&&process.env.TEAMFLOW_GITHUB_INGEST_KEY?.trim()),mappings,review_mappings,can_manage:["owner","manager"].includes(state.role),tracked_branch:state.workspace.tracked_branch,email_configured:!state.workspace.is_demo&&invitationEmailConfigured(inviteEmailConfig),is_demo:state.workspace.is_demo});
+          }
+          case "github-mappings": {
+            if(path.length!==3)throw new HttpError(404,"Resource unavailable");
+            if(!["owner","manager"].includes(state.role))throw new HttpError(403,"Manager access required");
+            const bound=appBinding();if(!bound)throw new HttpError(409,"Authorized GitHub App required");
+            const effective=await effectiveMappings(bound);
+            try{const catalog=await appMappingCatalog(appConfig,id,state.workspace.tracked_branch);return answer({...catalog,ci:effective.ci,reviews:effective.reviews,tasks:state.tasks.filter(t=>t.status!=="done").map(t=>({id:t.id,key:t.key,title:t.title})),members:state.members.filter(m=>m.role!=="viewer").map(m=>({id:m.id,name:m.name}))});}catch{throw new HttpError(503,"GitHub mapping choices unavailable. Retry later.");}
           }
           case "github": {
             const bound = appBinding();
@@ -193,6 +200,14 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
             if(result.error) databaseError(result.error);return answer(result.data);
           }
         }
+      }
+      if(path[2]==="github-mappings"&&path.length===3&&request.method==="POST"){
+        if(!["owner","manager"].includes(state.role))throw new HttpError(403,"Manager access required");
+        const bound=appBinding();if(!bound)throw new HttpError(409,"Authorized GitHub App required");
+        const input=mappingInput.parse(body);if(!state.tasks.some(t=>t.id===input.task_id&&t.status!=="done"))throw new HttpError(422,"Choose an unfinished workspace task.");
+        let catalog;try{catalog=await appMappingCatalog(appConfig,id,state.workspace.tracked_branch);}catch{throw new HttpError(503,"GitHub mapping choices unavailable. Retry later.");}
+        if(input.kind==="ci"?!catalog.workflows.some(w=>w.id===input.external_id):!catalog.pulls.some(p=>p.number===input.external_id&&p.reviewers.some(r=>r.id===input.github_reviewer_id))||!state.members.some(m=>m.id===input.reviewer_id&&m.role!=="viewer"))throw new HttpError(422,"Choose an authorized workflow or open pull request and its currently requested reviewer.");
+        return answer(await createWorkspaceMapping(bound,user.id,input));
       }
       if(path[2]==='settings' && request.method==='PUT') {
         const input=z.object({name:z.string().trim().min(2).max(100),description:z.string().max(1000),tracked_branch:z.string().trim().min(1).max(100),review_threshold_hours:z.number().int().min(1).max(168),base_plan_version:z.number().int().positive()}).strict().parse(body);
