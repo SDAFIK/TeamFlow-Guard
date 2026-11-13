@@ -1,146 +1,258 @@
-# TeamFlow Guard
+<div align="center">
 
-**Stage 5 review branch:** Optional direct transactional invitation email, manual delivery fallback, renewal of expired/revoked invitations, searchable team members, and a saved team-activity feed. See [Stage 5 review notes](docs/STAGE5_TEAM_COLLABORATION.md). Direct email requires an authorized provider and verified sender; not live or enabled by default.
+# 🛡️ TeamFlow Guard
 
-**Stage 4 review build:** Improved public GitHub linking, email invitation sharing and dependency navigation are included in source. The GitHub link requires a reviewed Supabase schema migration before deployment; see [Stage 4 release notes](docs/STAGE4_TEAM_GITHUB_GRAPH.md). Public GitHub Actions are read-only, and invitation emails are sent through the user's own mail client—not automatically by the app.
+### Human-governed AI delivery intelligence for software teams
 
-The current release uses Next.js route handlers, Supabase Auth/Postgres with RLS, and an optional Gemini recovery adviser. Vercel Hobby is the selected host. The previous FastAPI/PostgreSQL implementation and its local data remain preserved below.
+**Detect delivery risks. Understand their dependencies. Compare recovery options. Keep humans in control.**
 
-**Stage 3 premium interface pass (11 November 2026):** All major screens now share a consistent responsive design layer, with clearer dashboard hierarchy, a saved-data task-status breakdown, mobile swipeable Kanban, stronger visual states and narrow-phone sign-in adjustments. Code tests and production build passed; full authenticated browser QA still needs a configured test sign-in. See [design delivery notes](docs/UX_STAGE3_DESIGN.md).
+[![Live application](https://img.shields.io/badge/Live%20Application-TeamFlow%20Guard-14b8a6?style=for-the-badge&logo=vercel&logoColor=white)](https://teamflow-guard.vercel.app)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=flat-square&logo=nextdotjs)](https://nextjs.org/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=flat-square&logo=supabase&logoColor=white)](https://supabase.com/)
+[![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?style=flat-square&logo=google&logoColor=white)](https://ai.google.dev/)
+[![CI](https://img.shields.io/github/actions/workflow/status/SDAFIK/TeamFlow-Guard/validation.yml?branch=codex%2Fproduction-pack-migration&label=Release%20validation&style=flat-square)](https://github.com/SDAFIK/TeamFlow-Guard/actions/workflows/validation.yml)
 
-**Stage 2 UX update (11 November 2026):** The local source includes clearer onboarding and dashboard priorities, task/dependency safeguards, safer teammate-role changes, improved responsive forms and visual design. See [release notes and honest verification limits](docs/UX_STAGE2_RELEASE_NOTES.md). After `npm ci`, `npm --prefix web ci`, and starting the built frontend on port 3100, `npm run test:ux-mock` runs isolated desktop/mobile browser checks; real Supabase collaboration tests still require separately configured test credentials.
+[**Launch live application →**](https://teamflow-guard.vercel.app) · [Demo walkthrough](DEMO.md) · [Architecture](#architecture) · [Local setup](#local-development) · [Release evidence](#validation-and-release-evidence)
 
-## Current release
+</div>
 
-After signing in, choose **Create or join workspace** to start an empty workspace or accept an email-bound invitation link. Settings lets owners/managers rename the workspace and configure the tracked branch and PR-review threshold; owners can manage teammate roles. Tasks and decisions persist, and the selected workspace survives navigation/reload. Real workspaces have no seeded counts or demo replay controls.
+---
 
-- Run `npm ci`, `npm --prefix web ci`, copy `web/.env.example` to `web/.env.local`, configure Supabase, then `npm run dev`.
-- Open http://localhost:3000. Hosted demo accounts: `asha@teamflow.demo` (owner) and `jordan@teamflow.demo` (viewer). Their separate, generated password is stored only in `.local/HOSTED_DEMO_LOGIN.txt`.
-- The six-person Checkout Launch workspace is fictional and visibly labeled. Real GitHub workflow evidence can be imported through the explicit operator sync below; it stays separate from fixture/replay evidence.
-- Gemini requires `GEMINI_API_KEY` and `GEMINI_MODEL`. Without them, use the explicitly labeled rule-based suggestion; no live AI claim is made.
-- Tasks, dependencies, dated availability, risks, proposals and audits persist in Supabase. Protected plan changes require an owner/manager decision. Approval does not repair CI.
-- `npm test`, `npm run lint`, `npm run typecheck`, `npm run build` check the frontend. `python scripts/test-supabase.py` uses only the disposable local test database and rolls back all changes. Set `TEAMFLOW_E2E=supabase` for hosted-data browser tests.
-- Migrations are ordered under `supabase/migrations`. Runtime uses a publishable key plus the signed-in user's session, never a service-role key.
+## The problem
 
-See [migration evidence](docs/PRODUCTION_PACK_PROGRESS.md) and [release runbook](docs/MIGRATION_RUNBOOK.md). The original deployment files are preserved under `deploy/legacy-*`; they are not the current deployment target.
+Small software teams frequently discover delivery problems too late. A failed CI run, delayed review, blocked dependency or overloaded teammate can affect several downstream tasks. Traditional task boards record work, but the team must still connect the evidence, identify the impact, and decide what to do next.
 
-### Read-only GitHub evidence sync
+**TeamFlow Guard** connects these signals to the project plan and offers evidence-backed recovery proposals. A teammate or lead can inspect the reason, compare feasible changes, and approve or reject a proposal. The system does not silently change the approved plan.
 
-Use the existing `gh` login to prepare completed workflow metadata without copying its token into the app:
+## What makes TeamFlow Guard different?
 
-```powershell
-.\.venv\Scripts\python.exe scripts/prepare-github-sync.py --workspace YOUR_WORKSPACE_UUID --task REL-106 --repo SDAFIK/TeamFlow-Guard --workflow 'TeamFlow validation'
+| Capability | TeamFlow Guard |
+| --- | --- |
+| Evidence-first risk detection | Real GitHub CI signals and explicitly labeled fictional demo events |
+| Dependency intelligence | Trace prerequisites, downstream impact and critical estimated dependency effort |
+| AI + deterministic rules | Compare Gemini-generated explanations and rule-based recovery proposals |
+| Human governance | Validated, versioned proposals; lead approval; persistent audit records |
+| Team capacity | Voluntary availability and estimated workload checks, not employee scoring |
+| Learning with safeguards | Synthetic model laboratory, owner-consented real-data collection and reviewed candidate training |
+
+## Product tour
+
+| Workspace module | What it does |
+| --- | --- |
+| **Overview** | Project health, task summaries, risk feed and recovery entry points |
+| **TIC Intelligence V2** | Critical dependency effort, evidence-backed warnings, interactive model laboratory and learning controls |
+| **Risk Center** | Source evidence, affected tasks, feasible recovery alternatives and AI analysis |
+| **Task Board** | Create and update tasks, search/filter work and manage assignments |
+| **Dependency Explorer V3** | Dynamic DAG, horizontal/vertical layout, zoom, task focus, draggable cards, animated risk propagation and validated connection proposals |
+| **Decision Inbox** | Inspect before/after changes, compare proposals and approve or reject with version checks |
+| **Team Capacity** | Report availability and understand estimated workload constraints |
+| **Audit Log** | Review recorded decisions and planning changes |
+| **Team & Invitations** | Email-bound invitations, role-based access and shared workspaces |
+| **GitHub Connection** | Read-only App activity, signed CI ingestion, authorized workflow/PR task mappings and review evidence |
+
+### The intelligent delivery journey
+
+```mermaid
+flowchart LR
+    A[GitHub CI / task evidence] --> B[Risk detection]
+    B --> C[Dependency impact]
+    C --> D[Feasible recovery options]
+    D --> E[Gemini]
+    D --> F[Deterministic rules]
+    E --> G[Compare pending proposals]
+    F --> G
+    G --> H{Human review}
+    H -->|Approve| I[Validated plan update]
+    H -->|Reject| J[No plan change]
+    I --> K[Audit log]
+    J --> K
+    A --> L[New successful CI run]
+    L --> M[CI evidence resolves]
 ```
 
-Review `.local/github-sync.sql`, then apply it through the authorized Supabase SQL connection for the intended project. This is an operator-only import, not a public API or automatic webhook. The exact task must already exist. Duplicate run attempts are ignored; current evidence is selected separately per workflow/branch, and older deliveries cannot supersede newer results. Imported records include the real run URL, observation time and import time. No GitHub changes or plan mutations occur. Settings labels this as manual sync; repeat when fresh evidence is needed.
+A plan approval does not clear a failed CI run. A later verified successful run resolves the corresponding CI evidence.
 
-## Preserved legacy local release
+## Intelligence: three complementary layers
 
+| Layer | Purpose | Release state |
+| --- | --- | --- |
+| **Deterministic rules** | Detect evidence-backed risks and enumerate allowed recovery actions | Operational |
+| **Gemini** | Explain and choose from validated recovery actions with evidence references | Actual provider tested; human approval required |
+| **TIC V2 predictive laboratory** | Explore a logistic model trained on fictional project data | Experimental; real-project probabilities disabled |
 
-Local delivery workspace: Next.js/TypeScript frontend, FastAPI/Pydantic API, PostgreSQL persistence, Argon2 passwords and revocable database sessions. The core workflow runs without external service accounts. OpenAI analysis and GitHub evidence are optional integrations.
+The TIC V2 synthetic benchmark uses 12,000 fictional task observations across 120 project groups, with project-disjoint train/validation/test splits. The selected logistic model achieved approximately **0.819 average precision, 0.669 precision, 0.916 recall and 0.200 Brier score** on its held-out synthetic test set. These are **synthetic benchmark metrics, not real-world prediction accuracy**.
 
-## Open the running application
+The learning ledger supports prospective, owner-consented observations and pseudonymous exports. The offline trainer compares logistic regression, random forest and XGBoost using chronological, project-disjoint partitions. Candidate artifacts are review-only: automatic promotion is disabled, and real-world training, serving validation and activation remain future milestones.
 
-Visit **http://localhost:3000** (use `localhost`, not `127.0.0.1`, because origin checks use this address).
+## Architecture
 
-Sign in as `asha@demoworks.test` (lead), `nila@demoworks.test` (contributor), or `sami@demoworks.test` (reviewer). The generated local demo password is in `.local/DEMO_LOGIN.txt`. All five fictional demo members share that local-only password. Credentials and database files are ignored by Git. Do not deploy this development fixture.
-
-Implemented: sign-in/out, scoped memberships, editable task status, searchable board/list, interactive dependency impact map with cycle validation, four evidence-based risk rules, labeled sample replay, typed recovery proposals, lead approval/rejection, optimistic versions, idempotent decisions, voluntary availability and append-only audit history. Protected plan changes require approval; approval never clears failing CI. The navy/teal interface includes a refreshed shield wordmark, responsive navigation, native dialogs, focus restoration and reduced-motion support.
-
-## Requirements and first setup (PowerShell)
-
-Verified with Node 24.16.0, npm 11.13.0 and Python 3.14.2 on Windows. PostgreSQL is a workspace-local binary installed by npm; no Docker or Windows service is needed. Keep ports 3000, 8000 and 55432 available.
-
-From the repository root:
-
-```powershell
-npm.cmd ci
-npm.cmd --prefix web ci
-python -m venv .venv
-.\.venv\Scripts\python.exe -m pip install -r api/requirements.lock.txt
-npm.cmd run db
+```mermaid
+flowchart TB
+    U[Responsive browser workspace] --> N[Next.js App Router and API]
+    N --> A[Supabase Auth]
+    N --> P[PostgreSQL / scoped RPCs]
+    N --> R[Risk engine and DAG analysis]
+    R --> G[Gemini structured recovery]
+    R --> D[Deterministic recovery]
+    H[GitHub App signed webhooks] --> W[Webhook receiver]
+    W --> P
+    P --> L[Evidence and audit records]
+    P --> T[Consented learning ledger]
+    G --> Q[Pending proposal]
+    D --> Q
+    Q --> P
 ```
 
-Leave that terminal running. On first start the database script initializes `.local/postgres`, creates separate development and test databases, generates random credentials, and writes `api/.env`. It listens only on loopback. Subsequent starts preserve data and credentials.
+| Technology | Role |
+| --- | --- |
+| Next.js 16, React 19, TypeScript | Production UI and server routes |
+| Tailwind CSS, custom CSS, Lucide | Responsive workspace design |
+| React Flow (@xyflow/react) | Interactive dependency graph |
+| Supabase Auth + PostgreSQL | Identity, persistence, RLS, scoped database functions |
+| Google GenAI SDK + Zod | Structured, validated Gemini recommendations |
+| Python / scikit-learn / XGBoost | Offline model research and candidate training |
+| GitHub Actions, Vitest, Playwright | Unit, integration and browser regression testing |
+| Vercel | Production hosting |
 
-In a second terminal, apply migrations, seed without overwriting existing records, grant the limited runtime role, then start the API:
+The repository also retains a legacy FastAPI/Python local-development path. The public production application uses the Next.js/Supabase architecture above.
 
-```powershell
-cd api
-..\.venv\Scripts\python.exe setup_local.py
-..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+## Try the live demo
+
+1. Visit [teamflow-guard.vercel.app](https://teamflow-guard.vercel.app) and register or sign in.
+2. Open a labeled demo workspace (or an existing Sandbox Rehearsal workspace).
+3. Go to **TIC Intelligence → Start fresh AI rehearsal**.
+4. Inspect the resulting fictional CI failure, then **Compare recovery options**.
+5. Enable side-by-side comparison and generate a rule-based proposal and a Gemini proposal.
+6. Review one proposal in the Decision Inbox. An authorized lead can approve it; the other may become stale.
+7. Explore **Dependencies**: select a task, switch orientation, focus its impact, and propose a new valid dependency.
+8. Review the plan version and audit trail. Replay a passing event to demonstrate recovery in the fictional workspace.
+
+See the [full walkthrough](DEMO.md). Demo events are labeled and cannot resolve genuine GitHub evidence. Never use real confidential task data for a public demo.
+
+## Local development
+
+### Prerequisites
+
+- Git and Node.js 24 (npm)
+- Docker for a disposable local Supabase stack, or a separate development Supabase project
+- Optional Gemini API key for real AI calls; deterministic recovery works without it
+
+```bash
+git clone https://github.com/SDAFIK/TeamFlow-Guard.git
+cd TeamFlow-Guard
+npm ci
+npm --prefix web ci
 ```
 
-In a third terminal at repository root:
+**Option A — isolated local Supabase:** use the versioned CLI and the repository migrations.
 
-```powershell
-npm.cmd run contracts
-npm.cmd run dev
+```bash
+npx --yes supabase@2.79.0 start
+npx --yes supabase@2.79.0 status
 ```
 
-Use Ctrl+C in each terminal to stop its service. Never delete the PostgreSQL data directory to resolve a startup issue. If a previous process still holds the port, stop that specific local process before restarting. Do not start two database processes against the same data directory.
+Copy `web/.env.example` to `web/.env.local` and fill in the local API URL and publishable/anon key reported by Supabase. Set `APP_BASE_URL=http://127.0.0.1:3000` and `APP_ALLOWED_ORIGINS=http://127.0.0.1:3000`. Configure the matching Auth callback URL in the development Auth settings. Use the local email testing interface for confirmation messages.
 
-## Checks
+**Option B — separate hosted development project:** apply the SQL migrations in order to a new development database, configure Auth and the corresponding URL/publishable key, and use the same environment template. Do not reuse production credentials or reset the production database. Hosted migration history must be reconciled before any migration push.
 
-With PostgreSQL running, from `api`:
-
-```powershell
-..\.venv\Scripts\python.exe -m pytest -q
-..\.venv\Scripts\python.exe -m alembic check
+```bash
+npm --prefix web run dev
 ```
 
-Tests only accept dedicated databases named `teamflow_test` or `teamflow_test_utf8`; only those are migration-downgraded. Development data is preserved. Coverage includes authentication, scope/role controls, migrations, DAG validation, risk rules, proposal conflicts, concurrent decisions, provider failure/invalid references, reviewer capacity, GitHub signatures, replay isolation and restricted runtime SQL privileges.
+Open [http://127.0.0.1:3000](http://127.0.0.1:3000). Register a development account and create or join a workspace. For the legacy Windows/FastAPI workflow, see [Legacy local setup](docs/LEGACY_LOCAL_README.md).
 
-From repository root:
+### Configuration
 
-```powershell
-npm.cmd --prefix web run lint
-npm.cmd --prefix web run typecheck
-npm.cmd run build
-node node_modules/@playwright/test/cli.js install chromium
-npm.cmd run test:e2e
+| Environment variable | Purpose |
+| --- | --- |
+| `TEAMFLOW_BACKEND=supabase` | Select the production-style backend |
+| `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase public connection settings |
+| `APP_BASE_URL`, `APP_ALLOWED_ORIGINS` | Exact trusted application origins |
+| `GEMINI_API_KEY`, `GEMINI_MODEL` | Server-only AI provider configuration; validated model: `gemini-3.1-flash-lite` |
+| `GITHUB_APP_ID`, `GITHUB_APP_PRIVATE_KEY`, `GITHUB_APP_WEBHOOK_SECRET` | Server-only App identity and webhook authentication |
+| `TEAMFLOW_GITHUB_APP_BINDINGS` | Administrator-approved workspace/repository installation bindings |
+| `TEAMFLOW_GITHUB_CI_MAPPINGS`, `TEAMFLOW_GITHUB_REVIEW_MAPPINGS` | Optional administrator-managed mappings |
+| `TEAMFLOW_GITHUB_INGEST_KEY` | Privileged server-only evidence ingestion credential |
+| `TEAMFLOW_GMAIL_USER`, `TEAMFLOW_GMAIL_APP_PASSWORD` | Optional direct invitation email delivery |
+
+Never commit `.env.local`, private keys, service-role credentials, tokens, or real learning exports. Only Supabase's public URL and publishable key belong in browser-visible configuration.
+
+### GitHub integration
+
+The production receiver is `POST /api/github/webhook`. It validates raw-body HMAC-SHA256 signatures, immutable repository/installation identifiers, tracked branches, explicit mappings, and event ordering/deduplication. CI ingestion never mutates the approved plan.
+
+An administrator authorizes a repository through the GitHub App. Workspace managers can then add CI workflow and PR-review task mappings in **GitHub connection → Integration setup**. The new database mappings are add-only to preserve historical evidence; existing administrator mappings retain precedence.
+
+For full review lifecycle delivery, subscribe to **Pull request**, **Pull request review** and **Workflow run** events. Review-comment events are not a substitute for review-submission events. Repository authorization remains administrator-managed.
+
+## Security and governance
+
+- Workspace-scoped membership and role checks; owners/managers approve protected proposals.
+- Supabase RLS and restricted database RPCs; browser-supplied roles cannot grant access.
+- Secure session cookies and trusted-origin checks for mutations.
+- Optimistic plan versions, idempotent decisions and cycle validation.
+- AI outputs constrained to allowed actions and evidence; invalid or unavailable provider responses fail safely.
+- Signed GitHub events and read-only repository access; no automatic plan changes.
+- Owner-controlled learning consent and pseudonymous exports; no individual performance ratings.
+
+## Validation and release evidence
+
+| Verification | Evidence |
+| --- | --- |
+| Intelligence and graph release | [PR #17](https://github.com/SDAFIK/TeamFlow-Guard/pull/17) · [Authenticated acceptance](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/43390956285) |
+| AI comparison and graph scalability | [PR #18](https://github.com/SDAFIK/TeamFlow-Guard/pull/18) · [Authenticated acceptance](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/43391423711) |
+| Workspace-managed GitHub mappings | [PR #19](https://github.com/SDAFIK/TeamFlow-Guard/pull/19) · [Authenticated acceptance](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/43392725571) |
+| Production deployment | [Live application](https://teamflow-guard.vercel.app) |
+
+The release tests exercise actual local Supabase Auth/PostgREST, multi-user workspace isolation, fictional signed GitHub events, graph drag-and-drop, dependency approvals, cycle rejection, recovery comparison, and desktop/mobile Intelligence UI. The separate real Gemini provider smoke test passed; authenticated Gemini browser tests use an intercepted provider response. Real CI failure/recovery ingestion has also been verified in a dedicated acceptance workspace.
+
+```bash
+npm --prefix web run lint
+npm --prefix web run typecheck
+npm --prefix web test
+npm --prefix web run build
 ```
 
-Browser tests require all three services and check 1440 px desktop and 390 px mobile. `PLAYWRIGHT_EXECUTABLE` may point to an existing Chromium executable if the default download is unavailable. Screenshots are saved under `evidence/`, traces/reports under ignored test directories. Traces can contain local session material; do not publish them without redaction.
+The [validation workflow](.github/workflows/validation.yml) and [authenticated acceptance workflow](.github/workflows/phase5b-local-acceptance.yml) document the reproducible CI environment. Authenticated tests use disposable local databases, not production records.
 
-The generated contract is `contracts/openapi.json` → `web/lib/api-schema.d.ts`. `setup_local.py` exports the current backend schema; `npm run contracts` regenerates TypeScript types. Keep both in sync after API changes.
+## Repository structure
 
-## Structure and boundaries
+```text
+TeamFlow-Guard/
+├── web/
+│   ├── app/                 # Next.js pages and production API routes
+│   ├── components/          # Workspace, graph, intelligence and dialogs
+│   ├── domain/              # Risk, graph, recovery and TIC model logic
+│   └── server/              # Auth, persistence, Gemini and GitHub integrations
+├── supabase/migrations/     # Versioned PostgreSQL schema and RPCs
+├── scripts/                 # Acceptance tests, offline training and local tooling
+├── api/                     # Legacy FastAPI development backend
+├── tests/                   # Browser tests
+├── docs/                    # Technical notes and legacy setup
+└── .github/workflows/       # CI and release validation
+```
 
-- `api/app`: typed API, membership authorization, session handling, SQLAlchemy entities and seed.
-- `api/migrations`: versioned Alembic schema.
-- `web`: Next.js UI; `/api/*` forwards to loopback FastAPI through the same origin.
-- `scripts/database.mjs`: local PostgreSQL lifecycle and credential generation.
-- `tests`: browser flows; `api/tests`: database-backed backend tests.
-- `design`: approved Phase 00 static wireframes.
-- `PHASE_00_REVIEW.md`, `PHASE_PROGRESS.md`: scope, decisions and implementation evidence.
+## Roadmap and honest limitations
 
-The application role has column-limited task/membership updates and insert-only audit/decision history. Migration credentials remain separate. Plan writers serialize per project; approval revalidates the current version, before-values, membership, reviewer capacity and DAG within the same transaction as the audit entry. Cookies are HttpOnly and SameSite=Strict; browser mutations verify Origin. Sessions store a SHA-256 token digest. No role supplied by the browser grants permission.
+- Complete genuine GitHub PR review-submission/recovery verification with the correct event subscription and an eligible reviewer.
+- Add fully self-service GitHub App installation for new customer repositories; current task mapping requires an administrator-authorized repository.
+- Collect sufficient consented real project outcomes, independently validate a real candidate model, and implement reviewed serving promotion/rollback.
+- Continue full hosted authenticated UX, accessibility, security and performance testing. Current browser acceptance is isolated; public route checks are not equivalent to every authenticated production journey.
+- Workspace synchronization uses polling and same-browser notifications, not a guaranteed real-time event stream.
 
-This is local development. Registration, password reset, invitations, production HTTPS/cookies, operational secret storage, expiration cleanup, production throttling and hosting are not configured. Navigation remains in-page state at `/`. OpenAI is selected but a live call requires configuration. No production, pilot or model-quality claim is made.
+## Contributing
 
-## OpenAI and GitHub
+Open an issue describing the problem, expected behavior and reproduction steps. Work on a feature branch, add regression tests, and submit a pull request. Keep real data, secrets and session traces out of commits. Changes to planning logic must preserve approval, tenant isolation and audit guarantees.
 
-Set `OPENAI_API_KEY` and `OPENAI_MODEL` in `api/.env`, then restart the API. The Responses adapter sends only the selected risk, evidence and validated candidate actions; it uses strict structured output, a 25-second timeout, a bounded context/output and 10 requests per project per hour. It records model, prompt version, latency and usage. Failed or invalid responses cannot apply changes. Rule-based recovery is separately labeled and never presented as AI output.
+---
 
-For GitHub, configure `GITHUB_REPOSITORY`, `GITHUB_PROJECT_ID` and `GITHUB_WORKFLOW_TASKS` (exact workflow name to task key JSON). Run `python sync_github.py` from `api` to read completed runs through the existing GitHub CLI login; no token is copied into the app. Source records include the real run URL and observation time. The `TeamFlow validation` workflow is explicitly mapped to the demo release task, not a fictional failing Login check.
+<div align="center">
 
-`POST /api/webhooks/github` supports completed workflow-run events, raw-body HMAC-SHA256 validation, stable run/attempt deduplication, delivery identity checks, exact repository/task mapping and out-of-order protection by workflow/branch. Set `GITHUB_WEBHOOK_SECRET` only when configuring a reachable HTTPS endpoint. No public webhook or tunnel is created by local setup. Passing replay events cannot resolve real GitHub failures.
+**TeamFlow Guard · WorkforceOS project**
 
-The Windows database was copied non-destructively into UTF-8 development/test databases after the original cluster used WIN1252. The original database is retained. Current local URLs are in the ignored `.env`; do not replace them with example URLs. The database startup script preserves existing `.env` entries, including provider keys.
+Built to help software teams recover from delivery risks without surrendering control of their project plan.
 
-Production builds use the supported webpack compiler because the local Turbopack CSS worker failed to start. Development remains on Next.js's default compiler.
+[Live website](https://teamflow-guard.vercel.app) · [GitHub repository](https://github.com/SDAFIK/TeamFlow-Guard) · [Issues](https://github.com/SDAFIK/TeamFlow-Guard/issues)
 
-## Reference documentation consulted
-
-- [Next.js installation](https://nextjs.org/docs/app/getting-started/installation) and installed version-matched client-component/Turbopack documentation.
-- [FastAPI password hashing](https://fastapi.tiangolo.com/tutorial/security/oauth2-jwt/). This app uses opaque database sessions rather than JWTs.
-- [Embedded PostgreSQL package](https://www.npmjs.com/package/embedded-postgres).
-
-Only actual implemented packages and measured test evidence may be used in competition claims. No live model evaluation, retrieval system, productivity gain or deployed production service is claimed. See `PHASE_PROGRESS.md` for observed verification and `DEMO.md` for the local walkthrough.
-
-## Free hosting package
-
-The user selected free hosting. `Dockerfile` builds a static export of the same Next.js UI and serves it from FastAPI as one service. `render.yaml` explicitly selects Render Free; persistent PostgreSQL is planned on Neon Free. See [deployment steps](deploy/README.md). No live hosted service is claimed until its URL and end-to-end checks are recorded.
-
-Production startup requires an HTTPS origin, secure cookies and the restricted TLS database connection. Admin migration and seed credentials are rejected in the hosted runtime. Provisioning uses a separate ignored hosting environment file; local credentials/data are not uploaded. OpenAI remains optional and has separate API usage costs.
+</div>
