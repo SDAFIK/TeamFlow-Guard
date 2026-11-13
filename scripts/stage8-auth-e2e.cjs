@@ -263,25 +263,39 @@ async function event(payload,valid=true,type="workflow_run",delivery=randomUUID(
     if(process.env.TEAMFLOW_ARTIFACT_DIR)await ownerPage.screenshot({path:path.join(process.env.TEAMFLOW_ARTIFACT_DIR,"03-gemini-proposal.png"),fullPage:true});
     console.log("PASS second fresh rehearsal, Gemini HTTP fixture, persisted Gemini proposal and unchanged task priorities");
     // Exercise the actual graph interaction and the human approval boundary.
+    console.log("GRAPH CHECK open dependencies");
     await ownerPage.goto(BASE+"/dependencies");
     await ownerPage.getByRole("heading",{name:"Dependency map",exact:true}).waitFor();
+    console.log("GRAPH CHECK orientation");
     await ownerPage.getByRole("button",{name:"Vertical",exact:true}).click();
     await ownerPage.getByRole("button",{name:"Horizontal",exact:true}).waitFor();
     await ownerPage.getByRole("button",{name:"Horizontal",exact:true}).click();
     await ownerPage.getByRole("button",{name:"Fit all",exact:true}).click();
+    console.log("GRAPH CHECK focus");
     const first=after.tasks[0],second=after.tasks[1];
     await ownerPage.getByLabel("Find dependency task").selectOption(first.id);
-    await ownerPage.getByLabel("Selected task impact").waitFor();
+    await ownerPage.locator(".graph-inspector").waitFor();
     await ownerPage.getByLabel("Find dependency task").selectOption("");
     await ownerPage.getByRole("button",{name:"Fit all",exact:true}).click();
     await ownerPage.getByRole("button",{name:"Connect tasks",exact:true}).click();
+    console.log("GRAPH CHECK drag handles");
+    await ownerPage.locator(".graph-canvas").scrollIntoViewIfNeeded();
     const source=ownerPage.locator('.react-flow__node[data-id="'+first.id+'"] .react-flow__handle.source');
     const target=ownerPage.locator('.react-flow__node[data-id="'+second.id+'"] .react-flow__handle.target');
     await source.waitFor();await target.waitFor();
     await ownerPage.waitForTimeout(450);
     const a=await source.boundingBox(),b=await target.boundingBox();assert.ok(a&&b,"connection handles visible");
+    console.log("GRAPH CHECK handle bounds",JSON.stringify({a,b,viewport:ownerPage.viewportSize()}));
+    if(process.env.TEAMFLOW_ARTIFACT_DIR)await ownerPage.screenshot({path:path.join(process.env.TEAMFLOW_ARTIFACT_DIR,"04-graph-before-drag.png"),fullPage:true});
     await ownerPage.mouse.move(a.x+a.width/2,a.y+a.height/2);await ownerPage.mouse.down();
     await ownerPage.mouse.move(b.x+b.width/2,b.y+b.height/2,{steps:20});await ownerPage.mouse.up();
+    console.log("GRAPH CHECK drag proposal");
+    await ownerPage.getByRole("heading",{name:"Propose a dependency",exact:true}).waitFor();
+    await ownerPage.getByRole("button",{name:"Cancel",exact:true}).click();
+    console.log("GRAPH CHECK accessible connect");
+    await ownerPage.getByRole("button",{name:"Connect tasks",exact:true}).click();
+    await ownerPage.getByLabel("Connection predecessor").selectOption(first.id);
+    await ownerPage.getByLabel("Connection dependent").selectOption(second.id);
     await ownerPage.getByRole("heading",{name:"Propose a dependency",exact:true}).waitFor();
     await ownerPage.getByRole("button",{name:"Validate & create proposal"}).click();
     await ownerPage.getByRole("heading",{name:"Propose a dependency",exact:true}).waitFor({state:"hidden"});
@@ -299,4 +313,4 @@ async function event(payload,valid=true,type="workflow_run",delivery=randomUUID(
     console.log("PASS graph orientation, focus, visual connection proposal, human approval, saved edge and cycle rejection");
   }
  }finally{if(browser)await browser.close();await stop();fs.rmSync(fixtureDir,{recursive:true,force:true});}
-})().catch(e=>{console.error(String(e.message).split("\n")[0]);process.exitCode=1;});
+})().catch(e=>{console.error(String(e.message).slice(0,3000));process.exitCode=1;});

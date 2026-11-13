@@ -8,6 +8,7 @@ import {
   Handle,
   Position,
   MarkerType,
+  useUpdateNodeInternals,
   type Node,
   type NodeProps,
   type ReactFlowInstance,
@@ -22,7 +23,9 @@ import { Badge, statusLabels } from "./ui";
 import "@xyflow/react/dist/style.css";
 
 type TaskNode = Node<{ task: Task; flag: string; risky: boolean; owner: string; dimmed: boolean; vertical:boolean; connectable:boolean }, "task">;
-function TaskCard({ data }: NodeProps<TaskNode>) {
+function TaskCard({ id,data }: NodeProps<TaskNode>) {
+  const update=useUpdateNodeInternals();
+  useEffect(()=>{update(id);},[id,data.vertical,data.connectable,update]);
   return (
     <div className={`graph-task ${data.flag} ${data.risky ? "has-risk" : ""} ${data.dimmed?"dimmed":""}`}>
       <Handle type="target" position={data.vertical?Position.Top:Position.Left} isConnectable={data.connectable} />
@@ -58,6 +61,7 @@ export default function DependencyMap({
   const [vertical,setVertical]=useState(false);
 
   const [linkMode,setLinkMode]=useState(false);
+  const [linkSource,setLinkSource]=useState<string>("");
   const [linkError,setLinkError]=useState("");
   const [positions,setPositions]=useState<Record<string,{x:number;y:number}>>({});
   const flow=useRef<ReactFlowInstance<TaskNode>|null>(null);
@@ -69,12 +73,11 @@ export default function DependencyMap({
   const reset=()=>{setPositions({});requestAnimationFrame(fit);};
   const focus=(id:string)=>{onSelect(id);if(id)void flow.current?.fitView({nodes:[{id}],padding:.3,maxZoom:1.15,duration:350});};
   const changeDirection=()=>{setVertical(v=>!v);setPositions({});};
-  const connect=(c:Connection)=>{if(!c.source||!c.target||!onConnectProposal)return;try{if(graph.edges.some(e=>e.predecessor_id===c.source&&e.successor_id===c.target))throw Error("This dependency already exists.");if(graph.nodes.find(t=>t.id===c.target)?.status==="done")throw Error("Completed tasks cannot receive a new dependency.");validateGraph(graph.nodes.map(t=>t.id),[...graph.edges,{predecessor_id:c.source,successor_id:c.target}]);setLinkError("");setLinkMode(false);onConnectProposal(c.source,c.target);}catch(e){setLinkError((e as Error).message);}};
+  const connect=(c:Pick<Connection,"source"|"target">)=>{if(!c.source||!c.target||!onConnectProposal)return;try{if(graph.edges.some(e=>e.predecessor_id===c.source&&e.successor_id===c.target))throw Error("This dependency already exists.");if(graph.nodes.find(t=>t.id===c.target)?.status==="done")throw Error("Completed tasks cannot receive a new dependency.");validateGraph(graph.nodes.map(t=>t.id),[...graph.edges,{predecessor_id:c.source,successor_id:c.target}]);setLinkError("");setLinkMode(false);setLinkSource("");onConnectProposal(c.source,c.target);}catch(e){setLinkError((e as Error).message);}};
   const { nodes, edges, invalid } = useMemo(() => {
     const layout = layoutDependencyGraph(graph.nodes, graph.edges);
-    const riskIds = new Set(
-      risks.filter((r) => r.active && !r.stale_evidence).map((r) => r.evidence.task_id),
-    );
+    const known=new Set(graph.nodes.map(t=>t.id));
+    const riskIds = new Set(risks.filter(r=>r.active&&!r.stale_evidence&&known.has(r.evidence.task_id)).map(r=>r.evidence.task_id));
     const propagated=new Set<string>();
     if(!layout.invalid)for(const id of riskIds)for(const affected of downstreamIds(graph,id))propagated.add(affected);
     const upstream = new Set(graph.upstream_ids);
@@ -94,11 +97,11 @@ export default function DependencyMap({
             : upstream.has(task.id) ? "upstream"
             : riskIds.has(task.id) ? "risk" : propagated.has(task.id) ? "propagated" : "",
         },
-        draggable: expanded,
+        draggable: expanded&&!linkMode,
         ariaLabel: `${task.key}: ${task.title}. ${task.status}. Click to inspect dependencies.`,
       };
     });
-    const edges: Edge[] = graph.edges.map((edge) => {
+    const edges: Edge[] = graph.edges.filter(e=>known.has(e.predecessor_id)&&known.has(e.successor_id)&&e.predecessor_id!==e.successor_id).map((edge) => {
       const onImpactPath = graph.selected_task_id &&
         (edge.predecessor_id === graph.selected_task_id || downstream.has(edge.predecessor_id)) &&
         downstream.has(edge.successor_id);
@@ -142,13 +145,14 @@ export default function DependencyMap({
       </div>
       {graph.nodes.length === 0 ? (
         <div className="graph-empty"><GitBranch size={30}/><h3>No tasks to connect yet</h3><p>Add your first task. The dependency map will show saved tasks and their connections.</p></div>
-      ) : <>{expanded&&<div className="graph-tools"><label>Find a task<select aria-label="Find dependency task" value={graph.selected_task_id??""} onChange={e=>focus(e.target.value)}><option value="">All tasks</option>{graph.nodes.map(t=><option key={t.id} value={t.id}>{t.key} · {t.title}</option>)}</select></label><button className="secondary" onClick={changeDirection}>{vertical?<ArrowRight size={16}/>:<ArrowDown size={16}/>} {vertical?"Horizontal":"Vertical"}</button>{onConnectProposal&&<button className="secondary" aria-pressed={linkMode} onClick={()=>{setLinkMode(v=>!v);setLinkError("");}}><Link2 size={16}/> {linkMode?"Cancel linking":"Connect tasks"}</button>}<button className="secondary" onClick={fit}><Maximize2 size={15}/> Fit all</button><button className="secondary" onClick={reset}><RotateCcw size={15}/> Reset layout</button></div>}<div className="graph-legend" aria-label="Map legend">
+      ) : <>{expanded&&<div className="graph-tools"><label>Find a task<select aria-label="Find dependency task" value={graph.selected_task_id??""} onChange={e=>focus(e.target.value)}><option value="">All tasks</option>{graph.nodes.map(t=><option key={t.id} value={t.id}>{t.key} · {t.title}</option>)}</select></label><button className="secondary" onClick={changeDirection}>{vertical?<ArrowRight size={16}/>:<ArrowDown size={16}/>} {vertical?"Horizontal":"Vertical"}</button>{onConnectProposal&&<button className="secondary" aria-pressed={linkMode} onClick={()=>{setLinkMode(v=>!v);setLinkSource("");setLinkError("");}}><Link2 size={16}/> {linkMode?"Cancel linking":"Connect tasks"}</button>}<button className="secondary" onClick={fit}><Maximize2 size={15}/> Fit all</button><button className="secondary" onClick={reset}><RotateCcw size={15}/> Reset layout</button></div>}<div className="graph-legend" aria-label="Map legend">
         <span><i className="legend-dot selected"/> Selected</span>
         <span><i className="legend-dot upstream"/> Prerequisite</span>
         <span><i className="legend-dot affected"/> Downstream</span>
         <span><i className="legend-dot risk"/> Risk</span><span><i className="legend-dot propagated"/> Risk impact</span>
       </div>
-      {linkMode&&<p className="graph-link-hint">Drag from a task output to another task input. A connection creates a proposal, never an immediate plan change.</p>}{linkError&&<p role="alert" className="error">{linkError}</p>}
+      {linkMode&&<p className="graph-link-hint">Choose the predecessor and then the dependent task, or drag between their connection handles. A connection creates a proposal, never an immediate plan change.</p>}{linkError&&<p role="alert" className="error">{linkError}</p>}
+      {linkMode&&<div className="graph-link-picker"><label>Connection predecessor<select aria-label="Connection predecessor" value={linkSource} onChange={e=>{setLinkSource(e.target.value);setLinkError("");}}><option value="">Choose predecessor</option>{graph.nodes.map(t=><option key={t.id} value={t.id}>{t.key} · {t.title}</option>)}</select></label><label>Connection dependent<select aria-label="Connection dependent" value="" disabled={!linkSource} onChange={e=>{if(e.target.value)connect({source:linkSource,target:e.target.value});}}><option value="">Choose dependent</option>{graph.nodes.filter(t=>t.id!==linkSource&&t.status!=="done").map(t=><option key={t.id} value={t.id}>{t.key} · {t.title}</option>)}</select></label></div>}
       {invalid && <p role="alert" className="error">Some saved links are invalid or cyclic. The map is showing a safe fallback layout; ask a manager to review dependencies.</p>}
       <div className="graph-canvas">
         <ReactFlow
@@ -161,13 +165,13 @@ export default function DependencyMap({
           maxZoom={1.8}
           nodesConnectable={expanded&&linkMode&&Boolean(onConnectProposal)}
           onConnect={connect}
-          nodesDraggable={expanded}
+          nodesDraggable={expanded&&!linkMode}
           onInit={initFlow}
           onNodeDrag={(_,node)=>setPositions(prev=>({...prev,[node.id]:node.position}))}
           onNodeDragStop={(_,node)=>setPositions(prev=>({...prev,[node.id]:node.position}))}
           onPaneClick={()=>onSelect("")}
-          onNodeClick={(_, node) => onSelect(node.id)}
-          onNodeDoubleClick={(_,node)=>focus(node.id)}
+          onNodeClick={(_, node) => {if(linkMode){if(!linkSource){setLinkSource(node.id);setLinkError("");}else connect({source:linkSource,target:node.id});return;}onSelect(node.id);}}
+          onNodeDoubleClick={(_,node)=>{if(!linkMode)focus(node.id);}}
           nodesFocusable
           colorMode="dark"
         >
