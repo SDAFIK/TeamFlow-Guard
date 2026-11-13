@@ -311,6 +311,20 @@ async function event(payload,valid=true,type="workflow_run",delivery=randomUUID(
     await ownerPage.getByRole("heading",{name:"Dependency map",exact:true}).waitFor();
     if(process.env.TEAMFLOW_ARTIFACT_DIR)await ownerPage.screenshot({path:path.join(process.env.TEAMFLOW_ARTIFACT_DIR,"04-dependency-desktop.png"),fullPage:true});
     console.log("PASS graph orientation, focus, visual connection proposal, human approval, saved edge and cycle rejection");
+    await ownerPage.goto(BASE+"/intelligence");
+    await ownerPage.getByRole("button",{name:"Start fresh AI rehearsal"}).click();
+    await ownerPage.getByRole("button",{name:"Compare recovery options"}).click();
+    await ownerPage.getByLabel("Compare rule-based and AI proposals side by side").check();
+    await ownerPage.getByRole("button",{name:"Use recommended rule-based option"}).click();
+    await ownerPage.getByRole("button",{name:"Review Deterministic rules proposal"}).waitFor();
+    await ownerPage.getByRole("button",{name:"Analyze with Gemini"}).click();
+    await ownerPage.getByRole("button",{name:"Review Gemini proposal"}).waitFor();
+    const comparison=await call(ownerPage,demoBase+"/proposals");
+    assert.ok(comparison.some(p=>p.source==="rules"&&p.status==="pending"));
+    assert.ok(comparison.some(p=>p.source==="gemini"&&p.status==="pending"));
+    await ownerPage.getByRole("button",{name:"Review Gemini proposal"}).click();
+    await ownerPage.getByRole("heading",{name:"Review recovery proposal"}).waitFor();
+    console.log("PASS side-by-side rule-based and Gemini proposal comparison");
   }
  }finally{if(browser)await browser.close();await stop();fs.rmSync(fixtureDir,{recursive:true,force:true});}
 })().catch(e=>{console.error(String(e.message).slice(0,3000));process.exitCode=1;});
