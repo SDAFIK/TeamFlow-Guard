@@ -1,0 +1,19 @@
+name: GitHub mapping migration scaffold
+on:
+  push:
+    branches: [codex/github-mapping-product]
+    paths: ['.github/workflows/github-mapping-migration-name.yml']
+permissions:
+  contents: read
+jobs:
+  scaffold:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: |
+          npx --yes supabase@2.79.0 migration new github_workspace_mappings
+          ls supabase/migrations/*_github_workspace_mappings.sql

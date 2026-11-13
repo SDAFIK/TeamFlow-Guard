@@ -325,6 +325,28 @@ async function event(payload,valid=true,type="workflow_run",delivery=randomUUID(
     await ownerPage.getByRole("button",{name:"Review Gemini proposal"}).click();
     await ownerPage.getByRole("heading",{name:"Review recovery proposal"}).waitFor();
     console.log("PASS side-by-side rule-based and Gemini proposal comparison");
+    if(process.env.TEAMFLOW_ACCEPT_GITHUB_MAPPING==="1"){
+      const choices=await call(ownerPage,base+"/github-mappings");
+      assert.ok(choices.workflows.some(w=>w.id===404));
+      await call(memberPage,base+"/github-mappings","GET",undefined,403);
+      await call(outsiderPage,base+"/github-mappings","GET",undefined,404);
+      await call(ownerPage,base+"/github-mappings","POST",{kind:"ci",external_id:999,task_id:task.id},422);
+      await call(ownerPage,base+"/github-mappings","POST",{kind:"ci",external_id:303,task_id:task.id},409);
+      await call(memberPage,base+"/github-mappings","POST",{kind:"ci",external_id:404,task_id:task.id},403);
+      await call(ownerPage,base+"/github-mappings","POST",{kind:"ci",external_id:404,task_id:task.id});
+      await call(ownerPage,base+"/github-mappings","POST",{kind:"review",external_id:8,task_id:task.id,reviewer_id:member.id,github_reviewer_id:124});
+      const mappings=await call(ownerPage,base+"/github-readiness");
+      assert.ok(mappings.mappings.some(m=>m.workflow_id===404&&m.task_id===task.id));
+      assert.ok(mappings.review_mappings.some(m=>m.pull_number===8&&m.task_id===task.id));
+      const newRun={action:"completed",installation:{id:101},repository:{id:202,full_name:"fixture/isolated"},workflow_run:{id:888,workflow_id:404,run_attempt:1,head_branch:"main",status:"completed",conclusion:"failure",updated_at:new Date().toISOString()}};
+      assert.equal(await event(newRun),202);
+      const prEvent={action:"review_requested",installation:{id:101},repository:{id:202,full_name:"fixture/isolated"},pull_request:{number:8}};
+      assert.equal(await event(prEvent,true,"pull_request"),202);
+      const mapped=await call(ownerPage,base+"/risks");
+      assert.ok(mapped.some(r=>r.evidence.payload.workflow_id===404&&r.active));
+      assert.ok(mapped.some(r=>r.evidence.payload.pull_number===8&&r.evidence.payload.github_reviewer_id===124));
+      console.log("PASS workspace-managed CI and review mappings, authorized catalog, permission boundaries, real local signed evidence ingestion");
+    }
   }
  }finally{if(browser)await browser.close();await stop();fs.rmSync(fixtureDir,{recursive:true,force:true});}
 })().catch(e=>{console.error(String(e.message).slice(0,3000));process.exitCode=1;});

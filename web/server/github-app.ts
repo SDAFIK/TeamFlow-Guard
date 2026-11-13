@@ -92,3 +92,19 @@ export async function appReviewObservation(c:AppConfig,w:string,branch:string,ma
   if(reviewStateFingerprint(pull)!==reviewStateFingerprint(current))throw Error("GitHub review changed during observation; retry.");
   return reviewObservation({mapping,repositoryId:b.repository_id,repository:slug,branch,pull,timeline,now});
 }
+
+/** Read-only catalog for a repository whose installation is already bound by an administrator. */
+export async function appMappingCatalog(c:AppConfig,w:string,branch:string,transport:typeof fetch=fetch){
+ const b=bindingForWorkspace(c,w);if(!b)throw Error("GitHub App not authorized for workspace.");
+ const minted=obj(await github("/app/installations/"+b.installation_id+"/access_tokens",jwt(c),transport,{repository_ids:[b.repository_id],permissions:{metadata:"read",actions:"read",pull_requests:"read"}}));
+ if(typeof minted.token!=="string"||!minted.token)throw Error("GitHub App token unavailable.");
+ const token=minted.token,slug=b.repository,repo=obj(await github("/repos/"+slug,token,transport));
+ if(repo.id!==b.repository_id||typeof repo.full_name!=="string"||repo.full_name.toLowerCase()!==slug.toLowerCase())throw Error("GitHub repository identity changed.");
+ const [workflows,pulls]=await Promise.all([github("/repos/"+slug+"/actions/workflows?per_page=100",token,transport),github("/repos/"+slug+"/pulls?"+new URLSearchParams({state:"open",base:branch,per_page:"50"}),token,transport)]);
+ const rows=obj(workflows).workflows;
+ const workflowChoices=Array.isArray(rows)?rows.slice(0,100).flatMap(v=>{const r=obj(v);return positive(r.id)&&r.state==="active"?[{id:r.id,name:txt(r.name)||"Workflow"}]:[];}):[];
+ const pullChoices=Array.isArray(pulls)?pulls.slice(0,50).flatMap(v=>{const p=obj(v),base=obj(p.base);if(!positive(p.number)||p.state!=="open"||p.draft!==false||base.ref!==branch||obj(base.repo).id!==b.repository_id)return [];
+ const reviewers=Array.isArray(p.requested_reviewers)?p.requested_reviewers.slice(0,50).flatMap(v=>{const r=obj(v);return positive(r.id)?[{id:r.id,login:txt(r.login,100)||"GitHub reviewer #"+r.id}]:[];}):[];
+ return [{number:p.number,title:txt(p.title)||"Pull request",reviewers}];}):[];
+ return {workflows:workflowChoices,pulls:pullChoices};
+}

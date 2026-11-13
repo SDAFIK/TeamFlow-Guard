@@ -36,9 +36,13 @@ if(fixture){
     if(u.pathname==="/app/hook/deliveries")return json([]);
     assert.equal(headers.get("authorization"),"Bearer fictional-scoped-token");
     if(u.pathname==="/repos/fixture/isolated")return json({id:202,full_name:"fixture/isolated"});
+    if(u.pathname==="/repos/fixture/isolated/actions/workflows")return json({workflows:[{id:303,name:"Existing CI",state:"active"},{id:404,name:"New CI",state:"active"}]});
+    const secondPull={number:8,title:"Second fictional PR",state:"open",draft:false,updated_at:"2026-11-12T00:00:00Z",base:{ref:"main",repo:{id:202}},requested_reviewers:[{id:124,login:"fixture-reviewer"}]};
+    if(u.pathname==="/repos/fixture/isolated/pulls/8")return json(secondPull);
+    if(u.pathname==="/repos/fixture/isolated/issues/8/timeline")return json([{event:"review_requested",created_at:"2026-11-11T00:00:00Z",requested_reviewer:{id:124}}]);
     if(u.pathname==="/repos/fixture/isolated/pulls/7")return json(state.pull);
     if(u.pathname==="/repos/fixture/isolated/issues/7/timeline")return json(state.timeline);
-    if(u.pathname==="/repos/fixture/isolated/pulls")return json([state.pull]);
+    if(u.pathname==="/repos/fixture/isolated/pulls")return json([state.pull,secondPull]);
     if(u.pathname==="/repos/fixture/isolated/actions/runs")return json({workflow_runs:[]});
     throw Error("Unexpected GitHub fixture endpoint "+u.pathname);
   };

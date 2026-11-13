@@ -1,6 +1,7 @@
 import { githubAppConfig, validWebhookSignature, webhookMatchesBinding } from "@/server/github-app";
 import { mappedCI, ingestCI } from "@/server/github-evidence";
 import { mappedReviewEvent, reconcileReview, validDeliveryId } from "@/server/github-review-evidence";
+import {eventBinding,storedMappingRows} from "@/server/github-workspace-mappings";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -25,12 +26,14 @@ export async function POST(request:Request) {
   try{if(!webhookMatchesBinding(config,event,payload))return new Response(null,{status:204});}catch{return new Response(null,{status:503});}
   try {
     if(event==="workflow_run"){
-      const ci=mappedCI(config,process.env.TEAMFLOW_GITHUB_CI_MAPPINGS,event,payload);
+      let ci=mappedCI(config,process.env.TEAMFLOW_GITHUB_CI_MAPPINGS,event,payload);
+      if(!ci){const b=eventBinding(config,payload);if(b){const stored=await storedMappingRows(b);ci=mappedCI(config,JSON.stringify(stored.ci),event,payload);}}
       if(!ci)return new Response(null,{status:204});
       await ingestCI(ci);
       return new Response(null,{status:202});
     }
-    const review=mappedReviewEvent(config,process.env.TEAMFLOW_GITHUB_REVIEW_MAPPINGS,event,payload);
+    let review=mappedReviewEvent(config,process.env.TEAMFLOW_GITHUB_REVIEW_MAPPINGS,event,payload);
+    if(!review){const b=eventBinding(config,payload);if(b){const stored=await storedMappingRows(b);review=mappedReviewEvent(config,JSON.stringify(stored.reviews),event,payload);}}
     if(!review)return new Response(null,{status:204});
     const delivery=request.headers.get("x-github-delivery");
     if(!validDeliveryId(delivery))return new Response(null,{status:400});

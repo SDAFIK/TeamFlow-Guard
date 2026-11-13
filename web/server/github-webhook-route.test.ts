@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+vi.mock("server-only",()=>({}));
 const mocks = vi.hoisted(() => ({ rpc: vi.fn() }));
 vi.mock("@supabase/supabase-js", () => ({ createClient: () => ({ rpc: mocks.rpc }) }));
 import { POST } from "../app/api/github/webhook/route";
@@ -17,7 +18,7 @@ beforeEach(()=>{
   vi.stubEnv("TEAMFLOW_GITHUB_CI_MAPPINGS",JSON.stringify([{workspace_id:w,workflow_id:9,task_id:t}]));
   vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL","https://example.invalid");
   vi.stubEnv("TEAMFLOW_GITHUB_INGEST_KEY","test-only");
-  mocks.rpc.mockReset();mocks.rpc.mockResolvedValue({error:null});
+  mocks.rpc.mockReset();mocks.rpc.mockImplementation(async(name)=>name==="tf_github_mapping_list"?{data:{ci:[],reviews:[]},error:null}:{error:null});
 });
 afterEach(()=>vi.unstubAllEnvs());
 describe("GitHub webhook receiver boundary",()=>{
@@ -38,7 +39,12 @@ describe("GitHub webhook receiver boundary",()=>{
   it("ignores unauthorized repository and unmapped workflow",async()=>{
     expect((await POST(request({...payload,repository:{id:30,full_name:"org/private"}}))).status).toBe(204);
     expect((await POST(request({...payload,workflow_run:{...payload.workflow_run,workflow_id:99}}))).status).toBe(204);
-    expect(mocks.rpc).not.toHaveBeenCalled();
+    expect(mocks.rpc).toHaveBeenCalledExactlyOnceWith("tf_github_mapping_list",{w,repo:"org/private",installation:19,repository:29});
+  });
+  it("accepts a workspace-managed workflow mapping from storage",async()=>{
+    mocks.rpc.mockImplementation(async(name)=>name==="tf_github_mapping_list"?{data:{ci:[{workspace_id:w,workflow_id:99,task_id:t}],reviews:[]},error:null}:{error:null});
+    expect((await POST(request({...payload,workflow_run:{...payload.workflow_run,workflow_id:99}}))).status).toBe(202);
+    expect(mocks.rpc).toHaveBeenCalledWith("tf_ingest_github_ci",expect.objectContaining({w,t,workflow_id:99}));
   });
   it("rejects malformed signed JSON and oversized request",async()=>{
     expect((await POST(request("{"))).status).toBe(400);
