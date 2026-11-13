@@ -28,7 +28,7 @@ returns jsonb language sql stable security definer set search_path='' as $$
   'reviews',coalesce(jsonb_agg(jsonb_build_object('workspace_id',m.workspace_id,'pull_number',m.external_id,'task_id',m.task_id,'reviewer_id',m.reviewer_id,'github_reviewer_id',m.github_reviewer_id) order by m.external_id) filter(where m.kind='review'),'[]'::jsonb))
  from teamflow_private.tf_github_workspace_mappings m
  join public.tf_workspaces ws on ws.id=m.workspace_id and not ws.is_demo
- where m.workspace_id=w and lower(m.repository)=lower(repo) and m.installation_id=installation and m.repository_id=repository
+ where m.workspace_id=$1 and lower(m.repository)=lower($2) and m.installation_id=$3 and m.repository_id=$4
 $$;
 create function teamflow_private.github_mapping_create(w uuid,actor uuid,repo text,installation bigint,repository bigint,mapping_kind text,external bigint,t uuid,reviewer uuid,github_reviewer bigint)
 returns jsonb language plpgsql security definer set search_path='' as $$
