@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ShieldCheck, ArrowRight, Users, LockKeyhole, Check } from "lucide-react";
+import { ShieldCheck, ArrowRight, LockKeyhole, Activity, GitBranch, CheckCircle2 } from "lucide-react";
+import styles from "./premium-entry.module.css";
 import { Brand } from "./ui";
 import { api } from "@/lib/api";
 export default function Login({
@@ -48,32 +49,24 @@ export default function Login({
   }
   return (
     <main className="login-page">
-      <div className="login-story">
+      <div className={`login-story ${styles.story}`}>
         <Brand />
-        <div>
-          <span className="eyebrow">LESS GUESSWORK. MORE CLARITY.</span>
-          <h1>
-            Detect delivery risks.
-            <br />
-            Recover with confidence.
-          </h1>
-          <p>
-            Understand which tasks are affected, compare recovery options,
-            and approve a plan your team can act on. Evidence informs. Your team decides.
-          </p>
-          <div className="login-chain">
-            <span>
-              <Check size={17} />
-              Evidence & impact
-            </span>
-            <ArrowRight size={16} />
-            <span>
-              <Users size={17} />
-              Human-approved recovery
-            </span>
+        <div className={styles.hero}>
+          <span className={styles.kicker}><i aria-hidden="true"/> WORKFORCE OPERATING SYSTEM</span>
+          <h1 className={styles.headline}>Build with clarity.<br/><span>Recover with confidence.</span></h1>
+          <p className={styles.copy}>Connect delivery evidence, trace blocked dependencies and compare AI recovery options. Keep your team in control of every important decision.</p>
+          <div className={styles.panel} aria-label="Illustrative evidence to decision workflow">
+            <div className={styles.panelHeader}><span>Delivery intelligence</span><b>Illustrative flow</b></div>
+            <div className={styles.graph}>
+              <div className={`${styles.node} ${styles.risk}`}><Activity size={22}/><span>Risk signal</span><small>CI failure</small></div>
+              <div className={`${styles.node} ${styles.impact}`}><GitBranch size={22}/><span>Impact analysis</span><small>Dependencies</small></div>
+              <div className={`${styles.node} ${styles.decision}`}><CheckCircle2 size={22}/><span>Human decision</span><small>Review proposal</small></div>
+            </div>
+            <div className={styles.signal} aria-hidden="true"/>
+            <div className={styles.panelFooter}><span><ShieldCheck size={15}/> Evidence-backed recovery</span><span>No automatic plan changes</span></div>
           </div>
         </div>
-        <small>TEAMFLOW GUARD · HUMAN-APPROVED DELIVERY</small>
+        <small>TEAMFLOW GUARD · HUMAN-GOVERNED DELIVERY</small>
       </div>
       <div className="login-form-wrap">
         <form onSubmit={submit} className="login-form">
@@ -117,9 +110,9 @@ export default function Login({
           <div className="login-note">
             <LockKeyhole size={17} />
             <span>
-              Demo accounts are provisioned by the workspace owner.
+              Create an account to explore your private six-person demo.
               <br />
-              Use the sign-in details provided for your workspace.
+              Real projects and fictional demo data stay separate.
             </span>
           </div>
         </form>

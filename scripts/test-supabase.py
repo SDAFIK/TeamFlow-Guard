@@ -346,6 +346,98 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
         sync([{**run,'id':103,'head_branch':'feature','updated_at':'2026-11-10T03:00:00Z'}])
         assert db.execute("select count(*) from public.tf_evidence where workspace_id=%s and origin='github' and active",(w,)).fetchone()[0]==2
         passed.append('GitHub branches retain independent current evidence')
+        # Stage 1: disposable lifecycle fixtures. No hosted database changes.
+        def lifecycle(wid,op,name=None):
+            return db.execute('select public.tf_workspace_lifecycle(%s,%s,%s)',(wid,op,name)).fetchone()[0]
+        identity(outsider)
+        for op in ('archive','restore','delete'):
+            denied('foreign workspace lifecycle '+op+' denied',lambda op=op:lifecycle(w,op,'Isolated test'),'42501')
+        # outsider is a manager in fresh; management does not grant destructive ownership.
+        for op in ('archive','restore','delete'):
+            denied('manager lifecycle '+op+' denied',lambda op=op:lifecycle(fresh['id'],op,'Renamed workspace'),'42501')
+        identity(member)
+        denied('member deletion denied',lambda:lifecycle(w,'delete','Isolated test'),'42501')
+        identity(viewer)
+        denied('viewer deletion denied',lambda:lifecycle(w,'delete','Isolated test'),'42501')
+        identity(owner)
+        before= db.execute('select public.tf_snapshot(%s)',(w,)).fetchone()[0]
+        denied('wrong name prevents deletion',lambda:lifecycle(w,'delete','Wrong name'),'22023')
+        assert lifecycle(w,'archive')['status']=='archived'
+        after=db.execute('select public.tf_snapshot(%s)',(w,)).fetchone()[0]
+        assert after['workspace']['archived_at'] and after['workspace']['plan_version']==before['workspace']['plan_version']+1
+        assert after['tasks']==before['tasks'] and after['edges']==before['edges']
+        assert lifecycle(w,'archive')['status']=='archived'
+        assert db.execute('select public.tf_snapshot(%s)',(w,)).fetchone()[0]['workspace']['plan_version']==after['workspace']['plan_version']
+        denied('archived workspace blocks settings writes',lambda:workspace_write('settings',{'name':'Should not change','description':'','tracked_branch':'main','review_threshold_hours':24,'base_plan_version':after['workspace']['plan_version']},w),'PT409')
+        denied('archived workspace blocks new invitations',lambda:workspace_write('invite',{'email':'archive-test@example.test','role':'member','token_hash':'c'*64},w),'PT409')
+        denied('archived workspace blocks task creation',lambda:task_write('create',{'key':'ARCHIVE-X','title':'Blocked archived task','owner_id':owner,'estimate_hours':1,'base_plan_version':after['workspace']['plan_version']}),'PT409')
+        assert lifecycle(w,'restore')['status']=='active'
+        restored=db.execute('select public.tf_snapshot(%s)',(w,)).fetchone()[0]
+        assert restored['workspace']['archived_at'] is None
+        assert restored['workspace']['plan_version']==after['workspace']['plan_version']+1
+        assert restored['tasks']==before['tasks'] and restored['edges']==before['edges']
+        assert {a['kind'] for a in restored['audit']}.issuperset({'workspace.archived','workspace.restored'})
+        passed.append('archive/restore preserve data, invalidate old plan versions and freeze writes')
+        # CI fixture has actual review deliveries and signed CI evidence.
+        assert lifecycle(ciw,'archive')['status']=='archived'
+        db.execute('reset role')
+        db.execute('set local role service_role')
+        assert db.execute("select public.tf_ingest_github_ci(%s,%s,'example/repo',9,99999,1,'main','failure',now())",(ciw,cit)).fetchone()[0]['status']=='ignored_archived'
+        assert db.execute('select public.tf_github_review_context(%s,%s,%s)',(ciw,cit,owner)).fetchone()[0] is None
+        identity(owner)
+        assert lifecycle(ciw,'delete','CI test')['status']=='deleted'
+        assert lifecycle(w,'delete','Isolated test')['status']=='deleted'
+        assert db.execute('select public.tf_snapshot(%s)',(w,)).fetchone()[0] is None
+        assert db.execute('select public.tf_snapshot(%s)',(fresh['id'],)).fetchone()[0] is not None
+        denied('deleted workspace cannot be restored',lambda:lifecycle(w,'restore'),'42501')
+        db.execute('reset role')
+        for table in ('public.tf_workspaces','public.tf_memberships','public.tf_tasks','public.tf_dependencies','public.tf_evidence','public.tf_proposals','public.tf_audit','public.tf_receipts','public.tf_analysis','public.tf_invites','teamflow_private.tf_review_deliveries','teamflow_private.tf_learning_configs','teamflow_private.tf_learning_samples','teamflow_private.tf_github_workspace_mappings'):
+            column='id' if table=='public.tf_workspaces' else 'workspace_id'
+            assert db.execute(f'select count(*) from {table} where {column} in (%s,%s)',(w,ciw)).fetchone()[0]==0,table
+        assert db.execute('select count(*) from teamflow_private.tf_workspace_deletions where workspace_id in (%s,%s)',(w,ciw)).fetchone()[0]==2
+        assert db.execute('select count(*) from public.tf_workspaces where id in (%s,%s)',(other,fresh['id'])).fetchone()[0]==2
+        db.execute('set local role service_role')
+        assert db.execute("select public.tf_ingest_github_ci(%s,%s,'example/repo',9,99999,1,'main','failure',now())",(ciw,cit)).fetchone()[0]['status']=='ignored_deleted'
+        assert db.execute('select public.tf_github_review_context(%s,%s,%s)',(ciw,cit,owner)).fetchone()[0] is None
+        db.execute('reset role')
+        passed.append('permanent purge cleans dependent data, preserves other tenants and ignores late GitHub events')
+        # Stage 2: per-user demo, real Auth principals preserved; fictional members have no Auth records.
+        def personal_demo(op,wid=None,name=None):
+            return db.execute('select public.tf_personal_demo(%s,%s,%s)',(op,wid,name)).fetchone()[0]
+        identity(owner)
+        demo=personal_demo('open')
+        dw=demo['id']
+        assert demo['is_demo'] and str(demo['demo_owner_id'])==owner
+        assert personal_demo('open')['id']==dw
+        ds=db.execute('select public.tf_snapshot(%s)',(dw,)).fetchone()[0]
+        assert len(ds['members'])==6 and len(ds['tasks'])==10 and len(ds['edges'])==9 and len(ds['evidence'])==4
+        assert sum(m['demo_persona'] for m in ds['members'])==5
+        assert all(m['auth_user_id'] is None for m in ds['members'] if m['demo_persona'])
+        persona=next(m['id'] for m in ds['members'] if m['demo_persona'])
+        denied('personal demo cannot invite real accounts',lambda:workspace_write('invite',{'email':outsider+'@example.test','role':'member','token_hash':'d'*64},dw),'42501')
+        denied('fictional persona role cannot be elevated',lambda:workspace_write('role',{'user_id':persona,'role':'manager'},dw),'23514')
+        identity(outsider)
+        assert db.execute('select public.tf_snapshot(%s)',(dw,)).fetchone()[0] is None
+        denied('outsider cannot reset another personal demo',lambda:personal_demo('reset',dw,demo['name']),'42501')
+        other_demo=personal_demo('open')
+        assert other_demo['id']!=dw
+        identity(owner)
+        denied('reset rejects incorrect name',lambda:personal_demo('reset',dw,'wrong'),'22023')
+        denied('reset rejects real workspace',lambda:personal_demo('reset',fresh['id'],'Renamed workspace'),'42501')
+        identity(persona)
+        assert db.execute('select public.tf_snapshot(%s)',(dw,)).fetchone()[0] is None
+        denied('fictional principal cannot launch a demo',lambda:personal_demo('open'),'42501')
+        identity(owner)
+        changed_demo=personal_demo('reset',dw,demo['name'])
+        assert changed_demo['id']!=dw
+        assert db.execute('select public.tf_snapshot(%s)',(dw,)).fetchone()[0] is None
+        replacement=db.execute('select public.tf_snapshot(%s)',(changed_demo['id'],)).fetchone()[0]
+        assert len(replacement['members'])==6 and len(replacement['tasks'])==10
+        assert db.execute('select public.tf_snapshot(%s)',(fresh['id'],)).fetchone()[0] is not None
+        db.execute('reset role')
+        assert db.execute('select count(*) from auth.users where id=%s',(persona,)).fetchone()[0]==0
+        assert db.execute('select count(*) from public.tf_workspaces where id=%s',(other_demo['id'],)).fetchone()[0]==1
+        passed.append('personal demo seeds six members, ten tasks, four evidence signals; no Auth personas; isolated idempotent launch and atomic reset')
     finally:
         db.rollback()
 print(f'{len(passed)} SQL checks passed; all test changes rolled back.')

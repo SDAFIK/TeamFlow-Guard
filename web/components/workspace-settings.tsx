@@ -6,13 +6,14 @@ import { api } from "@/lib/api";
 import { Busy } from "./ui";
 import { GithubConnection } from "./github-connection";
 import { IntegrationReadiness } from "./integration-readiness";
+import { WorkspaceLifecycleActions, type LifecycleOperation } from "./workspace-lifecycle";
 
 type Role = "owner" | "manager" | "member" | "viewer";
-type Member = { id: string; name: string; email: string; role: Role };
+type Member = { id: string; name: string; email: string; role: Role; demo_persona?:boolean };
 type Settings = {
   id: string; name: string; description: string; tracked_branch: string;
   review_threshold_hours: number; plan_version: number; my_role: Role; members: Member[];
-  invitation_email_configured?: boolean;
+  invitation_email_configured?: boolean; demo_owner_id?:string|null;
 };
 type Invitation = {
   id: string; email: string; role: Role; expires_at: string;
@@ -25,7 +26,7 @@ const roleExplainers: Record<Exclude<Role, "owner">, string> = {
   viewer: "Read-only access",
 };
 
-export function WorkspaceSettings({ id, onSaved, focus }: { id: string; onSaved: () => Promise<void>; focus?: "team"|"github"|null }) {
+export function WorkspaceSettings({ id, workspaceName, onSaved, focus, onLifecycleChanged }: { id: string; workspaceName:string; onSaved: () => Promise<void>; focus?: "team"|"github"|null; onLifecycleChanged:(operation:LifecycleOperation,id:string)=>Promise<void> }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [invites, setInvites] = useState<Invitation[]>([]);
   const [error, setError] = useState("");
@@ -144,6 +145,7 @@ export function WorkspaceSettings({ id, onSaved, focus }: { id: string; onSaved:
           <h2 id="team-access-title">Your team</h2>
           <p>{settings.members.length} {settings.members.length === 1 ? "member" : "members"} share this plan.</p>
         </div>
+        {settings.demo_owner_id&&<p className="field-help">This private demo has five fictional teammates. They do not have accounts or receive invitations. Create a real workspace for actual collaboration.</p>}
         <label className="field-help">Find a teammate<input type="search" value={memberQuery} onChange={event => setMemberQuery(event.target.value)} placeholder="Search name or email" aria-label="Search team members"/></label>
         <div className="settings-member-list">
           {visibleMembers.length === 0 && <p className="field-help">No teammates match your search.</p>}
@@ -151,8 +153,8 @@ export function WorkspaceSettings({ id, onSaved, focus }: { id: string; onSaved:
             <Fragment key={member.id}>
               <div className="settings-member-row">
                 <span className="avatar">{member.name[0] || "?"}</span>
-                <div className="settings-member-name"><strong>{member.name}</strong><small>{member.email}</small></div>
-                {owner && member.role !== "owner" ?
+                <div className="settings-member-name"><strong>{member.name}</strong><small>{member.demo_persona?"Fictional teammate · no login":member.email}</small></div>
+                {owner && member.role !== "owner" && !member.demo_persona ?
                   <select aria-label={`Role for ${member.name}`} value={roleChange?.id === member.id ? roleChange.role : member.role} disabled={busy} onChange={event => setRoleChange({ id:member.id, name:member.name, role:event.target.value as Exclude<Role,"owner"> })}>
                     {(["manager","member","viewer"] as const).map(role => <option value={role} key={role}>{role.charAt(0).toUpperCase()+role.slice(1)}</option>)}
                   </select> :
@@ -174,7 +176,7 @@ export function WorkspaceSettings({ id, onSaved, focus }: { id: string; onSaved:
             </Fragment>
           ))}
         </div>
-        {manager && (
+        {manager && !settings.demo_owner_id && (
           <div className="invite-panel">
             <div className="settings-section-header">
               <h3><MailPlus size={19}/> Invite a teammate</h3>
@@ -229,8 +231,14 @@ export function WorkspaceSettings({ id, onSaved, focus }: { id: string; onSaved:
         {error && <p className="error" role="alert">{error}</p>}
         {notice && <p className="success-banner" role="status"><Check size={16}/>{notice}</p>}
       </section>
+      {owner&&<section className="panel settings-panel workspace-lifecycle-panel" aria-label="Workspace lifecycle">
+        <span className="section-kicker">OWNER CONTROLS</span>
+        <h2>Workspace lifecycle</h2>
+        <p>Archive a workspace to pause planning and preserve its data, or permanently delete it when it is no longer needed.</p>
+        <WorkspaceLifecycleActions id={id} name={workspaceName} archived={false} onChanged={onLifecycleChanged}/>
+      </section>}
       <IntegrationReadiness key={id} workspaceId={id}/>
-      <GithubConnection workspaceId={id} planVersion={settings.plan_version} canManage={manager} onChanged={async () => { await load(); await onSaved(); }}/>
+      {settings.demo_owner_id?<section className="panel settings-panel" id="github-settings-title"><h2>Fictional GitHub evidence</h2><p>This personal demo uses seeded and replayed CI and review signals. To connect a real repository, open a real workspace.</p></section>:<GithubConnection workspaceId={id} planVersion={settings.plan_version} canManage={manager} onChanged={async () => { await load(); await onSaved(); }}/> }
     </>
   );
 }

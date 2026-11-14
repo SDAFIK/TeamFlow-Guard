@@ -1,0 +1,35 @@
+/* Stage 3: presentation-only refinement. Preserve layout and workflow contracts. */
+:root{--tf-ease:cubic-bezier(.2,.75,.25,1);--tf-glass-edge:#456479;--tf-glass-highlight:#b6fff014}
+.shell .panel{background-image:linear-gradient(145deg,#ffffff04,transparent 55%);border-color:var(--tf-glass-edge)}
+.shell .topbar{background:linear-gradient(105deg,#10283be8,#091a2be8);box-shadow:0 5px 24px #0002}
+.shell .primary,.shell .secondary{transition:background .18s var(--tf-ease),border-color .18s var(--tf-ease),box-shadow .18s var(--tf-ease),transform .18s var(--tf-ease)}
+.shell .stat,.shell .nav-item{transition:border-color .18s var(--tf-ease),background .18s var(--tf-ease),box-shadow .18s var(--tf-ease)}
+@media(hover:hover) and (pointer:fine){.shell .stat:hover{border-color:#70c5c0;box-shadow:0 8px 24px #04141d66,inset 0 1px var(--tf-glass-highlight)}.shell .secondary:hover:not(:disabled){box-shadow:0 5px 18px #0003,inset 0 1px #c6fff02b}}
+.shell .heading>div:first-child{min-width:0;max-width:100%}
+.shell .heading-actions{flex-wrap:wrap;max-width:100%}
+.shell .heading-actions>button{max-width:100%;min-height:44px}
+.shell .workspace-switch strong,.shell .settings-member-name strong,.shell .member-card h2{overflow-wrap:anywhere}
+.shell .view-content .panel{min-width:0}
+.shell .context-line{row-gap:8px}
+.shell .task-toolbar{flex-wrap:wrap}
+.shell .task-toolbar>*{min-width:0;max-width:100%}
+.shell .settings-grid>*,.shell .members-grid>*{min-width:0}
+.shell .workspace-lifecycle-confirm{overflow-wrap:anywhere}
+.shell .primary:disabled,.shell .secondary:disabled{cursor:not-allowed;transform:none}
+@media(max-width:700px){.shell .heading-actions{gap:8px;justify-content:flex-start;flex-direction:row}.shell .heading-actions>.secondary{flex:0 1 auto}.shell .context-line{font-size:11px}.shell .settings-member-name{min-width:0}.shell .settings-member-name small{overflow-wrap:anywhere}}
+@media(max-width:380px){.shell .heading-actions>.secondary{flex:1 1 130px}.shell .heading-actions>.icon-button{flex:none}}
+@media(prefers-reduced-motion:reduce){.shell .primary,.shell .secondary,.shell .stat,.shell .nav-item{transition:none}.shell .view-content{animation:none}}
+
+/* Motion is feedback, never a prerequisite for seeing or using a control. */
+@keyframes tfReveal{from{opacity:.82;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@keyframes tfPageReveal{from{opacity:.86}to{opacity:1}}
+@keyframes tfReceipt{0%{box-shadow:0 0 0 0 #63e9d04a}100%{box-shadow:0 0 0 8px transparent}}
+@media(prefers-reduced-motion:no-preference){
+ .shell .view-content{animation:tfPageReveal .22s var(--tf-ease)}
+ .shell .recovery-receipt,.shell .success-banner{animation:tfReceipt .65s ease-out 1}
+ .shell .workload-track i,.shell .tic-meter i{transition:width .35s var(--tf-ease)}
+ .shell .workspace-picker-list{animation:tfReveal .16s var(--tf-ease) both}
+ .shell .hero-running-signal{animation-iteration-count:3}
+}
+@media(hover:hover) and (pointer:fine) and (prefers-reduced-motion:no-preference){.shell .primary:hover:not(:disabled),.shell .secondary:hover:not(:disabled){transform:translateY(-1px)}.shell .primary:active:not(:disabled),.shell .secondary:active:not(:disabled){transform:translateY(1px)}}
+@media(prefers-reduced-motion:reduce){.shell .view-content,.shell .recovery-receipt,.shell .success-banner,.shell .workspace-picker-list,.shell .hero-running-signal,.shell .hero-signal-points,.guard-loading .guard-node,.guard-loading .guard-loading-track i{animation:none!important}.shell .workload-track i,.shell .tic-meter i,.shell .sidebar{transition:none!important}.shell button:active:not(:disabled){transform:none}}
