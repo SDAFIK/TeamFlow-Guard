@@ -36,7 +36,7 @@ export default function Login({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    setError("");
+    setError("");setMessage("");
     try {
       if(forgot){const result=await api<{message:string}>("/auth/forgot-password",{method:"POST",body:JSON.stringify({email:email.trim()})});setMessage(result.message);startCooldown();return;}
       const result=await api<{message?:string}>(register?"/auth/register":"/auth/login", {
@@ -45,7 +45,7 @@ export default function Login({
       });
       if(register){setMessage(result.message??'Check your email to confirm your account.');startCooldown();}else await onLogin();
     } catch (e) {
-      setError((e as Error).message);
+      setError((e as Error).message);if(forgot&&(e as {status?:number}).status===429)startCooldown();
     } finally {
       setBusy(false);
     }
@@ -100,9 +100,10 @@ export default function Login({
           <input
             id="password"
             type="password"
-            autoComplete="current-password"
+            autoComplete={register?"new-password":"current-password"}
             required
             minLength={register?12:1}
+            maxLength={register?128:256}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
