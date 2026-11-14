@@ -1,7 +1,7 @@
 name: Workspace lifecycle authenticated acceptance
 on:
   pull_request:
-    branches: [main, codex/workspace-lifecycle-stage1, codex/multi-member-demo-stage2]
+    branches: [main, codex/workspace-lifecycle-stage1, codex/multi-member-demo-stage2, codex/premium-product-stage3]
     paths:
       - 'web/components/**'
       - 'web/app/**'
@@ -19,7 +19,7 @@ concurrency:
 jobs:
   authenticated-local:
     runs-on: ubuntu-24.04
-    timeout-minutes: 25
+    timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -50,6 +50,11 @@ jobs:
           NODE_PATH: ${{ github.workspace }}/web/node_modules
           TEAMFLOW_ARTIFACT_DIR: ${{ runner.temp }}/teamflow-lifecycle-evidence
         run: node scripts/workspace-lifecycle-e2e.cjs
+      - name: Full product integration acceptance (intercepted external providers)
+        env:
+          NODE_PATH: ${{ github.workspace }}/web/node_modules
+          TEAMFLOW_ARTIFACT_DIR: ${{ runner.temp }}/teamflow-lifecycle-evidence
+        run: node scripts/stage8-auth-e2e.cjs
       - name: Upload fictional UI evidence
         if: always()
         uses: actions/upload-artifact@v4
