@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { Busy } from "./ui";
 import { GithubConnection } from "./github-connection";
 import { IntegrationReadiness } from "./integration-readiness";
+import { WorkspaceLifecycleActions, type LifecycleOperation } from "./workspace-lifecycle";
 
 type Role = "owner" | "manager" | "member" | "viewer";
 type Member = { id: string; name: string; email: string; role: Role };
@@ -25,7 +26,7 @@ const roleExplainers: Record<Exclude<Role, "owner">, string> = {
   viewer: "Read-only access",
 };
 
-export function WorkspaceSettings({ id, onSaved, focus }: { id: string; onSaved: () => Promise<void>; focus?: "team"|"github"|null }) {
+export function WorkspaceSettings({ id, onSaved, focus, onLifecycleChanged }: { id: string; onSaved: () => Promise<void>; focus?: "team"|"github"|null; onLifecycleChanged:(operation:LifecycleOperation,id:string)=>Promise<void> }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [invites, setInvites] = useState<Invitation[]>([]);
   const [error, setError] = useState("");
@@ -229,6 +230,12 @@ export function WorkspaceSettings({ id, onSaved, focus }: { id: string; onSaved:
         {error && <p className="error" role="alert">{error}</p>}
         {notice && <p className="success-banner" role="status"><Check size={16}/>{notice}</p>}
       </section>
+      {owner&&<section className="panel settings-panel workspace-lifecycle-panel" aria-label="Workspace lifecycle">
+        <span className="section-kicker">OWNER CONTROLS</span>
+        <h2>Workspace lifecycle</h2>
+        <p>Archive a workspace to pause planning and preserve its data, or permanently delete it when it is no longer needed.</p>
+        <WorkspaceLifecycleActions id={id} name={settings.name} archived={false} onChanged={onLifecycleChanged}/>
+      </section>}
       <IntegrationReadiness key={id} workspaceId={id}/>
       <GithubConnection workspaceId={id} planVersion={settings.plan_version} canManage={manager} onChanged={async () => { await load(); await onSaved(); }}/>
     </>
