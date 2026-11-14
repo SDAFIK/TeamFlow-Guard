@@ -1,9 +1,10 @@
 name: Workspace lifecycle authenticated acceptance
 on:
   pull_request:
-    branches: [main, codex/workspace-lifecycle-stage1]
+    branches: [main, codex/workspace-lifecycle-stage1, codex/multi-member-demo-stage2]
     paths:
-      - 'web/components/workspace*.tsx'
+      - 'web/components/**'
+      - 'web/app/**'
       - 'web/app/api/**'
       - 'web/server/**'
       - 'supabase/migrations/**'
