@@ -78,7 +78,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       const input=z.object({email:z.email().max(254)}).strict().parse(body);
       const origin=authRedirectOrigin(request.headers.get("origin"),{APP_BASE_URL:process.env.APP_BASE_URL,APP_ALLOWED_ORIGINS:process.env.APP_ALLOWED_ORIGINS,VERCEL:process.env.VERCEL,VERCEL_URL:process.env.VERCEL_URL});
       if(!origin)throw new HttpError(503,"Password recovery is unavailable.");
-      const {error}=await client.auth.resetPasswordForEmail(input.email,{redirectTo:origin+"/auth/callback?recovery=1"});
+      const {error}=await client.auth.resetPasswordForEmail(input.email,{redirectTo:origin+"/auth/callback"});
       if(error?.status===429)throw new HttpError(429,"Too many requests. Try again later.");
       if(error?.status&&error.status>=500)throw new HttpError(503,"Password recovery is temporarily unavailable.");
       return answer({message:"If an account exists, a password reset link has been requested. Open the newest email in this browser."});
