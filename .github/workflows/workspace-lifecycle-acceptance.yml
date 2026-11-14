@@ -54,6 +54,7 @@ jobs:
         env:
           NODE_PATH: ${{ github.workspace }}/web/node_modules
           TEAMFLOW_ARTIFACT_DIR: ${{ runner.temp }}/teamflow-lifecycle-evidence
+          TEAMFLOW_ACCEPT_TIC_V2: '1'
         run: node scripts/stage8-auth-e2e.cjs
       - name: Upload fictional UI evidence
         if: always()
