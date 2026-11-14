@@ -26,7 +26,7 @@ const roleExplainers: Record<Exclude<Role, "owner">, string> = {
   viewer: "Read-only access",
 };
 
-export function WorkspaceSettings({ id, onSaved, focus, onLifecycleChanged }: { id: string; onSaved: () => Promise<void>; focus?: "team"|"github"|null; onLifecycleChanged:(operation:LifecycleOperation,id:string)=>Promise<void> }) {
+export function WorkspaceSettings({ id, workspaceName, onSaved, focus, onLifecycleChanged }: { id: string; workspaceName:string; onSaved: () => Promise<void>; focus?: "team"|"github"|null; onLifecycleChanged:(operation:LifecycleOperation,id:string)=>Promise<void> }) {
   const [settings, setSettings] = useState<Settings | null>(null);
   const [invites, setInvites] = useState<Invitation[]>([]);
   const [error, setError] = useState("");
@@ -234,7 +234,7 @@ export function WorkspaceSettings({ id, onSaved, focus, onLifecycleChanged }: { 
         <span className="section-kicker">OWNER CONTROLS</span>
         <h2>Workspace lifecycle</h2>
         <p>Archive a workspace to pause planning and preserve its data, or permanently delete it when it is no longer needed.</p>
-        <WorkspaceLifecycleActions id={id} name={settings.name} archived={false} onChanged={onLifecycleChanged}/>
+        <WorkspaceLifecycleActions id={id} name={workspaceName} archived={false} onChanged={onLifecycleChanged}/>
       </section>}
       <IntegrationReadiness key={id} workspaceId={id}/>
       <GithubConnection workspaceId={id} planVersion={settings.plan_version} canManage={manager} onChanged={async () => { await load(); await onSaved(); }}/>
