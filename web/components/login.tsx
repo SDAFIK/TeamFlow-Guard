@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { ShieldCheck, ArrowRight, LockKeyhole, Activity, GitBranch, CheckCircle2 } from "lucide-react";
 import styles from "./premium-entry.module.css";
 import { Brand } from "./ui";
@@ -55,6 +56,7 @@ export default function Login({
           <span className={styles.kicker}><i aria-hidden="true"/> WORKFORCE OPERATING SYSTEM</span>
           <h1 className={styles.headline}>Build with clarity.<br/><span>Recover with confidence.</span></h1>
           <p className={styles.copy}>Connect delivery evidence, trace blocked dependencies and compare AI recovery options. Keep your team in control of every important decision.</p>
+          <section className={styles.guestEntry} aria-label="Interactive competition demo"><span className={styles.kicker}>INTERACTIVE COMPETITION DEMO</span><h2>Enter sandbox instantly</h2><p>A complete product experience without creating an account. Explore a six-person team, trace a real planning problem and make your own decisions.</p><Link href="/demo" className={styles.guestButton}>Try Live Demo — No Sign-up <ArrowRight size={18}/></Link><small>No email · No password · Temporary fictional workspace</small></section>
           <div className={styles.panel} aria-label="Illustrative evidence to decision workflow">
             <div className={styles.panelHeader}><span>Delivery intelligence</span><b>Illustrative flow</b></div>
             <div className={styles.graph}>
@@ -74,6 +76,7 @@ export default function Login({
             <ShieldCheck size={28} />
           </span>
           <h2>Welcome to your workspace</h2>
+          <Link href="/demo" className={styles.formGuestLink}>Try the interactive demo without signing in <ArrowRight size={15}/></Link>
           <p>{register?'Create your account, then create or join a workspace.':'Sign in to TeamFlow Guard.'}</p>
           {message&&<p role="status" className="success-banner">{message}</p>}
           {error && (
