@@ -139,6 +139,11 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
     [menu, setMenu] = useState(false);
   const [manageTask, setManageTask] = useState<string | null>(null);
   const [demoBusy,setDemoBusy]=useState(false);
+  const [personalDemoBusy,setPersonalDemoBusy]=useState(false);
+  const [resetDemoOpen,setResetDemoOpen]=useState(false);
+  const [resetDemoName,setResetDemoName]=useState("");
+  const [resetDemoError,setResetDemoError]=useState("");
+  const personalDemoLock=useRef(false);
   const [syncTime,setSyncTime]=useState<number|null>(null);
   const [syncWarning,setSyncWarning]=useState(false);
   const [dependencyPair,setDependencyPair]=useState<{source:string;target:string}|null>(null);
@@ -213,7 +218,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
   const selectedGraphTask = graph?.selected_task_id ?? undefined;
   const activeUserId = user?.id;
   useEffect(()=>{
-    if(!activeUserId||!activeWorkspaceId||archivedOpen||taskId||riskId||proposalId||manageTask||workspaceSetup||dependencyDialog||demo||receipt||view==='settings')return;
+    if(!activeUserId||!activeWorkspaceId||archivedOpen||resetDemoOpen||personalDemoBusy||taskId||riskId||proposalId||manageTask||workspaceSetup||dependencyDialog||demo||receipt||view==='settings')return;
     let refreshing = false;
     const channel=typeof BroadcastChannel!=="undefined"?new BroadcastChannel("teamflow.workspace.sync"):null;
     const update=()=>{if(document.visibilityState==='visible' && !refreshing) {
@@ -225,7 +230,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
     window.addEventListener('focus',update);
     document.addEventListener('visibilitychange',update);
     return()=>{window.clearInterval(timer);channel?.close();window.removeEventListener('focus',update);document.removeEventListener('visibilitychange',update);};
-  },[activeUserId,activeWorkspaceId,selectedGraphTask,archivedOpen,taskId,riskId,proposalId,manageTask,workspaceSetup,dependencyDialog,demo,receipt,view,load]);
+  },[activeUserId,activeWorkspaceId,selectedGraphTask,archivedOpen,resetDemoOpen,personalDemoBusy,taskId,riskId,proposalId,manageTask,workspaceSetup,dependencyDialog,demo,receipt,view,load]);
   useEffect(() => {
     if (!menu) return;
     const previous = document.activeElement as HTMLElement;
@@ -311,6 +316,21 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
     navigate("overview");
     await load(operation==="restore"?id:undefined);
     setNotice(operation==="restore"?"Workspace restored.":operation==="archive"?"Workspace archived. Restore it from Archived workspaces.":"Workspace permanently deleted.");
+  }
+  async function openPersonalDemo(reset=false){
+    if(personalDemoLock.current||!user)return;
+    if(reset&&(!data?.personal_demo||resetDemoName!==data.project.name))return;
+    personalDemoLock.current=true;setPersonalDemoBusy(true);setError("");setResetDemoError("");
+    try{
+      const result=await api<{id:string}>("/personal-demo",{method:"POST",body:JSON.stringify(reset?{operation:"reset",workspace_id:data!.project.id,confirmed_name:resetDemoName}:{operation:"open"})});
+      setResetDemoOpen(false);setResetDemoName("");setWorkspacePicker(false);setMenu(false);
+      setTaskId(null);setRiskId(null);setProposalId(null);setManageTask(null);setDependencyDialog(false);setDemo(false);setReceipt(null);
+      setData(null);setGraph(null);setRisks([]);setProposals([]);setAudit([]);setIntegrations(null);
+      setBusy(true);navigate("overview");
+      await load(result.id);
+      setNotice(reset?"Personal demo reset to its original fictional scenario.":"Your private six-person demo is ready. Five teammates and all evidence are fictional.");
+    }catch(e){const message=(e as Error).message;if(reset)setResetDemoError(message);else setError(message);}
+    finally{personalDemoLock.current=false;setPersonalDemoBusy(false);}
   }
   async function freshAIRehearsal(){
     if(!data?.is_demo||data.project.role!=="lead"||!user||demoBusy)return;
@@ -435,7 +455,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
           {workspacePicker&&<div className="workspace-picker-list" id="workspace-picker-list" role="group" aria-label="Available workspaces">
             <span className="section-kicker">YOUR WORKSPACES</span>
             {projects.map(p=><button key={p.id} className={p.id===data?.project.id?"current-workspace":""} onClick={()=>switchWorkspace(p.id)} disabled={busy}><span className="workspace-emblem mini">{p.name[0]}</span><span><strong>{p.name}</strong><small>{p.role}</small></span>{p.id===data?.project.id&&<Check size={15}/>}</button>)}
-            <div className="workspace-picker-actions"><button onClick={()=>openWorkspaceSetup("create")}><Plus size={15}/> Create workspace</button><button onClick={()=>openWorkspaceSetup("join")}><LogIn size={15}/> Join workspace</button>{archivedProjects.length>0&&<button onClick={()=>{setWorkspacePicker(false);setMenu(false);setArchivedOpen(true);}}>Archived workspaces ({archivedProjects.length})</button>}</div>
+            <div className="workspace-picker-actions"><button onClick={()=>openWorkspaceSetup("create")}><Plus size={15}/> Create workspace</button><button onClick={()=>openWorkspaceSetup("join")}><LogIn size={15}/> Join workspace</button><button disabled={personalDemoBusy} onClick={()=>void openPersonalDemo()}><Play size={15}/> {personalDemoBusy?"Opening demo…":"Open personal demo"}</button>{archivedProjects.length>0&&<button onClick={()=>{setWorkspacePicker(false);setMenu(false);setArchivedOpen(true);}}>Archived workspaces ({archivedProjects.length})</button>}</div>
           </div>}
         </div>
         <span className="nav-label">WORKSPACE</span>
@@ -571,7 +591,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                 <button className="primary" disabled={busy} onClick={refresh}>Retry workspace</button>
               </section>
             ) : (
-              <><EmptyWorkspaceWelcome onCreate={()=>openWorkspaceSetup('create')} onJoin={()=>openWorkspaceSetup('join')} />{archivedProjects.length>0&&<section className="panel settings-panel"><h2>Archived workspaces</h2><p>You can restore an archived workspace instead of creating a new one.</p><button className="secondary" onClick={()=>setArchivedOpen(true)}>Manage archived workspaces</button></section>}</>
+              <><EmptyWorkspaceWelcome onCreate={()=>openWorkspaceSetup('create')} onJoin={()=>openWorkspaceSetup('join')} /><section className="panel settings-panel"><h2>Try a complete software release</h2><p>Explore a private demo with six people, ten tasks, connected dependencies and fictional risk evidence. Your real projects stay separate.</p><button className="primary" disabled={personalDemoBusy} onClick={()=>void openPersonalDemo()}><Play size={16}/>{personalDemoBusy?"Opening demo…":"Open personal demo"}</button></section>{archivedProjects.length>0&&<section className="panel settings-panel"><h2>Archived workspaces</h2><p>You can restore an archived workspace instead of creating a new one.</p><button className="secondary" onClick={()=>setArchivedOpen(true)}>Manage archived workspaces</button></section>}</>
             )
           ) : (
             <>
@@ -595,6 +615,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                   >
                     <RefreshCw size={18} />
                   </button>
+                  {data.personal_demo&&lead&&<button className="secondary" disabled={personalDemoBusy} onClick={()=>{setResetDemoName("");setResetDemoError("");setResetDemoOpen(true);}}><RefreshCw size={15}/> Reset personal demo</button>}
                   {lead && data.is_demo && (
                     <button className="secondary" onClick={() => setDemo(true)}>
                       <Play size={15} />
@@ -616,10 +637,10 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                   <JourneySteps current={3}/><h2>{receipt.decision==='approve'?'Approved plan saved':'Proposal rejected — plan unchanged'}</h2><p>{receipt.title}</p><p>The decision is recorded in your workspace history. {receipt.decision==='approve'?'Check the updated task assignments and follow up on the source signal.':'No proposed changes were applied.'}</p>
                   <div className="dialog-actions"><button className="primary" onClick={()=>{setReceipt(null);navigate('tasks');}}>View current plan</button><button className="secondary" onClick={()=>{setReceipt(null);navigate('audit');}}>View decision history</button><button className="text-link" onClick={()=>setReceipt(null)}>Dismiss receipt</button></div>
                 </section>}
-                {view === "intelligence" && <IntelligenceCenter key={data.project.id} workspace={data.project.id} onRisk={id=>setRiskId(id)} isDemo={Boolean(data.is_demo)} canRehearse={lead} aiConfigured={Boolean(integrations.ai_configured)} onRisks={()=>navigate("risks")} onDemo={()=>{const sample=projects.find(p=>p.is_demo);if(sample)switchWorkspace(sample.id);else setNotice("No demo workspace is available for this account.");}} onFreshDemo={freshAIRehearsal} demoBusy={demoBusy}/>}
+                {view === "intelligence" && <IntelligenceCenter key={data.project.id} workspace={data.project.id} onRisk={id=>setRiskId(id)} isDemo={Boolean(data.is_demo)} canRehearse={lead} aiConfigured={Boolean(integrations.ai_configured)} onRisks={()=>navigate("risks")} onDemo={()=>void openPersonalDemo()} onFreshDemo={freshAIRehearsal} demoBusy={demoBusy}/>}
                 {view === "overview" && (
                   <>
-                    <DashboardHero demoAction={data.is_demo&&lead?"Replay demo scenario":projects.some(p=>p.is_demo&&p.id!==data.project.id)?"Open demo workspace":"Explore dependencies"} onDemo={()=>{if(data.is_demo&&lead){setDemo(true);return;}const sample=projects.find(p=>p.is_demo&&p.id!==data.project.id);if(sample)switchWorkspace(sample.id);else navigate("dependencies");}} onGithub={()=>openConnections("github")} githubLinked={Boolean(integrations.github_repository)}/>
+                    <DashboardHero demoAction={data.is_demo&&lead?"Replay demo scenario":personalDemoBusy?"Opening demo…":"Open personal demo"} onDemo={()=>{if(data.is_demo&&lead){setDemo(true);return;}void openPersonalDemo();}} onGithub={()=>data.personal_demo?navigate("risks"):openConnections("github")} githubLinked={Boolean(integrations.github_repository)} personalDemo={data.personal_demo}/>
                     <section className="stats premium-stats" aria-label="Delivery statistics">
                       {[
                         {label:"Delivery risks",value:activeRisks.length,icon:TriangleAlert,note:activeRisks.length?"Active evidence signals":"No active risk signals",color:"red",target:"risks"},
@@ -629,8 +650,8 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                       ].map(metric=><button key={metric.label} className={`stat ${metric.color}`} onClick={()=>navigate(metric.target as View)}><div><span>{metric.label}</span><metric.icon size={19}/></div><strong>{metric.value}</strong><small>{metric.note}<ArrowUpRight size={14}/></small><span className="metric-signal" aria-hidden="true"/></button>)}
                     </section>
                     <section className="connection-launchpad" aria-label="Workspace connection shortcuts">
-                      <button onClick={()=>openConnections("team")}><span className="connection-icon"><Users size={23}/></span><span><strong>Connect your team</strong><small>{data.members.length} {data.members.length===1?"member":"members"} · Invite by email</small></span><ArrowUpRight size={18}/></button>
-                      <button onClick={()=>openConnections("github")}><span className="connection-icon"><Github size={23}/></span><span><strong>{integrations.github_repository?"GitHub repository":"Connect GitHub project"}</strong><small>{integrations.github_repository??"Link your code and see CI activity"}</small></span><ArrowUpRight size={18}/></button>
+                      <button onClick={()=>openConnections("team")}><span className="connection-icon"><Users size={23}/></span><span><strong>{data.personal_demo?"Explore fictional team":"Connect your team"}</strong><small>{data.members.length} {data.members.length===1?"member":"members"} · {data.personal_demo?"Private demo":"Invite by email"}</small></span><ArrowUpRight size={18}/></button>
+                      <button onClick={()=>data.personal_demo?navigate("risks"):openConnections("github")}><span className="connection-icon"><Github size={23}/></span><span><strong>{data.personal_demo?"Fictional GitHub evidence":integrations.github_repository?"GitHub repository":"Connect GitHub project"}</strong><small>{data.personal_demo?"Explore seeded CI and review signals":integrations.github_repository??"Link your code and see CI activity"}</small></span><ArrowUpRight size={18}/></button>
                       {data.is_demo&&<button onClick={()=>setDemo(true)} disabled={!lead}><span className="connection-icon"><Play size={23}/></span><span><strong>Guided demo</strong><small>{lead?"Replay a sample with your team":"Ask a workspace lead to replay"}</small></span><ArrowUpRight size={18}/></button>}
                     </section>
                     <div className="premium-overview-grid">
@@ -1057,7 +1078,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                 )}
                 {view === "team" && (
                   <>
-                    <section className="team-connect-strip panel"><div className="team-connect-copy"><span className="section-kicker">SHARED WORKSPACE</span><h2>Bring your team together</h2><p>Invite teammates, manage access and review their shared capacity.</p></div><button className="primary" onClick={()=>openConnections("team")}><UserPlus size={17}/> Team & invitations</button></section>
+                    <section className="team-connect-strip panel"><div className="team-connect-copy"><span className="section-kicker">SHARED WORKSPACE</span><h2>{data.personal_demo?"Explore your fictional team":"Bring your team together"}</h2><p>{data.personal_demo?"Five simulated teammates share this private demo. Create a real workspace to invite real people.":"Invite teammates, manage access and review their shared capacity."}</p></div><button className="primary" onClick={()=>openConnections("team")}><UserPlus size={17}/> {data.personal_demo?"View demo team":"Team & invitations"}</button></section>
                     {data.project.role !== "viewer" && data.members.find((m) => m.id === user.id) && (
                       <AvailabilityForm
                         dated={true}
@@ -1081,7 +1102,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                           </div>
                           <h2>{m.name}</h2>
                           <p>{m.specialty}</p>
-                          <small>{m.email}</small>
+                          <small>{data.personal_demo&&m.id!==user.id?"Fictional teammate · no login":m.email}</small>
                           <div className="capacity-meter">
                             <span
                               style={{
@@ -1275,6 +1296,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
           }}
         />
       )}
+      {resetDemoOpen&&data?.personal_demo&&<Modal title="Reset personal demo" onClose={()=>{if(!personalDemoBusy)setResetDemoOpen(false);}}><form className="form-grid" onSubmit={e=>{e.preventDefault();void openPersonalDemo(true);}}><p>This permanently replaces only your private fictional demo. All demo changes, tasks and decisions are reset. Real workspaces are not affected.</p><label>Type the workspace name exactly: <strong>{data.project.name}</strong><input aria-label="Confirm demo reset name" value={resetDemoName} onChange={e=>setResetDemoName(e.target.value)} autoComplete="off" disabled={personalDemoBusy}/></label>{resetDemoError&&<p role="alert" className="error">{resetDemoError}</p>}<div className="dialog-actions"><button className="secondary" type="button" disabled={personalDemoBusy} onClick={()=>setResetDemoOpen(false)}>Cancel</button><button className="primary" type="submit" disabled={personalDemoBusy||resetDemoName!==data.project.name}>{personalDemoBusy?<Busy/>:"Reset demo permanently"}</button></div></form></Modal>}
       {archivedOpen&&<ArchivedWorkspaces projects={archivedProjects} onClose={()=>setArchivedOpen(false)} onChanged={workspaceLifecycleChanged}/>}
       {workspaceSetup&&<WorkspaceSetup displayName={user.name} initialMode={setupMode} onClose={()=>setWorkspaceSetup(false)} onSaved={async id=>{await load(id);router.push('/overview');}}/>}
       {manageTask && data && <TaskManager data={data} task={data.tasks.find(t => t.id === manageTask)} onClose={() => setManageTask(null)} onSaved={async action=>{await refresh();setNotice(action==='created'?'Task created and saved to your workspace.':action==='archived'?'Task archived. Your audit history is preserved.':'Task details saved.');}} />}

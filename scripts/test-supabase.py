@@ -401,6 +401,43 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
         assert db.execute('select public.tf_github_review_context(%s,%s,%s)',(ciw,cit,owner)).fetchone()[0] is None
         db.execute('reset role')
         passed.append('permanent purge cleans dependent data, preserves other tenants and ignores late GitHub events')
+        # Stage 2: per-user demo, real Auth principals preserved; fictional members have no Auth records.
+        def personal_demo(op,wid=None,name=None):
+            return db.execute('select public.tf_personal_demo(%s,%s,%s)',(op,wid,name)).fetchone()[0]
+        identity(owner)
+        demo=personal_demo('open')
+        dw=demo['id']
+        assert demo['is_demo'] and str(demo['demo_owner_id'])==owner
+        assert personal_demo('open')['id']==dw
+        ds=db.execute('select public.tf_snapshot(%s)',(dw,)).fetchone()[0]
+        assert len(ds['members'])==6 and len(ds['tasks'])==10 and len(ds['edges'])==9 and len(ds['evidence'])==4
+        assert sum(m['demo_persona'] for m in ds['members'])==5
+        assert all(m['auth_user_id'] is None for m in ds['members'] if m['demo_persona'])
+        persona=next(m['id'] for m in ds['members'] if m['demo_persona'])
+        denied('personal demo cannot invite real accounts',lambda:workspace_write('invite',{'email':outsider+'@example.test','role':'member','token_hash':'d'*64},dw),'42501')
+        denied('fictional persona role cannot be elevated',lambda:workspace_write('role',{'user_id':persona,'role':'manager'},dw),'23514')
+        identity(outsider)
+        assert db.execute('select public.tf_snapshot(%s)',(dw,)).fetchone()[0] is None
+        denied('outsider cannot reset another personal demo',lambda:personal_demo('reset',dw,demo['name']),'42501')
+        other_demo=personal_demo('open')
+        assert other_demo['id']!=dw
+        identity(owner)
+        denied('reset rejects incorrect name',lambda:personal_demo('reset',dw,'wrong'),'22023')
+        denied('reset rejects real workspace',lambda:personal_demo('reset',fresh['id'],'Renamed workspace'),'42501')
+        identity(persona)
+        assert db.execute('select public.tf_snapshot(%s)',(dw,)).fetchone()[0] is None
+        denied('fictional principal cannot launch a demo',lambda:personal_demo('open'),'42501')
+        identity(owner)
+        changed_demo=personal_demo('reset',dw,demo['name'])
+        assert changed_demo['id']!=dw
+        assert db.execute('select public.tf_snapshot(%s)',(dw,)).fetchone()[0] is None
+        replacement=db.execute('select public.tf_snapshot(%s)',(changed_demo['id'],)).fetchone()[0]
+        assert len(replacement['members'])==6 and len(replacement['tasks'])==10
+        assert db.execute('select public.tf_snapshot(%s)',(fresh['id'],)).fetchone()[0] is not None
+        db.execute('reset role')
+        assert db.execute('select count(*) from auth.users where id=%s',(persona,)).fetchone()[0]==0
+        assert db.execute('select count(*) from public.tf_workspaces where id=%s',(other_demo['id'],)).fetchone()[0]==1
+        passed.append('personal demo seeds six members, ten tasks, four evidence signals; no Auth personas; isolated idempotent launch and atomic reset')
     finally:
         db.rollback()
 print(f'{len(passed)} SQL checks passed; all test changes rolled back.')
