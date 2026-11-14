@@ -1,6 +1,6 @@
 -- Stage 2: private, per-user fictional team. No synthetic Auth users or credentials.
 alter table public.tf_workspaces add column demo_owner_id uuid references auth.users(id);
-alter table public.tf_workspaces add constraint tf_personal_demo_only check(demo_owner_id is null or is_demo);
+alter table public.tf_workspaces add constraint tf_personal_demo_only check(demo_owner_id is null or (is_demo and github_repository is null));
 create unique index tf_one_personal_demo on public.tf_workspaces(demo_owner_id) where demo_owner_id is not null;
 
 -- Keep real memberships linked to Auth, while allowing explicitly fictional
