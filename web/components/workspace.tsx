@@ -57,6 +57,7 @@ import { JourneySteps } from './journey-steps';
 import { TaskManager } from "./task-manager";
 import { WorkspaceSetup } from './workspace-management';
 import { WorkspaceSettings } from './workspace-settings';
+import { ArchivedWorkspaces, type LifecycleOperation } from './workspace-lifecycle';
 import { WorkspaceActivity } from "./workspace-activity";
 import DependencyMap from "./dependency-map";
 import { Brand, Badge, Busy, Empty, Modal, statusLabels } from "./ui";
@@ -125,6 +126,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
   const view: View = routeView === "capacity" ? "team" : Object.hasOwn(titles, routeView) ? routeView as View : "overview";
   const [user, setUser] = useState<Person | null>(null),
     [projects, setProjects] = useState<Project[]>([]),
+    [archivedProjects,setArchivedProjects]=useState<Project[]>([]),
     [data, setData] = useState<Overview | null>(null),
     [graph, setGraph] = useState<Graph | null>(null),
     [risks, setRisks] = useState<Risk[]>([]),
@@ -141,6 +143,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
   const [syncWarning,setSyncWarning]=useState(false);
   const [dependencyPair,setDependencyPair]=useState<{source:string;target:string}|null>(null);
   const [workspacePicker,setWorkspacePicker]=useState(false);
+  const [archivedOpen,setArchivedOpen]=useState(false);
   const [settingsFocus,setSettingsFocus]=useState<"team"|"github"|null>(null);
   const [receipt,setReceipt]=useState<{title:string;decision:string;workspace:string;proposal:string}|null>(null);
   const [workspaceSetup,setWorkspaceSetup]=useState(pathname==='/join');
@@ -162,13 +165,15 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
       const list = await api<Project[]>("/projects");
       if (request !== loadSequence.current) return;
       const saved=localStorage.getItem(`teamflow.workspace.${me.id}`);
-      const target = id ?? (list.some(p=>p.id===saved)?saved:undefined) ?? list[0]?.id;
+      const active=list.filter(p=>!p.archived_at);
+      const target = (id&&active.some(p=>p.id===id)?id:undefined) ?? (active.some(p=>p.id===saved)?saved:undefined) ?? active[0]?.id;
+      setProjects(active);setArchivedProjects(list.filter(p=>Boolean(p.archived_at)));setUser(me);
       if (target) {
         const base = `/projects/${target}`;
         const [overview, g, r, p, a, i] = await Promise.all([
           api<Overview>(base + "/dashboard"),
           api<Graph>(
-            base + "/dependencies" + (selected ? `?selected=${selected}` : ""),
+            base + "/dependencies" + (selected && target===id ? `?selected=${selected}` : ""),
           ),
           api<Risk[]>(base + "/risks"),
           api<Proposal[]>(base + "/proposals"),
@@ -184,9 +189,10 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
         setAudit(a);
         setIntegrations(i);
         setSyncTime(Date.now());setSyncWarning(false);
-      } else setData(null);
-      setProjects(list);
-      setUser(me);
+      } else {
+        localStorage.removeItem(`teamflow.workspace.${me.id}`);
+        setData(null);setGraph(null);setRisks([]);setProposals([]);setAudit([]);setIntegrations(null);setSyncTime(null);setSyncWarning(false);
+      }
       setError("");
     } catch (e) {
       if (request !== loadSequence.current) return;
@@ -207,7 +213,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
   const selectedGraphTask = graph?.selected_task_id ?? undefined;
   const activeUserId = user?.id;
   useEffect(()=>{
-    if(!activeUserId||!activeWorkspaceId||taskId||riskId||proposalId||manageTask||workspaceSetup||dependencyDialog||demo||receipt||view==='settings')return;
+    if(!activeUserId||!activeWorkspaceId||archivedOpen||taskId||riskId||proposalId||manageTask||workspaceSetup||dependencyDialog||demo||receipt||view==='settings')return;
     let refreshing = false;
     const channel=typeof BroadcastChannel!=="undefined"?new BroadcastChannel("teamflow.workspace.sync"):null;
     const update=()=>{if(document.visibilityState==='visible' && !refreshing) {
@@ -219,7 +225,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
     window.addEventListener('focus',update);
     document.addEventListener('visibilitychange',update);
     return()=>{window.clearInterval(timer);channel?.close();window.removeEventListener('focus',update);document.removeEventListener('visibilitychange',update);};
-  },[activeUserId,activeWorkspaceId,selectedGraphTask,taskId,riskId,proposalId,manageTask,workspaceSetup,dependencyDialog,demo,receipt,view,load]);
+  },[activeUserId,activeWorkspaceId,selectedGraphTask,archivedOpen,taskId,riskId,proposalId,manageTask,workspaceSetup,dependencyDialog,demo,receipt,view,load]);
   useEffect(() => {
     if (!menu) return;
     const previous = document.activeElement as HTMLElement;
@@ -295,6 +301,17 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
     navigate("overview");
     void load(id);
   }
+  async function workspaceLifecycleChanged(operation:LifecycleOperation,id:string){
+    // Invalidate pending loads and old selection before fetching the new list.
+    loadSequence.current++;
+    setArchivedOpen(false);setWorkspacePicker(false);
+    setTaskId(null);setRiskId(null);setProposalId(null);setManageTask(null);setDependencyDialog(false);setDemo(false);setReceipt(null);
+    setData(null);setGraph(null);setRisks([]);setProposals([]);setAudit([]);setIntegrations(null);
+    setBusy(true);
+    navigate("overview");
+    await load(operation==="restore"?id:undefined);
+    setNotice(operation==="restore"?"Workspace restored.":operation==="archive"?"Workspace archived. Restore it from Archived workspaces.":"Workspace permanently deleted.");
+  }
   async function freshAIRehearsal(){
     if(!data?.is_demo||data.project.role!=="lead"||!user||demoBusy)return;
     setDemoBusy(true);setError("");setNotice("");
@@ -314,7 +331,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
       await api("/auth/logout", { method: "POST" });
       loadSequence.current++;
       setUser(null);
-      setData(null);
+      setData(null);setProjects([]);setArchivedProjects([]);setArchivedOpen(false);
       setMenu(false);
       router.push("/login");
     } catch (e) {
@@ -418,7 +435,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
           {workspacePicker&&<div className="workspace-picker-list" id="workspace-picker-list" role="group" aria-label="Available workspaces">
             <span className="section-kicker">YOUR WORKSPACES</span>
             {projects.map(p=><button key={p.id} className={p.id===data?.project.id?"current-workspace":""} onClick={()=>switchWorkspace(p.id)} disabled={busy}><span className="workspace-emblem mini">{p.name[0]}</span><span><strong>{p.name}</strong><small>{p.role}</small></span>{p.id===data?.project.id&&<Check size={15}/>}</button>)}
-            <div className="workspace-picker-actions"><button onClick={()=>openWorkspaceSetup("create")}><Plus size={15}/> Create workspace</button><button onClick={()=>openWorkspaceSetup("join")}><LogIn size={15}/> Join workspace</button></div>
+            <div className="workspace-picker-actions"><button onClick={()=>openWorkspaceSetup("create")}><Plus size={15}/> Create workspace</button><button onClick={()=>openWorkspaceSetup("join")}><LogIn size={15}/> Join workspace</button>{archivedProjects.length>0&&<button onClick={()=>{setWorkspacePicker(false);setMenu(false);setArchivedOpen(true);}}>Archived workspaces ({archivedProjects.length})</button>}</div>
           </div>}
         </div>
         <span className="nav-label">WORKSPACE</span>
@@ -554,7 +571,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                 <button className="primary" disabled={busy} onClick={refresh}>Retry workspace</button>
               </section>
             ) : (
-              <EmptyWorkspaceWelcome onCreate={()=>openWorkspaceSetup('create')} onJoin={()=>openWorkspaceSetup('join')} />
+              <><EmptyWorkspaceWelcome onCreate={()=>openWorkspaceSetup('create')} onJoin={()=>openWorkspaceSetup('join')} />{archivedProjects.length>0&&<section className="panel settings-panel"><h2>Archived workspaces</h2><p>You can restore an archived workspace instead of creating a new one.</p><button className="secondary" onClick={()=>setArchivedOpen(true)}>Manage archived workspaces</button></section>}</>
             )
           ) : (
             <>
@@ -1151,7 +1168,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                 {view === "settings" && (
                   <div className="settings-grid">
                     {integrations.ai_provider === 'gemini' ? (
-                      <WorkspaceSettings key={data.project.id} id={data.project.id} onSaved={refresh} focus={settingsFocus}/>
+                      <WorkspaceSettings key={data.project.id} id={data.project.id} onSaved={refresh} focus={settingsFocus} onLifecycleChanged={workspaceLifecycleChanged}/>
                     ) : (
                       <section className="panel settings-panel">
                         <span className="section-kicker">LOCAL PROJECT</span>
@@ -1258,6 +1275,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
           }}
         />
       )}
+      {archivedOpen&&<ArchivedWorkspaces projects={archivedProjects} onClose={()=>setArchivedOpen(false)} onChanged={workspaceLifecycleChanged}/>}
       {workspaceSetup&&<WorkspaceSetup displayName={user.name} initialMode={setupMode} onClose={()=>setWorkspaceSetup(false)} onSaved={async id=>{await load(id);router.push('/overview');}}/>}
       {manageTask && data && <TaskManager data={data} task={data.tasks.find(t => t.id === manageTask)} onClose={() => setManageTask(null)} onSaved={async action=>{await refresh();setNotice(action==='created'?'Task created and saved to your workspace.':action==='archived'?'Task archived. Your audit history is preserved.':'Task details saved.');}} />}
       {currentRisk && data && integrations && (
