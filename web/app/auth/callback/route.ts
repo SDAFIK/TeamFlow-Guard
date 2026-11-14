@@ -9,7 +9,8 @@ export async function GET(request:NextRequest){
     const client=await supabaseServer();
     const {data,error}=await client.auth.exchangeCodeForSession(code);
     if(!error){
-      if(data.redirectType==="PASSWORD_RECOVERY"){
+      // AuthTokenResponse omits the runtime PKCE redirectType in this pinned SDK.
+      if("redirectType" in data && data.redirectType==="PASSWORD_RECOVERY"){
         const {data:claims}=await client.auth.getClaims();
         const sessionId=claims?.claims?.session_id;
         if(sessionId){
