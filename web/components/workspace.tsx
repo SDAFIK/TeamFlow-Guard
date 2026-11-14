@@ -25,7 +25,6 @@ import {
   ChevronRight,
   Activity,
   Check,
-  FileText,
   Github,
   UserPlus,
   ChevronDown,
@@ -362,7 +361,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
     return (
       <WorkspaceLoader/>
     );
-  if (!user) return <Login onLogin={() => load()} initialError={error || (confirmationFailed?"Confirmation could not be completed. If your email is already verified, sign in. Otherwise enter your email and request a fresh confirmation. Reopen your team invitation after signing in.":"")} />;
+  if (!user) return <Login onLogin={() => load()} initialError={error || (confirmationFailed?"Email link could not be completed. If your account is verified, sign in or request a fresh password reset. Otherwise request a fresh confirmation and reopen your team invitation after signing in.":"")} />;
   const activeRisks = risks.filter((r) => r.active).sort((a,b)=>Number(a.stale_evidence)-Number(b.stale_evidence)||b.affected_task_ids.length-a.affected_task_ids.length||({high:3,medium:2,low:1}[b.severity]??0)-({high:3,medium:2,low:1}[a.severity]??0)),
     pending = proposals.filter((p) => p.status === "pending"),
     ready = pending.filter((p) => !p.stale);
