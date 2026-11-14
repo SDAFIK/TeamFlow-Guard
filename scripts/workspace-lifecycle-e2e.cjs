@@ -237,6 +237,34 @@ async function shot(page,name){
   await shot(ownerPage,"stage2-reset-desktop.png");
   assert.deepEqual(errors,[],"no uncaught browser errors across Stage 1 and Stage 2");
   console.log("PASS Stage 2 authenticated demo: six-person team, ten tasks, four active risk types, isolated users, human-approved recovery, fictional CI recovery and private reset");
+  // Stage 3: inspect each actual route at desktop, tablet and narrow mobile sizes.
+  const routes=[["overview","Delivery overview"],["intelligence","TIC Intelligence"],["risks","Risk center"],["tasks","Task board"],["dependencies","Dependencies"],["decisions","Decision inbox"],["capacity","Team capacity"],["audit","Audit log"],["settings","Project settings"]];
+  for(const width of [1440,1024,768,390,320]){
+    await ownerPage.setViewportSize({width,height:900});
+    for(const [route,heading] of routes){
+      await ownerPage.goto(BASE+"/"+route);
+      await ownerPage.getByRole("heading",{name:heading,exact:true}).first().waitFor();
+      await selected(ownerPage,newDemo.id);
+      assert.equal(await ownerPage.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1),false,"horizontal overflow "+route+" at "+width);
+      await shot(ownerPage,"stage3-"+width+"-"+route+".png");
+    }
+  }
+  const publicPage=await (await browser.newContext({reducedMotion:"reduce"})).newPage();
+  for(const width of [1440,768,390,320]){
+    await publicPage.setViewportSize({width,height:900});
+    await publicPage.goto(BASE+"/login");
+    await publicPage.getByRole("heading",{name:"Build with clarity. Recover with confidence."}).waitFor();
+    await publicPage.getByLabel("Email address").waitFor();
+    assert.equal(await publicPage.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1),false,"login overflow "+width);
+    await shot(publicPage,"stage3-"+width+"-login.png");
+  }
+  await publicPage.getByRole("button",{name:"New here? Create an account"}).click();
+  await publicPage.getByRole("button",{name:"Create account",exact:true}).waitFor();
+  await publicPage.getByRole("button",{name:"Already have an account? Sign in"}).click();
+  await publicPage.getByRole("button",{name:"Sign in",exact:true}).waitFor();
+  assert.deepEqual(errors,[],"no uncaught authenticated browser errors");
+  console.log("PASS Stage 3 responsive route sweep and public entry controls");
+
 
  }finally{if(browser)await browser.close();await stop();}
 })().catch(e=>{console.error(e);process.exitCode=1;});
