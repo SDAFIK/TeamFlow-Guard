@@ -640,7 +640,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                 {view === "intelligence" && <IntelligenceCenter key={data.project.id} workspace={data.project.id} onRisk={id=>setRiskId(id)} isDemo={Boolean(data.is_demo)} canRehearse={lead} aiConfigured={Boolean(integrations.ai_configured)} onRisks={()=>navigate("risks")} onDemo={()=>void openPersonalDemo()} onFreshDemo={freshAIRehearsal} demoBusy={demoBusy}/>}
                 {view === "overview" && (
                   <>
-                    <DashboardHero demoAction={data.is_demo&&lead?"Replay demo scenario":personalDemoBusy?"Opening demo…":"Open personal demo"} onDemo={()=>{if(data.is_demo&&lead){setDemo(true);return;}void openPersonalDemo();}} onGithub={()=>openConnections("github")} githubLinked={Boolean(integrations.github_repository)}/>
+                    <DashboardHero demoAction={data.is_demo&&lead?"Replay demo scenario":personalDemoBusy?"Opening demo…":"Open personal demo"} onDemo={()=>{if(data.is_demo&&lead){setDemo(true);return;}void openPersonalDemo();}} onGithub={()=>data.personal_demo?navigate("risks"):openConnections("github")} githubLinked={Boolean(integrations.github_repository)} personalDemo={data.personal_demo}/>
                     <section className="stats premium-stats" aria-label="Delivery statistics">
                       {[
                         {label:"Delivery risks",value:activeRisks.length,icon:TriangleAlert,note:activeRisks.length?"Active evidence signals":"No active risk signals",color:"red",target:"risks"},
@@ -651,7 +651,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                     </section>
                     <section className="connection-launchpad" aria-label="Workspace connection shortcuts">
                       <button onClick={()=>openConnections("team")}><span className="connection-icon"><Users size={23}/></span><span><strong>{data.personal_demo?"Explore fictional team":"Connect your team"}</strong><small>{data.members.length} {data.members.length===1?"member":"members"} · {data.personal_demo?"Private demo":"Invite by email"}</small></span><ArrowUpRight size={18}/></button>
-                      <button onClick={()=>openConnections("github")}><span className="connection-icon"><Github size={23}/></span><span><strong>{integrations.github_repository?"GitHub repository":"Connect GitHub project"}</strong><small>{integrations.github_repository??"Link your code and see CI activity"}</small></span><ArrowUpRight size={18}/></button>
+                      <button onClick={()=>data.personal_demo?navigate("risks"):openConnections("github")}><span className="connection-icon"><Github size={23}/></span><span><strong>{data.personal_demo?"Fictional GitHub evidence":integrations.github_repository?"GitHub repository":"Connect GitHub project"}</strong><small>{data.personal_demo?"Explore seeded CI and review signals":integrations.github_repository??"Link your code and see CI activity"}</small></span><ArrowUpRight size={18}/></button>
                       {data.is_demo&&<button onClick={()=>setDemo(true)} disabled={!lead}><span className="connection-icon"><Play size={23}/></span><span><strong>Guided demo</strong><small>{lead?"Replay a sample with your team":"Ask a workspace lead to replay"}</small></span><ArrowUpRight size={18}/></button>}
                     </section>
                     <div className="premium-overview-grid">
@@ -1078,7 +1078,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                 )}
                 {view === "team" && (
                   <>
-                    <section className="team-connect-strip panel"><div className="team-connect-copy"><span className="section-kicker">SHARED WORKSPACE</span><h2>Bring your team together</h2><p>Invite teammates, manage access and review their shared capacity.</p></div><button className="primary" onClick={()=>openConnections("team")}><UserPlus size={17}/> Team & invitations</button></section>
+                    <section className="team-connect-strip panel"><div className="team-connect-copy"><span className="section-kicker">SHARED WORKSPACE</span><h2>{data.personal_demo?"Explore your fictional team":"Bring your team together"}</h2><p>{data.personal_demo?"Five simulated teammates share this private demo. Create a real workspace to invite real people.":"Invite teammates, manage access and review their shared capacity."}</p></div><button className="primary" onClick={()=>openConnections("team")}><UserPlus size={17}/> {data.personal_demo?"View demo team":"Team & invitations"}</button></section>
                     {data.project.role !== "viewer" && data.members.find((m) => m.id === user.id) && (
                       <AvailabilityForm
                         dated={true}
