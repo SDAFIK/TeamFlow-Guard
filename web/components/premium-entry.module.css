@@ -26,3 +26,10 @@
 
 @media(max-width:1000px){.story{min-height:auto;gap:24px}.story .headline{font-size:clamp(2rem,6vw,3.5rem)}}
 @media(max-width:480px){.story{padding:22px 18px}.panelHeader{flex-wrap:wrap}.kicker{font-size:10px}.story .copy{font-size:14px}.node{overflow-wrap:anywhere}}
+
+/* Finite entrance, quiet ambient movement; no layout-affecting animation. */
+@keyframes entryAmbient{0%,100%{transform:scale(1) translate3d(0,0,0)}50%{transform:scale(1.06) translate3d(1%,-1%,0)}}
+@keyframes entryReveal{from{opacity:.65;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes nodeSignal{0%,100%{box-shadow:0 0 0 0 transparent}50%{box-shadow:0 0 18px #73f5d925}}
+@media(prefers-reduced-motion:no-preference){.story::before{animation:entryAmbient 14s ease-in-out 2}.hero{animation:entryReveal .45s ease-out both}.node{animation:nodeSignal 4s ease-in-out 2}.impact{animation-delay:.4s}.decision{animation-delay:.8s}.signal::after{animation-iteration-count:3}}
+@media(prefers-reduced-motion:reduce){.story::before,.hero,.node,.signal::after{animation:none!important;transform:none!important}}
