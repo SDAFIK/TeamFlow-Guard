@@ -11,7 +11,7 @@ export async function GET(request:NextRequest){
     if(!error){
       // AuthTokenResponse omits the runtime PKCE redirectType in this pinned SDK.
       if("redirectType" in data && data.redirectType==="recovery"){
-        const {data:claims}=await client.auth.getClaims();
+        const {data:claims}=await client.auth.getClaims(data.session.access_token);
         const sessionId=claims?.claims?.session_id;
         if(sessionId){
           const response=NextResponse.redirect(new URL("/reset-password",origin));
@@ -21,7 +21,9 @@ export async function GET(request:NextRequest){
         await client.auth.signOut({scope:"local"});
         return NextResponse.redirect(new URL("/login?confirmation=failed",origin));
       }
-      return NextResponse.redirect(new URL("/overview",origin));
+      const response=NextResponse.redirect(new URL("/overview",origin));
+      response.cookies.delete("tf_recovery");
+      return response;
     }
   }
   return NextResponse.redirect(new URL("/login?confirmation=failed",origin));
