@@ -1,0 +1,11 @@
+.workspace-lifecycle-panel{border-color:rgba(248,113,113,.24)}
+.workspace-lifecycle-actions{display:grid;gap:12px;min-width:0}
+.workspace-lifecycle-actions .dialog-actions{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-start;margin:8px 0 0}
+.workspace-lifecycle-confirm{border:1px solid rgba(248,113,113,.25);border-radius:14px;padding:16px;min-width:0;overflow-wrap:anywhere}
+.workspace-lifecycle-confirm h3{margin:0;font-size:16px}
+.workspace-lifecycle-confirm p{margin:0;line-height:1.6}
+.workspace-lifecycle-confirm label,.workspace-lifecycle-confirm input{min-width:0;max-width:100%}
+.workspace-danger-button.secondary{color:#fca5a5;border-color:rgba(248,113,113,.45)}
+.workspace-danger-button.primary{background:#be123c;border-color:#e11d48;color:#fff}
+.workspace-danger-button.primary:not(:disabled):hover{background:#9f1239}
+@media(max-width:600px){.workspace-lifecycle-confirm{padding:12px}.workspace-lifecycle-actions .dialog-actions>button{flex:1 1 150px}.workspace-lifecycle-actions .dialog-actions{gap:8px}}
