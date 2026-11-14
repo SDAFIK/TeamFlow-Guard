@@ -74,6 +74,30 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       const { error } = await client.auth.signOut(); if (error) throw new HttpError(503, "Sign out failed. Retry.");
       return answer({ message: "Signed out" });
     }
+    if (path.join("/") === "auth/forgot-password" && request.method === "POST") {
+      const input=z.object({email:z.email().max(254)}).strict().parse(body);
+      const origin=authRedirectOrigin(request.headers.get("origin"),{APP_BASE_URL:process.env.APP_BASE_URL,APP_ALLOWED_ORIGINS:process.env.APP_ALLOWED_ORIGINS,VERCEL:process.env.VERCEL,VERCEL_URL:process.env.VERCEL_URL});
+      if(!origin)throw new HttpError(503,"Password recovery is unavailable.");
+      const {error}=await client.auth.resetPasswordForEmail(input.email,{redirectTo:origin+"/auth/callback?recovery=1"});
+      if(error?.status===429)throw new HttpError(429,"Too many requests. Try again later.");
+      if(error?.status&&error.status>=500)throw new HttpError(503,"Password recovery is temporarily unavailable.");
+      return answer({message:"If an account exists, a password reset link has been requested. Open the newest email in this browser."});
+    }
+    if (path.join("/") === "auth/reset-password" && request.method === "POST") {
+      const input=z.object({password:z.string().min(12).max(128)}).strict().parse(body);
+      const {data:{user},error:authError}=await client.auth.getUser();
+      if(authError||!user)throw new HttpError(401,"Open a fresh password recovery email first.");
+      const marker=request.cookies.get("tf_recovery")?.value;
+      const {data:claims}=await client.auth.getClaims();
+      const sessionId=claims?.claims?.session_id;
+      if(!sessionId||marker!==String(sessionId))throw new HttpError(403,"Open a fresh password recovery email first.");
+      const {error}=await client.auth.updateUser({password:input.password});
+      if(error)throw new HttpError(error.status===429?429:422,"Password could not be changed. Try a different strong password or request a new link.");
+      await client.auth.signOut({scope:"global"});
+      const response=answer({message:"Password updated. Sign in with your new password."});
+      response.cookies.delete("tf_recovery");
+      return response;
+    }
     if (path.join('/') === 'auth/resend-confirmation' && request.method === 'POST') {
       const input=z.object({email:z.email().max(254)}).strict().parse(body);
       const origin=authRedirectOrigin(request.headers.get("origin"),{APP_BASE_URL:process.env.APP_BASE_URL,APP_ALLOWED_ORIGINS:process.env.APP_ALLOWED_ORIGINS,VERCEL:process.env.VERCEL,VERCEL_URL:process.env.VERCEL_URL});
