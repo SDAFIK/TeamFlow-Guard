@@ -1,7 +1,7 @@
 name: Workspace lifecycle authenticated acceptance
 on:
   pull_request:
-    branches: [main]
+    branches: [main, codex/workspace-lifecycle-stage1]
     paths:
       - 'web/components/workspace*.tsx'
       - 'web/app/api/**'
