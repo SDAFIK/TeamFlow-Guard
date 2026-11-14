@@ -1168,7 +1168,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                 {view === "settings" && (
                   <div className="settings-grid">
                     {integrations.ai_provider === 'gemini' ? (
-                      <WorkspaceSettings key={data.project.id} id={data.project.id} onSaved={refresh} focus={settingsFocus} onLifecycleChanged={workspaceLifecycleChanged}/>
+                      <WorkspaceSettings key={data.project.id} id={data.project.id} workspaceName={data.project.name} onSaved={refresh} focus={settingsFocus} onLifecycleChanged={workspaceLifecycleChanged}/>
                     ) : (
                       <section className="panel settings-panel">
                         <span className="section-kicker">LOCAL PROJECT</span>
