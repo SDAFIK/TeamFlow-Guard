@@ -112,12 +112,21 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       return answer({ id: user.id, email: user.email ?? "", name: data?.name ?? "Member" });
     }
     if (path[0] === "projects" && path.length === 1 && request.method === "GET") {
-      const { data, error } = await client.from("tf_memberships").select("workspace_id,role,tf_workspaces(name,is_demo,archived_at)").eq("user_id", user.id);
+      const { data, error } = await client.from("tf_memberships").select("workspace_id,role,tf_workspaces(name,is_demo,archived_at,demo_owner_id)").eq("user_id", user.id);
       if (error) databaseError(error);
       return answer((data ?? []).map(row => {
-        const ws=row.tf_workspaces as unknown as {name:string;is_demo:boolean;archived_at:string|null};
-        return {id:row.workspace_id,role:uiRole(row.role),is_owner:row.role==="owner",name:ws.name,is_demo:ws.is_demo,archived_at:ws.archived_at};
+        const ws=row.tf_workspaces as unknown as {name:string;is_demo:boolean;archived_at:string|null;demo_owner_id:string|null};
+        return {id:row.workspace_id,role:uiRole(row.role),is_owner:row.role==="owner",name:ws.name,is_demo:ws.is_demo,archived_at:ws.archived_at,personal_demo:Boolean(ws.demo_owner_id)};
       }));
+    }
+    if(path.join("/") === "personal-demo" && request.method==="POST"){
+      const input=z.discriminatedUnion("operation",[
+        z.object({operation:z.literal("open")}).strict(),
+        z.object({operation:z.literal("reset"),workspace_id:z.uuid(),confirmed_name:z.string().min(2).max(100)}).strict(),
+      ]).parse(body);
+      const result=await client.rpc("tf_personal_demo",{operation:input.operation,w:input.operation==="reset"?input.workspace_id:null,confirmed_name:input.operation==="reset"?input.confirmed_name:null});
+      if(result.error)databaseError(result.error);
+      return answer(result.data);
     }
     if (path[0]==="projects" && path.length===3 && path[2]==="lifecycle" && request.method==="POST") {
       const id=z.uuid().parse(path[1]);
@@ -142,7 +151,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       if (request.method === "GET") {
         const selected = request.nextUrl.searchParams.get("selected");
         switch (path[2]) {
-          case "dashboard": return answer({ project: { id, name: state.workspace.name, role: uiRole(state.role) }, description: state.workspace.description, is_demo: state.workspace.is_demo, fixture_label: state.workspace.fixture_label, plan_version: state.workspace.plan_version, as_of: new Date().toISOString(), tasks: state.tasks, members: state.members.map(m => ({ ...m, role: uiRole(m.role) })), counts: { total: state.tasks.length, ...Object.fromEntries(["todo","in_progress","blocked","done"].map(s => [s, state.tasks.filter(t => t.status === s).length])) } });
+          case "dashboard": return answer({ project: { id, name: state.workspace.name, role: uiRole(state.role) }, description: state.workspace.description, is_demo: state.workspace.is_demo, personal_demo:Boolean(state.workspace.demo_owner_id), fixture_label: state.workspace.fixture_label, plan_version: state.workspace.plan_version, as_of: new Date().toISOString(), tasks: state.tasks, members: state.members.map(m => ({ ...m, role: uiRole(m.role) })), counts: { total: state.tasks.length, ...Object.fromEntries(["todo","in_progress","blocked","done"].map(s => [s, state.tasks.filter(t => t.status === s).length])) } });
           case "tasks": return answer(state.tasks);
           case "dependencies": return answer({ nodes: state.tasks, edges: state.edges, plan_version: state.workspace.plan_version, selected_task_id: selected, downstream_ids: selected ? downstream(state.tasks.map(t => t.id), state.edges, selected) : [], upstream_ids: selected ? downstream(state.tasks.map(t => t.id), state.edges, selected, true) : [] });
           case "risks": return answer(risks());
