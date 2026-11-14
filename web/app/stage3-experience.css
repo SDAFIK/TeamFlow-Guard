@@ -22,9 +22,10 @@
 
 /* Motion is feedback, never a prerequisite for seeing or using a control. */
 @keyframes tfReveal{from{opacity:.82;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@keyframes tfPageReveal{from{opacity:.86}to{opacity:1}}
 @keyframes tfReceipt{0%{box-shadow:0 0 0 0 #63e9d04a}100%{box-shadow:0 0 0 8px transparent}}
 @media(prefers-reduced-motion:no-preference){
- .shell .view-content{animation:tfReveal .22s var(--tf-ease) both}
+ .shell .view-content{animation:tfPageReveal .22s var(--tf-ease)}
  .shell .recovery-receipt,.shell .success-banner{animation:tfReceipt .65s ease-out 1}
  .shell .workload-track i,.shell .tic-meter i{transition:width .35s var(--tf-ease)}
  .shell .workspace-picker-list{animation:tfReveal .16s var(--tf-ease) both}
