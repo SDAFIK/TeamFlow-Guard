@@ -46,6 +46,7 @@ jobs:
           NODE_PATH: ${{ github.workspace }}/web/node_modules
           PLAYWRIGHT_BASE_URL: http://127.0.0.1:3100
           TEAMFLOW_BACKEND: supabase
+          TEAMFLOW_GUEST_ARTIFACT_DIR: ${{ runner.temp }}/teamflow-guest-evidence
         run: |
           cd web
           npm run start -- -p 3100 >/tmp/teamflow-browser.log 2>&1 &
@@ -66,6 +67,14 @@ jobs:
           cd ..
           node scripts/ux-smoke.cjs
           node scripts/guest-sandbox-e2e.cjs
+      - name: Upload guest visual evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: teamflow-guest-evidence
+          path: ${{ runner.temp }}/teamflow-guest-evidence
+          if-no-files-found: ignore
+          retention-days: 7
   backend:
     runs-on: ubuntu-latest
     services:
