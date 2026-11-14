@@ -52,7 +52,7 @@ create trigger tf_personal_demo_invites before insert on public.tf_invites
 
 create function teamflow_private.personal_demo(operation text, w uuid default null, confirmed_name text default null) returns jsonb
 language plpgsql security definer set search_path='' as $$
-declare actor uuid:=auth.uid(); email_address text; ws public.tf_workspaces; existing public.tf_workspaces;
+declare actor uuid:=auth.uid(); email_address text; actor_name text; ws public.tf_workspaces; existing public.tf_workspaces;
  maya uuid:=gen_random_uuid(); ryan uuid:=gen_random_uuid(); sara uuid:=gen_random_uuid(); daniel uuid:=gen_random_uuid(); nora uuid:=gen_random_uuid();
  a uuid:=gen_random_uuid(); b uuid:=gen_random_uuid(); c uuid:=gen_random_uuid(); d uuid:=gen_random_uuid(); e uuid:=gen_random_uuid();
  f uuid:=gen_random_uuid(); g uuid:=gen_random_uuid(); h uuid:=gen_random_uuid(); j uuid:=gen_random_uuid(); k uuid:=gen_random_uuid();
@@ -62,6 +62,8 @@ begin
  select lower(u.email) into email_address from auth.users u where u.id=actor and u.email_confirmed_at is not null;
  if email_address is null then raise exception 'Verified email required' using errcode='42501'; end if;
  perform pg_advisory_xact_lock(hashtext(actor::text));
+ select m.name into actor_name from public.tf_memberships m join public.tf_workspaces p on p.id=m.workspace_id where m.user_id=actor and not m.demo_persona and not p.is_demo order by p.created_at limit 1;
+ actor_name:=coalesce(actor_name,split_part(email_address,'@',1));
  select * into existing from public.tf_workspaces p where p.demo_owner_id=actor for update;
  if operation='open' then
   if w is not null or confirmed_name is not null then raise exception 'Invalid demo request' using errcode='22023'; end if;
@@ -82,7 +84,7 @@ begin
  values('Checkout Launch · Personal demo','Fictional software release: one real signed-in owner and five simulated teammates. No external GitHub events or real teammate accounts.',true,'Personal demo · fictional team and evidence',actor) returning * into ws;
  insert into public.tf_memberships(workspace_id,user_id,role,name,email,specialty,available_hours,availability_start,availability_end,demo_persona)
  values
- (ws.id,actor,'owner','You · Delivery lead',email_address,'Engineering lead',32,stamp-interval '1 day',stamp+interval '7 days',false),
+ (ws.id,actor,'owner',actor_name,email_address,'Engineering lead',32,stamp-interval '1 day',stamp+interval '7 days',false),
  (ws.id,maya,'member','Maya Chen','maya@fictional.invalid','Frontend engineering',24,stamp-interval '1 day',stamp+interval '7 days',true),
  (ws.id,ryan,'member','Ryan Patel','ryan@fictional.invalid','Backend engineering',8,stamp-interval '1 day',stamp+interval '7 days',true),
  (ws.id,sara,'member','Sara Ahmed','sara@fictional.invalid','Quality assurance',36,stamp-interval '1 day',stamp+interval '7 days',true),
@@ -108,7 +110,7 @@ begin
  (ws.id,a,'seed:review_delay','review_delay','Authentication PR awaiting review','Fictional open PR waiting 48 hours; no real GitHub repository.','seed',stamp,jsonb_build_object('state','open','is_draft',false,'reviewer_id',sara,'review_requested_at',stamp-interval '48 hours')),
  (ws.id,a,'seed:capacity','capacity','Backend availability constraint','Fictional reported availability: 8 hours against 16 estimated hours.','seed',stamp,'{}');
  insert into public.tf_audit(workspace_id,actor_id,actor_name,kind,summary,plan_version)
- values(ws.id,actor,'You · Delivery lead','workspace.created','Personal fictional demo initialized',1);
+ values(ws.id,actor,actor_name,'workspace.created','Personal fictional demo initialized',1);
  return to_jsonb(ws);
 end $$;
 revoke all on function teamflow_private.personal_demo(text,uuid,text) from public,anon,service_role;
