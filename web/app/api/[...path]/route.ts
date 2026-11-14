@@ -68,11 +68,11 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       const input = z.object({ email: z.email().max(254), password: z.string().min(1).max(256) }).strict().parse(body);
       const { data, error } = await client.auth.signInWithPassword(input);
       if (error) throw new HttpError(error.status === 429 ? 429 : 401, error.status === 429 ? "Too many attempts. Try again later." : "Email or password is incorrect");
-      return answer({ id: data.user.id, email: data.user.email ?? "", name: data.user.email?.split("@")[0] ?? "Member" });
+      const response=answer({ id: data.user.id, email: data.user.email ?? "", name: data.user.email?.split("@")[0] ?? "Member" });response.cookies.delete("tf_recovery");return response;
     }
     if (path.join("/") === "auth/logout" && request.method === "POST") {
       const { error } = await client.auth.signOut(); if (error) throw new HttpError(503, "Sign out failed. Retry.");
-      return answer({ message: "Signed out" });
+      const response=answer({message:"Signed out"});response.cookies.delete("tf_recovery");return response;
     }
     if (path.join("/") === "auth/forgot-password" && request.method === "POST") {
       const input=z.object({email:z.email().max(254)}).strict().parse(body);
@@ -93,8 +93,9 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       if(!sessionId||marker!==String(sessionId))throw new HttpError(403,"Open a fresh password recovery email first.");
       const {error}=await client.auth.updateUser({password:input.password});
       if(error)throw new HttpError(error.status===429?429:422,"Password could not be changed. Try a different strong password or request a new link.");
-      await client.auth.signOut({scope:"global"});
-      const response=answer({message:"Password updated. Sign in with your new password."});
+      const {error:logoutError}=await client.auth.signOut({scope:"global"});
+      if(logoutError)await client.auth.signOut({scope:"local"});
+      const response=answer({message:logoutError?"Password updated. If still signed in, sign out again before using your new password.":"Password updated. Sign in with your new password."});
       response.cookies.delete("tf_recovery");
       return response;
     }
