@@ -238,7 +238,7 @@ export function WorkspaceSettings({ id, workspaceName, onSaved, focus, onLifecyc
         <WorkspaceLifecycleActions id={id} name={workspaceName} archived={false} onChanged={onLifecycleChanged}/>
       </section>}
       <IntegrationReadiness key={id} workspaceId={id}/>
-      <GithubConnection workspaceId={id} planVersion={settings.plan_version} canManage={manager} onChanged={async () => { await load(); await onSaved(); }}/>
+      {settings.demo_owner_id?<section className="panel settings-panel" id="github-settings-title"><h2>Fictional GitHub evidence</h2><p>This personal demo uses seeded and replayed CI and review signals. To connect a real repository, open a real workspace.</p></section>:<GithubConnection workspaceId={id} planVersion={settings.plan_version} canManage={manager} onChanged={async () => { await load(); await onSaved(); }}/> }
     </>
   );
 }
