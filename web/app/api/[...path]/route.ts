@@ -238,6 +238,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
         return answer(await workspaceWrite(id,'settings',input));
       }
       if (path[2] === "github" && path.length === 3 && request.method === "POST") {
+        if(state.workspace.demo_owner_id)throw new HttpError(403,"Personal demos use fictional GitHub evidence. Connect real repositories from a real workspace.");
         if (!['owner', 'manager'].includes(state.role)) throw new HttpError(403, "Manager access required");
         if (appBinding()) throw new HttpError(409, "This workspace uses an administrator-authorized GitHub App repository.");
         const input = z.object({ repository: z.string().min(3).max(160).nullable(), base_plan_version: z.number().int().positive() }).strict().parse(body);
