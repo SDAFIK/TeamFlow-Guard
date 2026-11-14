@@ -27,7 +27,10 @@ export async function reconcileReview(config:AppConfig,event:MappedReview,delive
   const {binding:b,mapping:m}=event;
   const args={w:b.workspace_id,t:m.task_id,reviewer:m.reviewer_id};
   const context=await client.rpc("tf_github_review_context",args);
-  if(context.error||typeof context.data!=="string"||!context.data)throw Error("Review mapping unavailable");
+  if(context.error)throw Error("Review mapping unavailable");
+  // A signed late event for an archived or deleted workspace is intentionally ignored.
+  if(context.data===null)return;
+  if(typeof context.data!=="string"||!context.data)throw Error("Review mapping unavailable");
   const tracked=context.data;
   const o=await appReviewObservation(config,b.workspace_id,tracked,m);
   const {error}=await client.rpc("tf_ingest_github_review",{...args,repo:b.repository,pull_number:m.pull_number,github_reviewer_id:m.github_reviewer_id,delivery_id:deliveryId,tracked,branch:o.target_branch,review_status:o.status,requested:o.review_requested_at,observed:o.observed_at,pr_state:o.pr_state,is_draft:o.is_draft});
