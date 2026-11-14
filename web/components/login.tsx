@@ -17,6 +17,7 @@ export default function Login({
     [error, setError] = useState(initialError),
     [busy, setBusy] = useState(false);
   const [register,setRegister]=useState(false),[message,setMessage]=useState('');
+  const [forgot,setForgot]=useState(false);
   const [resendUntil,setResendUntil]=useState(0),[clock,setClock]=useState(0);
   const remaining=Math.max(0,Math.ceil((resendUntil-clock)/1000));
   useEffect(()=>{if(!resendUntil)return;const timer=window.setInterval(()=>setClock(Date.now()),1000);return()=>window.clearInterval(timer);},[resendUntil]);
@@ -37,6 +38,7 @@ export default function Login({
     setBusy(true);
     setError("");
     try {
+      if(forgot){const result=await api<{message:string}>("/auth/forgot-password",{method:"POST",body:JSON.stringify({email:email.trim()})});setMessage(result.message);startCooldown();return;}
       const result=await api<{message?:string}>(register?"/auth/register":"/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
@@ -75,9 +77,9 @@ export default function Login({
           <span className="login-icon">
             <ShieldCheck size={28} />
           </span>
-          <h2>Welcome to your workspace</h2>
+          <h2>{forgot?'Reset your password':'Welcome to your workspace'}</h2>
           <Link href="/demo" className={styles.formGuestLink}>Try the interactive demo without signing in <ArrowRight size={15}/></Link>
-          <p>{register?'Create your account, then create or join a workspace.':'Sign in to TeamFlow Guard.'}</p>
+          <p>{forgot?'Enter your account email. Open the newest reset link in this browser.':register?'Create your account, then create or join a workspace.':'Sign in to TeamFlow Guard.'}</p>
           {message&&<p role="status" className="success-banner">{message}</p>}
           {error && (
             <div className="error" role="alert">
@@ -94,7 +96,7 @@ export default function Login({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <label htmlFor="password">Password</label>
+          {!forgot&&<><label htmlFor="password">Password</label>
           <input
             id="password"
             type="password"
@@ -104,12 +106,15 @@ export default function Login({
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <button className="primary" type="submit" disabled={busy}>
-            {busy ? "Please wait…" : register?'Create account':"Sign in"}
+          </>}
+          <button className="primary" type="submit" disabled={busy||(forgot&&remaining>0)}>
+            {busy ? "Please wait…" : forgot?(remaining>0?`Try again in ${remaining}s`:"Send reset link"):register?'Create account':"Sign in"}
             <ArrowRight size={17} />
           </button>
-          <button className="text-link" type="button" onClick={()=>{setRegister(!register);setError('');setMessage('');}}>{register?'Already have an account? Sign in':'New here? Create an account'}</button>
+          <button className="text-link" type="button" onClick={()=>{setForgot(v=>!v);setRegister(false);setPassword("");setError("");setMessage("");}}>{forgot?"Back to sign in":"Forgot password?"}</button>
+          {!forgot&&<><button className="text-link" type="button" onClick={()=>{setRegister(!register);setError('');setMessage('');}}>{register?'Already have an account? Sign in':'New here? Create an account'}</button>
           <div className="confirmation-help"><p>Didn’t receive your verification email? Check spam or request a fresh link. Use the newest email.</p><button className="text-link" type="button" disabled={busy||remaining>0} onClick={()=>void resendConfirmation()}>{remaining>0?`Resend available in ${remaining}s`:"Resend confirmation email"}</button></div>
+          </>}
           <div className="login-note">
             <LockKeyhole size={17} />
             <span>
