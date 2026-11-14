@@ -11,7 +11,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=flat-square&logo=supabase&logoColor=white)](https://supabase.com/)
 [![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?style=flat-square&logo=google&logoColor=white)](https://ai.google.dev/)
-[![CI](https://img.shields.io/github/actions/workflow/status/SDAFIK/TeamFlow-Guard/validation.yml?branch=codex%2Fproduction-pack-migration&label=Release%20validation&style=flat-square)](https://github.com/SDAFIK/TeamFlow-Guard/actions/workflows/validation.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/SDAFIK/TeamFlow-Guard/validation.yml?branch=main&label=Release%20validation&style=flat-square)](https://github.com/SDAFIK/TeamFlow-Guard/actions/workflows/validation.yml)
 
 [**Launch live application →**](https://teamflow-guard.vercel.app) · [Demo walkthrough](DEMO.md) · [Architecture](#architecture) · [Local setup](#local-development) · [Release evidence](#validation-and-release-evidence)
 
@@ -117,16 +117,20 @@ flowchart TB
 
 The repository also retains a legacy FastAPI/Python local-development path. The public production application uses the Next.js/Supabase architecture above.
 
-## Try the live demo
+## Competition release candidate
+
+The Stage 1–4 development candidate has passed local regression and authenticated acceptance. The live URL below may still serve the previous production release until the migration and hosted release gates in [Release checklist](docs/COMPETITION_RELEASE.md) are satisfied.
+
+## Try the live demo (after candidate promotion)
 
 1. Visit [teamflow-guard.vercel.app](https://teamflow-guard.vercel.app) and register or sign in.
-2. Open a labeled demo workspace (or an existing Sandbox Rehearsal workspace).
-3. Go to **TIC Intelligence → Start fresh AI rehearsal**.
+2. Choose **Open personal demo** from onboarding or the workspace switcher. Your private demo contains your real signed-in owner plus five fictional teammates, ten tasks, nine dependencies and four initial risk signals.
+3. Open Risk Center to inspect the seeded authentication CI failure, blocked dependency chain, overdue review and capacity shortage. Alternatively, use **TIC Intelligence → Start fresh AI rehearsal**.
 4. Inspect the resulting fictional CI failure, then **Compare recovery options**.
 5. Enable side-by-side comparison and generate a rule-based proposal and a Gemini proposal.
 6. Review one proposal in the Decision Inbox. An authorized lead can approve it; the other may become stale.
 7. Explore **Dependencies**: select a task, switch orientation, focus its impact, and propose a new valid dependency.
-8. Review the plan version and audit trail. Replay a passing event to demonstrate recovery in the fictional workspace.
+8. Review the plan version and audit trail. Replay a passing event to demonstrate recovery in the fictional workspace. Use **Reset personal demo** with exact-name confirmation to replace only your own fictional scenario. Real workspaces can be archived, restored or permanently deleted by their owner.
 
 See the [full walkthrough](DEMO.md). Demo events are labeled and cannot resolve genuine GitHub evidence. Never use real confidential task data for a public demo.
 
