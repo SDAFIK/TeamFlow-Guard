@@ -10,10 +10,10 @@ const riskLabel=(kind:string)=>riskLabels[kind]??kind.replaceAll("_"," ");
 export function DashboardTeam({data,onManage,onInvite}:{data:Overview;onManage:()=>void;onInvite:()=>void}){
  return <section className="panel premium-team-panel" aria-label="Team collaboration">
   <div className="panel-head"><div><span className="section-kicker">PEOPLE</span><h2>Team & collaboration</h2></div><button className="text-link" onClick={onManage}>Manage <ArrowRight size={14}/></button></div>
-  <div className="premium-team-list">{data.members.slice(0,5).map((m,i)=><div className="premium-team-member" key={m.id}><span className={`avatar color-${i%4}`}>{m.name[0]}</span><div><strong>{m.name}</strong><small>{m.specialty||m.role}</small></div><span className="member-hours">{m.available_hours}h</span></div>)}
+  <div className="premium-team-list">{data.members.slice(0,data.personal_demo?6:5).map((m,i)=><div className="premium-team-member" key={m.id}><span className={`avatar color-${i%4}`}>{m.name[0]}</span><div><strong>{m.name}</strong><small>{m.specialty||m.role}</small></div><span className="member-hours">{m.available_hours}h</span></div>)}
   {!data.members.length&&<p>No teammates have joined yet.</p>}</div>
-  {data.members.length>5&&<button className="text-link premium-more" onClick={onManage}>View all {data.members.length} teammates</button>}
-  <button className="premium-invite" onClick={onInvite}><UserPlus size={20}/><span><strong>Invite teammates</strong><small>Connect by email</small></span><ArrowRight size={17}/></button>
+  {data.members.length>(data.personal_demo?6:5)&&<button className="text-link premium-more" onClick={onManage}>View all {data.members.length} teammates</button>}
+  <button className="premium-invite" onClick={onInvite}><UserPlus size={20}/><span><strong>{data.personal_demo?"Explore fictional teammates":"Invite teammates"}</strong><small>{data.personal_demo?"No real accounts or emails":"Connect by email"}</small></span><ArrowRight size={17}/></button>
   <p className="premium-team-note">Hours are shared availability, not presence tracking.</p>
  </section>;
 }
