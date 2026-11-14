@@ -12,7 +12,7 @@ export function GuardMark({size=36}:{size?:number}){
   </g>
  </svg>;
 }
-export function DashboardHero({demoAction,onDemo,onGithub,githubLinked}:{demoAction:string;onDemo:()=>void;onGithub:()=>void;githubLinked:boolean}){
+export function DashboardHero({demoAction,onDemo,onGithub,githubLinked,personalDemo=false}:{demoAction:string;onDemo:()=>void;onGithub:()=>void;githubLinked:boolean;personalDemo?:boolean}){
  return <section className="brand-hero brand-hero-hd premium-hero" aria-label="TeamFlow Guard brand hero">
   <svg className="hero-signal-art" viewBox="0 0 1200 300" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
    <defs><radialGradient id="hero-glow"><stop stopColor="#08b6c6" stopOpacity=".45"/><stop offset="1" stopColor="#06121e" stopOpacity="0"/></radialGradient><linearGradient id="hero-wire"><stop stopColor="#1c91c9"/><stop offset=".48" stopColor="#64fff2"/><stop offset="1" stopColor="#f3b76a"/></linearGradient><linearGradient id="hero-trace"><stop stopColor="#0b405e" stopOpacity="0"/><stop offset=".5" stopColor="#21b5c2" stopOpacity=".4"/><stop offset="1" stopColor="#0b405e" stopOpacity="0"/></linearGradient></defs>
@@ -23,7 +23,7 @@ export function DashboardHero({demoAction,onDemo,onGithub,githubLinked}:{demoAct
    <g fill="#69eadd" opacity=".5">{Array.from({length:16},(_,i)=><circle key={i} cx={(i*137+33)%1200} cy={185+(i*29)%93} r={i%4===0?1.6:.8}/>)}</g>
   </svg>
   <div className="hero-brand-content"><GuardMark size={104}/><div><span className="hero-eyebrow">DELIVERY INTELLIGENCE</span><div className="hero-wordmark">TEAMFLOW <span>GUARD</span></div></div></div>
-  <div className="hero-actions"><p>See risks early. Keep humans in control.</p><div className="hero-button-row"><button className="primary" onClick={onDemo}><Play size={16}/>{demoAction}<ArrowRight size={16}/></button><button className="secondary" onClick={onGithub}><Github size={18}/>{githubLinked?"GitHub connection":"Connect GitHub"}</button></div></div>
+  <div className="hero-actions"><p>See risks early. Keep humans in control.</p><div className="hero-button-row"><button className="primary" onClick={onDemo}><Play size={16}/>{demoAction}<ArrowRight size={16}/></button><button className="secondary" onClick={onGithub}><Github size={18}/>{personalDemo?"Explore fictional evidence":githubLinked?"GitHub connection":"Connect GitHub"}</button></div></div>
   <div className="brand-hero-light" aria-hidden="true"/>
  </section>;
 }
