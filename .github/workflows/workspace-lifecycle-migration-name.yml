@@ -1,0 +1,20 @@
+name: Workspace lifecycle migration preparation
+on:
+  push:
+    branches: [codex/workspace-lifecycle-stage1]
+  pull_request:
+    branches: [main]
+permissions:
+  contents: read
+jobs:
+  generate:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Generate migration using pinned Supabase CLI
+        run: |
+          npx --yes supabase@2.79.0 migration new workspace_lifecycle
+          ls -1 supabase/migrations/*_workspace_lifecycle.sql
