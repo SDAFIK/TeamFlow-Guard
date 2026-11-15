@@ -77,6 +77,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       }
       const {data,error}=await client.rpc("tf_personal_demo",{operation:"open",w:null,confirmed_name:null});
       if(error){if(guest.is_anonymous)await client.auth.signOut({scope:"local"});databaseError(error);}
+      if(!data?.id)throw new HttpError(503,"Demo workspace could not be opened. Retry.");
       const response=answer({id:data.id});response.cookies.delete("tf_recovery");return response;
     }
     if (path.join("/") === "auth/login" && request.method === "POST") {
@@ -101,7 +102,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
     if (path.join("/") === "auth/reset-password" && request.method === "POST") {
       const input=z.object({password:z.string().min(12).max(128)}).strict().parse(body);
       const {data:{user},error:authError}=await client.auth.getUser();
-      if(authError||!user)throw new HttpError(401,"Open a fresh password recovery email first.");
+      if(authError||!user||user.is_anonymous)throw new HttpError(401,"Open a fresh password recovery email first.");
       const marker=request.cookies.get("tf_recovery")?.value;
       const {data:claims}=await client.auth.getClaims();
       const sessionId=claims?.claims?.session_id;
