@@ -31,7 +31,7 @@ const writeFixture=(pull,timeline)=>fs.writeFileSync(fixtureFile,JSON.stringify(
 let server;
 const wait=ms=>new Promise(r=>setTimeout(r,ms));
 async function start(extra={}){
-  const env={...process.env,TEAMFLOW_BACKEND:"supabase",NEXT_PUBLIC_SUPABASE_URL:URL_LOCAL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:ANON,APP_BASE_URL:BASE,APP_ALLOWED_ORIGINS:BASE,RESEND_API_KEY:"",TEAMFLOW_INVITE_EMAIL_FROM:"",GEMINI_API_KEY:"",GITHUB_APP_ID:"",GITHUB_APP_PRIVATE_KEY:"",GITHUB_APP_WEBHOOK_SECRET:"",TEAMFLOW_GITHUB_APP_BINDINGS:"[]",TEAMFLOW_GITHUB_CI_MAPPINGS:"[]",TEAMFLOW_GITHUB_INGEST_KEY:"",...extra};
+  const env={...process.env,TEAMFLOW_BACKEND:"supabase",TEAMFLOW_PUBLIC_DEMO_ENABLED:"true",NEXT_PUBLIC_SUPABASE_URL:URL_LOCAL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:ANON,APP_BASE_URL:BASE,APP_ALLOWED_ORIGINS:BASE,RESEND_API_KEY:"",TEAMFLOW_INVITE_EMAIL_FROM:"",GEMINI_API_KEY:"",GITHUB_APP_ID:"",GITHUB_APP_PRIVATE_KEY:"",GITHUB_APP_WEBHOOK_SECRET:"",TEAMFLOW_GITHUB_APP_BINDINGS:"[]",TEAMFLOW_GITHUB_CI_MAPPINGS:"[]",TEAMFLOW_GITHUB_INGEST_KEY:"",...extra};
   delete env.VERCEL;delete env.VERCEL_URL;
   server=spawn(process.execPath,[path.resolve(__dirname,"../web/node_modules/next/dist/bin/next"),"dev","--hostname","127.0.0.1","--port","3100"],{cwd:path.resolve(__dirname,"../web"),env,stdio:"ignore"});
   for(let i=0;i<90;i++){if(server.exitCode!==null)throw Error("Local app exited");try{if((await fetch(BASE+"/api/health")).ok)return;}catch{}await wait(1000);}
@@ -97,6 +97,69 @@ async function event(payload,valid=true,type="workflow_run",delivery=randomUUID(
   const requested={event:"review_requested",created_at:requestedAt,requested_reviewer:{id:githubReviewer}};
   writeFixture(pull,[requested]);
   await start({GEMINI_API_KEY:"teamflow-local-fixture-key",GEMINI_MODEL:"gemini-3.1-flash-lite",GITHUB_APP_ID:"99",GITHUB_APP_PRIVATE_KEY:reviewKey,GITHUB_APP_WEBHOOK_SECRET:fixtureSecret,TEAMFLOW_GITHUB_APP_BINDINGS:JSON.stringify([{workspace_id:w,installation_id:101,repository_id:202,repository:"fixture/isolated"}]),TEAMFLOW_GITHUB_CI_MAPPINGS:JSON.stringify([{workspace_id:w,workflow_id:303,task_id:task.id}]),TEAMFLOW_GITHUB_REVIEW_MAPPINGS:JSON.stringify([{workspace_id:w,pull_number:7,task_id:next.id,github_reviewer_id:githubReviewer,reviewer_id:owner.id}]),TEAMFLOW_GITHUB_INGEST_KEY:SERVICE,TEAMFLOW_TEST_GITHUB_FIXTURE:fixtureFile,NODE_OPTIONS:(process.env.NODE_OPTIONS||"")+" --require="+path.resolve(__dirname,"fixtures/mock-github-review.cjs"),NEXT_TELEMETRY_DISABLED:"1"});
+  // Competition guest uses the real Workspace, native Auth, TIC and provider pipeline.
+  const guestPage=await (await browser.newContext({viewport:{width:1440,height:900}})).newPage();
+  const guestMobile=await (await browser.newContext({viewport:{width:390,height:844},reducedMotion:"reduce"})).newPage();
+  async function enterGuest(page){
+    await page.goto(BASE+"/login");
+    await page.getByRole("button",{name:"Enter Live Demo — No Sign-up",exact:true}).click();
+    await page.getByRole("heading",{name:"Delivery overview",exact:true}).waitFor({timeout:60000});
+    const me=await call(page,"/me");assert.equal(me.guest,true);
+    const projects=await call(page,"/projects");assert.equal(projects.length,1);assert.ok(projects[0].personal_demo);
+    const id=projects[0].id;const data=await call(page,"/projects/"+id+"/dashboard");
+    assert.equal(data.members.length,6);assert.equal(data.tasks.length,10);
+    assert.equal(await page.locator("select#project").inputValue(),id);
+    await page.getByRole("region",{name:"Optional competition guide"}).waitFor();
+    assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+    return {id,me};
+  }
+  const guestA=await enterGuest(guestPage),guestB=await enterGuest(guestMobile);
+  assert.notEqual(guestA.id,guestB.id);assert.notEqual(guestA.me.id,guestB.me.id);
+  const gb="/projects/"+guestA.id;
+  await call(guestMobile,gb+"/dashboard","GET",undefined,404);
+  await call(guestPage,base+"/dashboard","GET",undefined,404);
+  await call(guestPage,"/projects","POST",{name:"Guest real workspace",display_name:"Guest"},403);
+  await call(guestPage,"/invitations/accept","POST",{token:invite.token,display_name:"Guest"},403);
+  const overview=await call(guestPage,gb+"/dashboard");
+  assert.equal((await call(guestPage,gb+"/dependencies")).edges.length,9);
+  const report=await call(guestPage,gb+"/project-intelligence");assert.equal(report.tasks.length,10);
+  assert.equal((await call(guestPage,gb+"/integrations")).ai_configured,true);
+  await guestPage.getByRole("button",{name:"2 · TIC Intelligence",exact:true}).click();
+  await guestPage.getByRole("heading",{name:"TIC Intelligence",exact:true}).waitFor();
+  await guestPage.getByRole("heading",{name:"Understand your delivery plan",exact:true}).waitFor();
+  await guestPage.getByText("Gemini recovery",{exact:true}).waitFor();
+  await guestMobile.getByRole("button",{name:"2 · TIC Intelligence",exact:true}).click();
+  await guestMobile.getByRole("heading",{name:"TIC Intelligence",exact:true}).waitFor();
+  assert.equal(await guestMobile.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+  if(process.env.TEAMFLOW_ARTIFACT_DIR){
+   fs.mkdirSync(process.env.TEAMFLOW_ARTIFACT_DIR,{recursive:true});
+   await guestPage.screenshot({path:path.join(process.env.TEAMFLOW_ARTIFACT_DIR,"native-guest-tic-desktop.png"),fullPage:true});
+   await guestMobile.screenshot({path:path.join(process.env.TEAMFLOW_ARTIFACT_DIR,"native-guest-tic-mobile.png"),fullPage:true});
+  }
+  const guestRisk=(await call(guestPage,gb+"/risks")).find(r=>r.active&&r.evidence.kind==="ci_failure");
+  assert.ok(guestRisk);
+  await guestPage.goto(BASE+"/risks/"+guestRisk.id);
+  await guestPage.getByRole("button",{name:"Compare recovery options",exact:true}).click();
+  await guestPage.getByRole("button",{name:"Analyze with Gemini",exact:true}).click();
+  await guestPage.getByRole("dialog",{name:"Review recovery proposal"}).waitFor({timeout:60000});
+  await guestPage.getByText("Gemini analysis",{exact:true}).waitFor();
+  assert.equal((await call(guestPage,gb+"/dashboard")).plan_version,overview.plan_version);
+  await guestPage.getByRole("button",{name:"Approve & apply",exact:true}).click();
+  await guestPage.getByRole("dialog",{name:"Review recovery proposal"}).waitFor({state:"hidden"});
+  assert.ok((await call(guestPage,gb+"/dashboard")).plan_version>overview.plan_version);
+  assert.ok((await call(guestPage,gb+"/risks")).some(r=>r.id===guestRisk.id&&r.active));
+  assert.ok((await call(guestPage,gb+"/audit")).some(a=>a.kind==="proposal.approved"));
+  for(let i=0;i<2;i++)await call(guestPage,"/risks/"+guestRisk.id+"/analyze?mode=gemini","POST",undefined,200,{"Idempotency-Key":randomUUID()});
+  await call(guestPage,"/risks/"+guestRisk.id+"/analyze?mode=gemini","POST",undefined,429,{"Idempotency-Key":randomUUID()});
+  const guestProject=(await call(guestPage,"/projects"))[0];
+  const newGuest=await call(guestPage,"/personal-demo","POST",{operation:"reset",workspace_id:guestA.id,confirmed_name:guestProject.name});
+  assert.notEqual(newGuest.id,guestA.id);
+  const newRisk=(await call(guestPage,"/projects/"+newGuest.id+"/risks")).find(r=>r.active&&r.evidence.kind==="ci_failure");
+  await call(guestPage,"/risks/"+newRisk.id+"/analyze?mode=gemini","POST",undefined,429,{"Idempotency-Key":randomUUID()});
+  await call(guestMobile,"/projects/"+guestB.id+"/dashboard");
+  await call(guestPage,"/auth/logout","POST",{});
+  await call(guestPage,"/me","GET",undefined,401);
+  console.log("PASS native guest login, original dashboard/TIC, actual Gemini pipeline (intercepted transport), human approval, quota survives reset and tenant isolation");
   const ready=await call(ownerPage,base+"/github-readiness");
   assert.equal(ready.mappings[0].task_id,task.id);
   assert.equal(ready.mappings[0].valid,true);
