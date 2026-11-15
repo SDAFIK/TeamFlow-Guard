@@ -1,15 +1,16 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { ShieldCheck, ArrowRight, LockKeyhole, Activity, GitBranch, CheckCircle2 } from "lucide-react";
 import styles from "./premium-entry.module.css";
 import { Brand } from "./ui";
 import { api } from "@/lib/api";
 export default function Login({
   onLogin,
+  onDemo,
   initialError,
 }: {
   onLogin: () => Promise<void>;
+  onDemo: () => Promise<void>;
   initialError: string;
 }) {
   const [email, setEmail] = useState(""),
@@ -33,6 +34,7 @@ export default function Login({
     }catch(e){setError((e as Error).message);if((e as {status?:number}).status===429)startCooldown();}
     finally{setBusy(false);}
   }
+  async function enterDemo(){if(busy)return;setBusy(true);setError("");setMessage("");try{await onDemo();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
@@ -58,7 +60,7 @@ export default function Login({
           <span className={styles.kicker}><i aria-hidden="true"/> WORKFORCE OPERATING SYSTEM</span>
           <h1 className={styles.headline}>Build with clarity.<br/><span>Recover with confidence.</span></h1>
           <p className={styles.copy}>Connect delivery evidence, trace blocked dependencies and compare AI recovery options. Keep your team in control of every important decision.</p>
-          <section className={styles.guestEntry} aria-label="Interactive competition demo"><span className={styles.kicker}>INTERACTIVE COMPETITION DEMO</span><h2>Enter sandbox instantly</h2><p>A complete product experience without creating an account. Explore a six-person team, trace a real planning problem and make your own decisions.</p><Link href="/demo" className={styles.guestButton}>Try Live Demo — No Sign-up <ArrowRight size={18}/></Link><small>No email · No password · Temporary fictional workspace</small></section>
+          <section className={styles.guestEntry} aria-label="Interactive competition demo"><span className={styles.kicker}>INTERACTIVE COMPETITION DEMO</span><h2>Enter sandbox instantly</h2><p>A complete product experience without registration. Enter the actual six-person TeamFlow Guard workspace with TIC Intelligence, Gemini recovery, connected tasks and human decisions.</p><button type="button" disabled={busy} onClick={()=>void enterDemo()} className={styles.guestButton}>{busy?"Opening workspace…":"Enter Live Demo — No Sign-up"} <ArrowRight size={18}/></button><small>No email · No password · Private temporary demo session</small></section>
           <div className={styles.panel} aria-label="Illustrative evidence to decision workflow">
             <div className={styles.panelHeader}><span>Delivery intelligence</span><b>Illustrative flow</b></div>
             <div className={styles.graph}>
@@ -78,7 +80,7 @@ export default function Login({
             <ShieldCheck size={28} />
           </span>
           <h2>{forgot?'Reset your password':'Welcome to your workspace'}</h2>
-          <Link href="/demo" className={styles.formGuestLink}>Try the interactive demo without signing in <ArrowRight size={15}/></Link>
+          <button type="button" disabled={busy} onClick={()=>void enterDemo()} className={styles.formGuestLink}>Enter the real demo workspace <ArrowRight size={15}/></button>
           <p>{forgot?'Enter your account email. Open the newest reset link in this browser.':register?'Create your account, then create or join a workspace.':'Sign in to TeamFlow Guard.'}</p>
           {message&&<p role="status" className="success-banner">{message}</p>}
           {error && (
