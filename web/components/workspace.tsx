@@ -118,7 +118,7 @@ const titles: Record<View, [string, string]> = {
   ],
 };
 
-export default function Workspace({ initialRiskId, initialProposalId, confirmationFailed }: { initialRiskId?: string; initialProposalId?: string; confirmationFailed?: boolean } = {}) {
+export default function Workspace({ initialRiskId, initialProposalId, confirmationFailed, confirmationCheck }: { initialRiskId?: string; initialProposalId?: string; confirmationFailed?: boolean; confirmationCheck?:boolean } = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const routeView = pathname.split("/")[1];
@@ -271,6 +271,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
     if(data?.project.id&&typeof BroadcastChannel!=="undefined"){const channel=new BroadcastChannel("teamflow.workspace.sync");channel.postMessage(data.project.id);channel.close();}
   }
   function openWorkspaceSetup(mode:'create'|'join'='create') {
+    if(user?.guest){setNotice("Sign out of your guest session to create or join a real workspace.");return;}
     setSetupMode(mode);
     setWorkspaceSetup(true);
     setWorkspacePicker(false);
@@ -367,7 +368,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
     return (
       <WorkspaceLoader/>
     );
-  if (!user) return <Login onLogin={() => load()} onDemo={enterGuestDemo} initialError={error || (confirmationFailed?"Email link could not be completed. If your account is verified, sign in or request a fresh password reset. Otherwise request a fresh confirmation and reopen your team invitation after signing in.":"")} />;
+  if (!user) return <Login onLogin={() => load()} onDemo={enterGuestDemo} initialMessage={confirmationCheck?"If your email was confirmed, sign in with your email and password. Otherwise request a fresh confirmation link.":""} initialError={error || (confirmationFailed?"Email link could not be completed. If your account is verified, sign in or request a fresh password reset. Otherwise request a fresh confirmation and reopen your team invitation after signing in.":"")} />;
   const activeRisks = risks.filter((r) => r.active).sort((a,b)=>Number(a.stale_evidence)-Number(b.stale_evidence)||b.affected_task_ids.length-a.affected_task_ids.length||({high:3,medium:2,low:1}[b.severity]??0)-({high:3,medium:2,low:1}[a.severity]??0)),
     pending = proposals.filter((p) => p.status === "pending"),
     ready = pending.filter((p) => !p.stale);
@@ -454,13 +455,13 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
         <div className="workspace-picker">
           <button className="workspace-switch" onClick={()=>setWorkspacePicker(v=>!v)} aria-label="Switch workspace" aria-expanded={workspacePicker} aria-controls="workspace-picker-list">
             <span className="workspace-emblem">{data?.project.name[0]??'T'}</span>
-            <div><strong>{data?.project.name??'Your workspace'}</strong><small>{data?.is_demo?"Demo workspace":"Delivery workspace"}</small></div>
+            <div><strong>{data?.project.name??'Your workspace'}</strong><small>{user.guest?"Guest demo session":data?.is_demo?"Demo workspace":"Delivery workspace"}</small></div>
             <ChevronDown size={17}/>
           </button>
           {workspacePicker&&<div className="workspace-picker-list" id="workspace-picker-list" role="group" aria-label="Available workspaces">
             <span className="section-kicker">YOUR WORKSPACES</span>
             {projects.map(p=><button key={p.id} className={p.id===data?.project.id?"current-workspace":""} onClick={()=>switchWorkspace(p.id)} disabled={busy}><span className="workspace-emblem mini">{p.name[0]}</span><span><strong>{p.name}</strong><small>{p.role}</small></span>{p.id===data?.project.id&&<Check size={15}/>}</button>)}
-            <div className="workspace-picker-actions"><button onClick={()=>openWorkspaceSetup("create")}><Plus size={15}/> Create workspace</button><button onClick={()=>openWorkspaceSetup("join")}><LogIn size={15}/> Join workspace</button><button disabled={personalDemoBusy} onClick={()=>void openPersonalDemo()}><Play size={15}/> {personalDemoBusy?"Opening demo…":"Open personal demo"}</button>{archivedProjects.length>0&&<button onClick={()=>{setWorkspacePicker(false);setMenu(false);setArchivedOpen(true);}}>Archived workspaces ({archivedProjects.length})</button>}</div>
+            <div className="workspace-picker-actions">{!user.guest&&<><button onClick={()=>openWorkspaceSetup("create")}><Plus size={15}/> Create workspace</button><button onClick={()=>openWorkspaceSetup("join")}><LogIn size={15}/> Join workspace</button></>}<button disabled={personalDemoBusy} onClick={()=>void openPersonalDemo()}><Play size={15}/> {personalDemoBusy?"Opening demo…":"Open personal demo"}</button>{archivedProjects.length>0&&<button onClick={()=>{setWorkspacePicker(false);setMenu(false);setArchivedOpen(true);}}>Archived workspaces ({archivedProjects.length})</button>}</div>
           </div>}
         </div>
         <span className="nav-label">WORKSPACE</span>
@@ -505,11 +506,11 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
             <span className="avatar">{user.name[0]}</span>
             <div>
               <strong>{user.name}</strong>
-              <small>{data?.project.role ?? "Member"}</small>
+              <small>{user.guest?"Guest judge":data?.project.role ?? "Member"}</small>
             </div>
             <button
               className="icon-button"
-              aria-label="Sign out"
+              aria-label={user.guest?"Exit demo":"Sign out"}
               onClick={logout}
             >
               <LogOut size={17} />
@@ -551,7 +552,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
           <div className="topbar-right">
             <span className="environment" title={syncWarning?"Last refresh failed":syncTime?`Synced ${new Date(syncTime).toLocaleTimeString()}`:"Workspace sync"}>
               <i />
-              {data?.is_demo ? "Labeled demo" : "Saved workspace"}
+              {user.guest?"Guest · 2h session":data?.is_demo ? "Labeled demo" : "Saved workspace"}
             </span>
             {data && data.members.length > 0 && <button type="button" className="avatar-stack team-avatar-action" aria-label={`View team capacity (${data.members.length} members)`} onClick={()=>navigate("team")}>
               {data?.members.slice(0, 3).map((m, i) => (
@@ -596,7 +597,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                 <button className="primary" disabled={busy} onClick={refresh}>Retry workspace</button>
               </section>
             ) : (
-              <><EmptyWorkspaceWelcome onCreate={()=>openWorkspaceSetup('create')} onJoin={()=>openWorkspaceSetup('join')} /><section className="panel settings-panel"><h2>Try a complete software release</h2><p>Explore a private demo with six people, ten tasks, connected dependencies and fictional risk evidence. Your real projects stay separate.</p><button className="primary" disabled={personalDemoBusy} onClick={()=>void openPersonalDemo()}><Play size={16}/>{personalDemoBusy?"Opening demo…":"Open personal demo"}</button></section>{archivedProjects.length>0&&<section className="panel settings-panel"><h2>Archived workspaces</h2><p>You can restore an archived workspace instead of creating a new one.</p><button className="secondary" onClick={()=>setArchivedOpen(true)}>Manage archived workspaces</button></section>}</>
+              <>{!user.guest&&<EmptyWorkspaceWelcome onCreate={()=>openWorkspaceSetup('create')} onJoin={()=>openWorkspaceSetup('join')} />}<section className="panel settings-panel"><h2>Try a complete software release</h2><p>Explore a private demo with six people, ten tasks, connected dependencies and fictional risk evidence. Your real projects stay separate.</p><button className="primary" disabled={personalDemoBusy} onClick={()=>void openPersonalDemo()}><Play size={16}/>{personalDemoBusy?"Opening demo…":"Open personal demo"}</button></section>{archivedProjects.length>0&&<section className="panel settings-panel"><h2>Archived workspaces</h2><p>You can restore an archived workspace instead of creating a new one.</p><button className="secondary" onClick={()=>setArchivedOpen(true)}>Manage archived workspaces</button></section>}</>
             )
           ) : (
             <>
@@ -637,7 +638,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                 <span>Plan v{data.plan_version}</span>
                 {data.fixture_label&&<span>{data.fixture_label}</span>}
               </div>
-              {data.personal_demo&&showJudgeGuide&&<section className="panel judge-guide" aria-label="Optional competition guide"><div><span className="section-kicker">INTERACTIVE COMPETITION DEMO</span><h2>See the problem. Test our solution.</h2><p>Your fictional checkout release has a failing build, dependent tasks, a delayed review and a capacity constraint. TIC turns evidence into delivery intelligence; Gemini proposes recovery; you decide what changes.</p></div><div className="judge-guide-actions">{([{view:"overview",label:"1 · Understand"},{view:"intelligence",label:"2 · TIC Intelligence"},{view:"risks",label:"3 · Gemini & recovery"},{view:"dependencies",label:"4 · Trace impact"},{view:"decisions",label:"5 · Decide"},{view:"audit",label:"6 · Verify"}] as {view:View;label:string}[]).map(step=><button key={step.view} className={view===step.view?"primary":"secondary"} onClick={()=>navigate(step.view)} aria-current={view===step.view?"step":undefined}>{step.label}</button>)}<button className="text-link" onClick={()=>setShowJudgeGuide(false)}>Hide guide</button></div></section>}
+              {data.personal_demo&&showJudgeGuide&&<section className="panel judge-guide" aria-label="Optional competition guide"><div><span className="section-kicker">INTERACTIVE COMPETITION DEMO</span><h2>See the problem. Test our solution.</h2><p>Your fictional checkout release has a failing build, dependent tasks, a delayed review and a capacity constraint. TIC turns evidence into delivery intelligence; Gemini proposes recovery; you decide what changes.</p>{user.guest&&<p className="field-help">Private temporary guest session · Up to 3 Gemini requests per session (provider availability applies). TIC and rule-based recovery remain available. Exit demo to sign in to a real workspace.</p>}</div><div className="judge-guide-actions">{([{view:"overview",label:"1 · Understand"},{view:"intelligence",label:"2 · TIC Intelligence"},{view:"risks",label:"3 · Gemini & recovery"},{view:"dependencies",label:"4 · Trace impact"},{view:"decisions",label:"5 · Decide"},{view:"audit",label:"6 · Verify"}] as {view:View;label:string}[]).map(step=><button key={step.view} className={view===step.view?"primary":"secondary"} onClick={()=>navigate(step.view)} aria-current={view===step.view?"step":undefined}>{step.label}</button>)}<button className="text-link" onClick={()=>setShowJudgeGuide(false)}>Hide guide</button></div></section>}
               {data.personal_demo&&!showJudgeGuide&&<button className="text-link" onClick={()=>setShowJudgeGuide(true)}>Show competition guide</button>}
               <div className="view-content" key={view}>
                 {receipt&&receipt.workspace===data.project.id&&<section className="panel recovery-receipt" aria-label="Recovery decision recorded">
