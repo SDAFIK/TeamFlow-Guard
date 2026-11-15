@@ -257,6 +257,14 @@ async function shot(page,name){
     await publicPage.getByLabel("Email address").waitFor();
     assert.equal(await publicPage.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1),false,"login overflow "+width);
     await shot(publicPage,"stage3-"+width+"-login.png");
+    await publicPage.getByRole("heading",{name:"From a failing build to a confident decision."}).waitFor();
+    if(width<=760){
+      await publicPage.getByRole("button",{name:"Open menu"}).click();
+      await publicPage.getByRole("navigation",{name:"Landing navigation"}).getByRole("link",{name:"How it works"}).click();
+      await publicPage.getByRole("button",{name:"Open menu"}).waitFor();
+    }
+    assert.equal(await publicPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+
   }
   await publicPage.getByRole("button",{name:"New here? Create an account"}).click();
   await publicPage.getByRole("button",{name:"Create account",exact:true}).waitFor();
