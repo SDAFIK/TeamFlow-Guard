@@ -47,7 +47,7 @@ import Login from "./login";
 import { IntelligenceCenter } from "./intelligence-center";
 import { DashboardHero, WorkspaceLoader } from "./brand-motion";
 import { DashboardAnalytics, DashboardTeam, WorkspaceSearch } from "./premium-dashboard";
-import { AuditHistory } from "./audit-history";
+import { AuditHistory, AuditTimeline } from "./audit-history";
 import { EmptyWorkspaceWelcome, WorkspaceChecklist } from "./onboarding";
 import { downstream } from "@/domain/graph";
 import { getDeliveryFocus, getDeliveryProgress } from "@/domain/delivery-guidance";
@@ -467,6 +467,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
         <span className="nav-label">WORKSPACE</span>
         <nav aria-label="Main navigation">
           {navigation.map((item) => (
+            <div key={item.view} className="nav-group-item">{item.view==="overview"&&<span className="nav-section-label">UNDERSTAND</span>}{item.view==="tasks"&&<span className="nav-section-label">PLAN & EXECUTE</span>}{item.view==="audit"&&<span className="nav-section-label">GOVERN</span>}
             <button
               key={item.view}
               className={`nav-item ${view === item.view ? "active" : ""}`}
@@ -481,7 +482,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
               {item.view === "risks" && activeRisks.length > 0 && (
                 <i className="risk-dot" />
               )}
-            </button>
+            </button></div>
           ))}
         </nav>
         <span className="nav-label">CONNECT</span>
@@ -1143,7 +1144,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                     </div>
                   </>
                 )}
-                {view === "audit" && integrations.ai_provider === 'gemini' && <AuditHistory key={data.project.id} workspace={data.project.id}/>}
+                {view === "audit" && integrations.ai_provider === 'gemini' && <AuditHistory key={data.project.id} workspace={data.project.id} data={data}/>}
                 {view === "audit" && integrations.ai_provider !== 'gemini' && (
                   <section className="panel">
                     <div className="panel-head">
@@ -1156,36 +1157,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                       </div>
                       <ScrollText size={20} />
                     </div>
-                    <div className="audit-list">
-                      {audit.map((a) => (
-                        <details key={a.id}>
-                          <summary>
-                            <span className="audit-icon">
-                              {a.kind.includes("approved") ? (
-                                <Check size={17} />
-                              ) : (
-                                <Activity size={17} />
-                              )}
-                            </span>
-                            <div>
-                              <strong>{a.summary}</strong>
-                              <small>
-                                {a.actor_name} ·{" "}
-                                {new Date(a.created_at).toLocaleString()}
-                              </small>
-                            </div>
-                            <span className="version-label">
-                              v{a.plan_version}
-                            </span>
-                            <ChevronRight size={16} />
-                          </summary>
-                          <div className="audit-detail">
-                            <span className="mono">Event {a.id}</span>
-                            <pre>{JSON.stringify(a.changes, null, 2)}</pre>
-                          </div>
-                        </details>
-                      ))}
-                    </div>
+                    <AuditTimeline items={audit} data={data}/>
                     {!audit.length && (
                       <Empty
                         title="A fresh start"
