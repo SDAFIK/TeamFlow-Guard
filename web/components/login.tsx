@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ShieldCheck, ArrowRight, LockKeyhole, Activity, GitBranch, CheckCircle2 } from "lucide-react";
+import { ShieldCheck, ArrowRight, LockKeyhole, Activity, GitBranch, CheckCircle2, Menu, X, Sparkles, Compass, Users } from "lucide-react";
 import styles from "./premium-entry.module.css";
 import { Brand } from "./ui";
 import { api } from "@/lib/api";
@@ -21,6 +21,8 @@ export default function Login({
     [busy, setBusy] = useState(false);
   const [register,setRegister]=useState(false),[message,setMessage]=useState(initialMessage??"");
   const [forgot,setForgot]=useState(false);
+  const [navOpen,setNavOpen]=useState(false);
+  useEffect(()=>{const nodes=document.querySelectorAll("[data-entry-reveal]");if(window.matchMedia("(prefers-reduced-motion: reduce)").matches||!("IntersectionObserver" in window))return;const observer=new IntersectionObserver(entries=>entries.forEach(entry=>{if(entry.isIntersecting){entry.target.classList.add(styles.revealed);observer.unobserve(entry.target);}}),{threshold:.12});nodes.forEach(node=>{node.classList.add(styles.reveal);observer.observe(node);});return()=>observer.disconnect();},[]);
   useEffect(()=>{if(window.location.hash)window.history.replaceState(null,"",window.location.pathname+window.location.search);},[]);
   const [resendUntil,setResendUntil]=useState(0),[clock,setClock]=useState(0);
   const remaining=Math.max(0,Math.ceil((resendUntil-clock)/1000));
@@ -56,15 +58,17 @@ export default function Login({
     }
   }
   return (
-    <main className="login-page">
+    <main className={`login-page ${styles.landing}`}>
+      <header className={styles.topnav}><a href="#home" aria-label="TeamFlow Guard home"><Brand/></a><nav aria-label="Landing navigation" className={navOpen?styles.navOpen:styles.navLinks}><a href="#platform" onClick={()=>setNavOpen(false)}>Platform</a><a href="#journey" onClick={()=>setNavOpen(false)}>How it works</a><a href="#account" onClick={()=>setNavOpen(false)}>Sign in</a></nav><button type="button" className={styles.navCta} disabled={busy} onClick={()=>void enterDemo()}>Try live demo <ArrowRight size={16}/></button><button type="button" className={styles.navToggle} aria-label={navOpen?"Close menu":"Open menu"} aria-expanded={navOpen} onClick={()=>setNavOpen(v=>!v)}>{navOpen?<X/>:<Menu/>}</button></header>
+      <div id="home" className={styles.entryGrid}>
       <div className={`login-story ${styles.story}`}>
-        <Brand />
-        <div className={styles.hero}>
+        <span className={styles.brandline}>TEAMFLOW GUARD / DELIVERY INTELLIGENCE</span>
+        <div className={styles.hero} id="platform">
           <span className={styles.kicker}><i aria-hidden="true"/> WORKFORCE OPERATING SYSTEM</span>
           <h1 className={styles.headline}>Build with clarity.<br/><span>Recover with confidence.</span></h1>
           <p className={styles.copy}>Connect delivery evidence, trace blocked dependencies and compare AI recovery options. Keep your team in control of every important decision.</p>
           <section className={styles.guestEntry} aria-label="Interactive competition demo"><span className={styles.kicker}>INTERACTIVE COMPETITION DEMO</span><h2>Enter sandbox instantly</h2><p>A complete product experience without registration. Enter the actual six-person TeamFlow Guard workspace with TIC Intelligence, Gemini recovery, connected tasks and human decisions.</p><button type="button" disabled={busy} onClick={()=>void enterDemo()} className={styles.guestButton}>{busy?"Opening workspace…":"Enter Live Demo — No Sign-up"} <ArrowRight size={18}/></button><small>No email · No password · Private temporary demo session</small></section>
-          <div className={styles.panel} aria-label="Illustrative evidence to decision workflow">
+          <div className={styles.panel} aria-label="Illustrative evidence to decision workflow"><div className={styles.scanner} aria-hidden="true"><div className={styles.orbit}/><div className={styles.orbitTwo}/><div className={styles.core}><ShieldCheck size={36}/></div><i className={styles.scanBeam}/></div>
             <div className={styles.panelHeader}><span>Delivery intelligence</span><b>Illustrative flow</b></div>
             <div className={styles.graph}>
               <div className={`${styles.node} ${styles.risk}`}><Activity size={22}/><span>Risk signal</span><small>CI failure</small></div>
@@ -77,7 +81,7 @@ export default function Login({
         </div>
         <small>TEAMFLOW GUARD · HUMAN-GOVERNED DELIVERY</small>
       </div>
-      <div className="login-form-wrap">
+      <div className="login-form-wrap" id="account">
         <form onSubmit={submit} className="login-form">
           <span className="login-icon">
             <ShieldCheck size={28} />
@@ -131,6 +135,10 @@ export default function Login({
           </div>
         </form>
       </div>
+      </div>
+      <section id="journey" className={styles.journey} data-entry-reveal><span className={styles.kicker}>THE PRODUCT JOURNEY</span><h2>From a failing build to a confident decision.</h2><p>One connected workspace. Evidence first, intelligence second, human approval always.</p><div className={styles.journeyCards}>{[{icon:Activity,title:"Detect the signal",copy:"Connect a failing CI check, delayed review or capacity constraint to a task."},{icon:GitBranch,title:"Trace the impact",copy:"TIC Intelligence explains dependencies and unfinished downstream effort."},{icon:Sparkles,title:"Compare recovery",copy:"Gemini and deterministic rules propose feasible options with tradeoffs."},{icon:ShieldCheck,title:"Decide & verify",copy:"Approve a versioned plan change and read the audit trail. No automatic decisions."}].map(({icon:Icon,title,copy})=><article key={title}><Icon size={25}/><h3>{title}</h3><p>{copy}</p></article>)}</div></section>
+      <section className={styles.updates} data-entry-reveal><div><span className={styles.kicker}>EXPLORE THE PRODUCT</span><h2>Built for real software teams.</h2></div><div className={styles.updateRail}><article><Compass size={21}/><h3>Instant private demo</h3><p>Six members, ten tasks and a realistic delivery challenge.</p></article><article><Sparkles size={21}/><h3>TIC + Gemini</h3><p>Evidence-backed analysis, model laboratory and recovery options.</p></article><article><Users size={21}/><h3>Human-led decisions</h3><p>Team permissions, approval receipts and a readable audit log.</p></article></div><button className={styles.guestButton} disabled={busy} onClick={()=>void enterDemo()}>Enter the real workspace <ArrowRight size={17}/></button></section>
+      <footer className={styles.footer}><Brand/><span>Human-governed delivery intelligence · No automatic plan changes</span><a href="#home">Back to top ↑</a></footer>
     </main>
   );
 }
