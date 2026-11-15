@@ -1,0 +1,21 @@
+name: Generate guest migration filename
+on:
+  push:
+    branches: [codex/guest-guided-sandbox-v11]
+    paths: ['.github/workflows/guest-migration-name.yml']
+permissions:
+  contents: read
+jobs:
+  name:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: |
+          mkdir -p /tmp/teamflow-guest-migration
+          cd /tmp/teamflow-guest-migration
+          npx --yes supabase@2.79.0 init
+          npx --yes supabase@2.79.0 migration new competition_guest_access
+          ls supabase/migrations
