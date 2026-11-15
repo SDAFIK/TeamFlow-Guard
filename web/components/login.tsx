@@ -8,17 +8,20 @@ export default function Login({
   onLogin,
   onDemo,
   initialError,
+  initialMessage,
 }: {
   onLogin: () => Promise<void>;
   onDemo: () => Promise<void>;
   initialError: string;
+  initialMessage?:string;
 }) {
   const [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
     [error, setError] = useState(initialError),
     [busy, setBusy] = useState(false);
-  const [register,setRegister]=useState(false),[message,setMessage]=useState('');
+  const [register,setRegister]=useState(false),[message,setMessage]=useState(initialMessage??"");
   const [forgot,setForgot]=useState(false);
+  useEffect(()=>{if(window.location.hash)window.history.replaceState(null,"",window.location.pathname+window.location.search);},[]);
   const [resendUntil,setResendUntil]=useState(0),[clock,setClock]=useState(0);
   const remaining=Math.max(0,Math.ceil((resendUntil-clock)/1000));
   useEffect(()=>{if(!resendUntil)return;const timer=window.setInterval(()=>setClock(Date.now()),1000);return()=>window.clearInterval(timer);},[resendUntil]);
