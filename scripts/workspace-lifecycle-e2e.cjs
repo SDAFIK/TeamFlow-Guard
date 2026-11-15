@@ -21,7 +21,7 @@ const emails=["owner","manager","member","outsider"].map(x=>x+"-"+nonce+"@exampl
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 let server;
 async function start(){
- const env={...process.env,TEAMFLOW_BACKEND:"supabase",NEXT_PUBLIC_SUPABASE_URL:LOCAL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:ANON,APP_BASE_URL:BASE,APP_ALLOWED_ORIGINS:BASE,RESEND_API_KEY:"",TEAMFLOW_INVITE_EMAIL_FROM:"",GEMINI_API_KEY:"",GITHUB_APP_ID:"",GITHUB_APP_PRIVATE_KEY:"",GITHUB_APP_WEBHOOK_SECRET:"",TEAMFLOW_GITHUB_APP_BINDINGS:"[]",TEAMFLOW_GITHUB_CI_MAPPINGS:"[]",TEAMFLOW_GITHUB_INGEST_KEY:"",NEXT_TELEMETRY_DISABLED:"1"};
+ const env={...process.env,TEAMFLOW_BACKEND:"supabase",TEAMFLOW_PUBLIC_DEMO_ENABLED:"true",NEXT_PUBLIC_SUPABASE_URL:LOCAL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:ANON,APP_BASE_URL:BASE,APP_ALLOWED_ORIGINS:BASE,RESEND_API_KEY:"",TEAMFLOW_INVITE_EMAIL_FROM:"",GEMINI_API_KEY:"",GITHUB_APP_ID:"",GITHUB_APP_PRIVATE_KEY:"",GITHUB_APP_WEBHOOK_SECRET:"",TEAMFLOW_GITHUB_APP_BINDINGS:"[]",TEAMFLOW_GITHUB_CI_MAPPINGS:"[]",TEAMFLOW_GITHUB_INGEST_KEY:"",NEXT_TELEMETRY_DISABLED:"1"};
  delete env.VERCEL;delete env.VERCEL_URL;
  server=spawn(process.execPath,[path.resolve(__dirname,"../web/node_modules/next/dist/bin/next"),"dev","--hostname","127.0.0.1","--port","3100"],{cwd:path.resolve(__dirname,"../web"),env,stdio:"inherit"});
  for(let i=0;i<90;i++){if(server.exitCode!==null)throw Error("Local app exited");try{if((await fetch(BASE+"/api/health")).ok)return;}catch{}await pause(1000);}
@@ -299,7 +299,10 @@ async function shot(page,name){
   await call(mailPage,"/auth/resend-confirmation","POST",{email});
   const resent=await latestMail(/confirm/i,[original.id]);
   await mailPage.goto(resent.url);
-  await mailPage.waitForURL(BASE+"/overview");
+  await mailPage.waitForURL(url=>url.pathname==="/overview"||url.pathname==="/login");
+  // Older GoTrue resend links may use an implicit token. We deliberately do not consume it.
+  // Password login proves that the actual email was confirmed by Auth.
+  if(new URL(mailPage.url()).pathname==="/login")await call(mailPage,"/auth/login","POST",{email,password});
   await call(mailPage,"/me");
   await call(mailPage,"/auth/reset-password","POST",{password:newPassword},403);
   await call(mailPage,"/auth/logout","POST",{});
