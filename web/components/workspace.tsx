@@ -138,6 +138,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
     [menu, setMenu] = useState(false);
   const [manageTask, setManageTask] = useState<string | null>(null);
   const [demoBusy,setDemoBusy]=useState(false);
+  const [showJudgeGuide,setShowJudgeGuide]=useState(true);
   const [personalDemoBusy,setPersonalDemoBusy]=useState(false);
   const [resetDemoOpen,setResetDemoOpen]=useState(false);
   const [resetDemoName,setResetDemoName]=useState("");
@@ -345,6 +346,11 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
     }catch(e){if(created)await refresh();setError((created?"Fictional task created; replay its CI failure from the demo dialog. ":"")+(e as Error).message);}
     finally{setDemoBusy(false);}
   }
+  async function enterGuestDemo(){
+    const result=await api<{id:string}>("/auth/demo",{method:"POST",body:JSON.stringify({})});
+    setBusy(true);navigate("overview");await load(result.id);
+    setNotice("Welcome to the actual TeamFlow Guard demo. Explore TIC Intelligence and Gemini recovery, then approve a plan yourself.");
+  }
   async function logout() {
     try {
       await api("/auth/logout", { method: "POST" });
@@ -361,7 +367,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
     return (
       <WorkspaceLoader/>
     );
-  if (!user) return <Login onLogin={() => load()} initialError={error || (confirmationFailed?"Email link could not be completed. If your account is verified, sign in or request a fresh password reset. Otherwise request a fresh confirmation and reopen your team invitation after signing in.":"")} />;
+  if (!user) return <Login onLogin={() => load()} onDemo={enterGuestDemo} initialError={error || (confirmationFailed?"Email link could not be completed. If your account is verified, sign in or request a fresh password reset. Otherwise request a fresh confirmation and reopen your team invitation after signing in.":"")} />;
   const activeRisks = risks.filter((r) => r.active).sort((a,b)=>Number(a.stale_evidence)-Number(b.stale_evidence)||b.affected_task_ids.length-a.affected_task_ids.length||({high:3,medium:2,low:1}[b.severity]??0)-({high:3,medium:2,low:1}[a.severity]??0)),
     pending = proposals.filter((p) => p.status === "pending"),
     ready = pending.filter((p) => !p.stale);
@@ -631,6 +637,8 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                 <span>Plan v{data.plan_version}</span>
                 {data.fixture_label&&<span>{data.fixture_label}</span>}
               </div>
+              {data.personal_demo&&showJudgeGuide&&<section className="panel judge-guide" aria-label="Optional competition guide"><div><span className="section-kicker">INTERACTIVE COMPETITION DEMO</span><h2>See the problem. Test our solution.</h2><p>Your fictional checkout release has a failing build, dependent tasks, a delayed review and a capacity constraint. TIC turns evidence into delivery intelligence; Gemini proposes recovery; you decide what changes.</p></div><div className="judge-guide-actions">{([{view:"overview",label:"1 · Understand"},{view:"intelligence",label:"2 · TIC Intelligence"},{view:"risks",label:"3 · Gemini & recovery"},{view:"dependencies",label:"4 · Trace impact"},{view:"decisions",label:"5 · Decide"},{view:"audit",label:"6 · Verify"}] as {view:View;label:string}[]).map(step=><button key={step.view} className={view===step.view?"primary":"secondary"} onClick={()=>navigate(step.view)} aria-current={view===step.view?"step":undefined}>{step.label}</button>)}<button className="text-link" onClick={()=>setShowJudgeGuide(false)}>Hide guide</button></div></section>}
+              {data.personal_demo&&!showJudgeGuide&&<button className="text-link" onClick={()=>setShowJudgeGuide(true)}>Show competition guide</button>}
               <div className="view-content" key={view}>
                 {receipt&&receipt.workspace===data.project.id&&<section className="panel recovery-receipt" aria-label="Recovery decision recorded">
                   <JourneySteps current={3}/><h2>{receipt.decision==='approve'?'Approved plan saved':'Proposal rejected — plan unchanged'}</h2><p>{receipt.title}</p><p>The decision is recorded in your workspace history. {receipt.decision==='approve'?'Check the updated task assignments and follow up on the source signal.':'No proposed changes were applied.'}</p>
