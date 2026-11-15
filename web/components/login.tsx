@@ -6,16 +6,22 @@ import { Brand } from "./ui";
 import { api } from "@/lib/api";
 export default function Login({
   onLogin,
+  onDemo,
   initialError,
+  initialMessage,
 }: {
   onLogin: () => Promise<void>;
+  onDemo: () => Promise<void>;
   initialError: string;
+  initialMessage?:string;
 }) {
   const [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
     [error, setError] = useState(initialError),
     [busy, setBusy] = useState(false);
-  const [register,setRegister]=useState(false),[message,setMessage]=useState('');
+  const [register,setRegister]=useState(false),[message,setMessage]=useState(initialMessage??"");
+  const [forgot,setForgot]=useState(false);
+  useEffect(()=>{if(window.location.hash)window.history.replaceState(null,"",window.location.pathname+window.location.search);},[]);
   const [resendUntil,setResendUntil]=useState(0),[clock,setClock]=useState(0);
   const remaining=Math.max(0,Math.ceil((resendUntil-clock)/1000));
   useEffect(()=>{if(!resendUntil)return;const timer=window.setInterval(()=>setClock(Date.now()),1000);return()=>window.clearInterval(timer);},[resendUntil]);
@@ -31,18 +37,20 @@ export default function Login({
     }catch(e){setError((e as Error).message);if((e as {status?:number}).status===429)startCooldown();}
     finally{setBusy(false);}
   }
+  async function enterDemo(){if(busy)return;setBusy(true);setError("");setMessage("");try{await onDemo();}catch(e){setError((e as Error).message);}finally{setBusy(false);}}
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     setBusy(true);
-    setError("");
+    setError("");setMessage("");
     try {
+      if(forgot){const result=await api<{message:string}>("/auth/forgot-password",{method:"POST",body:JSON.stringify({email:email.trim()})});setMessage(result.message);startCooldown();return;}
       const result=await api<{message?:string}>(register?"/auth/register":"/auth/login", {
         method: "POST",
         body: JSON.stringify({ email, password }),
       });
       if(register){setMessage(result.message??'Check your email to confirm your account.');startCooldown();}else await onLogin();
     } catch (e) {
-      setError((e as Error).message);
+      setError((e as Error).message);if(forgot&&(e as {status?:number}).status===429)startCooldown();
     } finally {
       setBusy(false);
     }
@@ -55,6 +63,7 @@ export default function Login({
           <span className={styles.kicker}><i aria-hidden="true"/> WORKFORCE OPERATING SYSTEM</span>
           <h1 className={styles.headline}>Build with clarity.<br/><span>Recover with confidence.</span></h1>
           <p className={styles.copy}>Connect delivery evidence, trace blocked dependencies and compare AI recovery options. Keep your team in control of every important decision.</p>
+          <section className={styles.guestEntry} aria-label="Interactive competition demo"><span className={styles.kicker}>INTERACTIVE COMPETITION DEMO</span><h2>Enter sandbox instantly</h2><p>A complete product experience without registration. Enter the actual six-person TeamFlow Guard workspace with TIC Intelligence, Gemini recovery, connected tasks and human decisions.</p><button type="button" disabled={busy} onClick={()=>void enterDemo()} className={styles.guestButton}>{busy?"Opening workspace…":"Enter Live Demo — No Sign-up"} <ArrowRight size={18}/></button><small>No email · No password · Private temporary demo session</small></section>
           <div className={styles.panel} aria-label="Illustrative evidence to decision workflow">
             <div className={styles.panelHeader}><span>Delivery intelligence</span><b>Illustrative flow</b></div>
             <div className={styles.graph}>
@@ -73,8 +82,9 @@ export default function Login({
           <span className="login-icon">
             <ShieldCheck size={28} />
           </span>
-          <h2>Welcome to your workspace</h2>
-          <p>{register?'Create your account, then create or join a workspace.':'Sign in to TeamFlow Guard.'}</p>
+          <h2>{forgot?'Reset your password':'Welcome to your workspace'}</h2>
+          <button type="button" disabled={busy} onClick={()=>void enterDemo()} className={styles.formGuestLink}>Enter the real demo workspace <ArrowRight size={15}/></button>
+          <p>{forgot?'Enter your account email. Open the newest reset link in this browser.':register?'Create your account, then create or join a workspace.':'Sign in to TeamFlow Guard.'}</p>
           {message&&<p role="status" className="success-banner">{message}</p>}
           {error && (
             <div className="error" role="alert">
@@ -91,22 +101,26 @@ export default function Login({
             value={email}
             onChange={(e) => setEmail(e.target.value)}
           />
-          <label htmlFor="password">Password</label>
+          {!forgot&&<><label htmlFor="password">Password</label>
           <input
             id="password"
             type="password"
-            autoComplete="current-password"
+            autoComplete={register?"new-password":"current-password"}
             required
             minLength={register?12:1}
+            maxLength={register?128:256}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
-          <button className="primary" type="submit" disabled={busy}>
-            {busy ? "Please wait…" : register?'Create account':"Sign in"}
+          </>}
+          <button className="primary" type="submit" disabled={busy||(forgot&&remaining>0)}>
+            {busy ? "Please wait…" : forgot?(remaining>0?`Try again in ${remaining}s`:"Send reset link"):register?'Create account':"Sign in"}
             <ArrowRight size={17} />
           </button>
-          <button className="text-link" type="button" onClick={()=>{setRegister(!register);setError('');setMessage('');}}>{register?'Already have an account? Sign in':'New here? Create an account'}</button>
+          <button className="text-link" type="button" onClick={()=>{setForgot(v=>!v);setRegister(false);setPassword("");setError("");setMessage("");}}>{forgot?"Back to sign in":"Forgot password?"}</button>
+          {!forgot&&<><button className="text-link" type="button" onClick={()=>{setRegister(!register);setError('');setMessage('');}}>{register?'Already have an account? Sign in':'New here? Create an account'}</button>
           <div className="confirmation-help"><p>Didn’t receive your verification email? Check spam or request a fresh link. Use the newest email.</p><button className="text-link" type="button" disabled={busy||remaining>0} onClick={()=>void resendConfirmation()}>{remaining>0?`Resend available in ${remaining}s`:"Resend confirmation email"}</button></div>
+          </>}
           <div className="login-note">
             <LockKeyhole size={17} />
             <span>

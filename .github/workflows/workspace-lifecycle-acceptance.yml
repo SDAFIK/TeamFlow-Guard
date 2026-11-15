@@ -9,6 +9,8 @@ on:
       - 'web/server/**'
       - 'supabase/migrations/**'
       - 'scripts/workspace-lifecycle-e2e.cjs'
+      - 'scripts/stage8-auth-e2e.cjs'
+      - 'scripts/test-supabase.py'
       - '.github/workflows/workspace-lifecycle-acceptance.yml'
   workflow_dispatch:
 permissions:
@@ -38,6 +40,22 @@ jobs:
           mkdir -p "$RUNNER_TEMP/teamflow-stage1"
           cd "$RUNNER_TEMP/teamflow-stage1"
           npx --yes supabase@2.79.0 init
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          p=Path('supabase/config.toml'); s=p.read_text()
+          settings={
+              'site_url':'"http://127.0.0.1:3100"',
+              'additional_redirect_urls':'["http://127.0.0.1:3100/auth/callback", "http://127.0.0.1:3100/auth/callback?**"]',
+              'enable_confirmations':'true',
+              'enable_anonymous_sign_ins':'true',
+              'max_frequency':'"1s"',
+          }
+          for key,value in settings.items():
+              s,n=re.subn(r'^'+key+r'\s*=.*$',lambda m:key+' = '+value,s,flags=re.M)
+              assert n>=1, key
+          p.write_text(s)
+          PY
           mkdir -p supabase/migrations
           cp "$GITHUB_WORKSPACE"/supabase/migrations/*.sql supabase/migrations/
           touch supabase/seed.sql

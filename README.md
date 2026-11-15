@@ -117,14 +117,14 @@ flowchart TB
 
 The repository also retains a legacy FastAPI/Python local-development path. The public production application uses the Next.js/Supabase architecture above.
 
-## Competition release candidate
+## Competition release candidate (V1.1)
 
-The Stage 1–4 development candidate has passed local regression and authenticated acceptance. The live URL below may still serve the previous production release until the migration and hosted release gates in [Release checklist](docs/COMPETITION_RELEASE.md) are satisfied.
+The new candidate replaces the separate sandbox prototype with one-click entry into the actual TeamFlow Guard workspace. The native guest account is restricted to a private six-person fictional demo, with the same TIC Intelligence, Gemini pipeline, task board, dependency map, decision inbox and audit as registered users. The live public domain remains on the previous validated release until the new guest/authentication and hosted checks pass. See [release checklist](docs/COMPETITION_RELEASE.md) and [V1.1 guest release gates](docs/V11_NATIVE_DEMO.md).
 
 ## Try the live demo (after candidate promotion)
 
-1. Visit [teamflow-guard.vercel.app](https://teamflow-guard.vercel.app) and register or sign in.
-2. Choose **Open personal demo** from onboarding or the workspace switcher. Your private demo contains your real signed-in owner plus five fictional teammates, ten tasks, nine dependencies and four initial risk signals.
+1. Visit [teamflow-guard.vercel.app](https://teamflow-guard.vercel.app). After V1.1 promotion, click **Enter Live Demo — No Sign-up** to enter the actual workspace automatically. No email/password is required. Registered users can instead sign in and choose **Open personal demo**.
+2. Your private demo contains one authenticated guest or registered owner plus five fictional teammates, ten tasks, nine dependencies and four initial risk signals. The optional guide inside the real workspace can be hidden. Open TIC Intelligence to inspect project evidence and the synthetic model laboratory; guest Gemini requests are bounded (three per two-hour session).
 3. Open Risk Center to inspect the seeded authentication CI failure, blocked dependency chain, overdue review and capacity shortage. Alternatively, use **TIC Intelligence → Start fresh AI rehearsal**.
 4. Inspect the resulting fictional CI failure, then **Compare recovery options**.
 5. Enable side-by-side comparison and generate a rule-based proposal and a Gemini proposal.

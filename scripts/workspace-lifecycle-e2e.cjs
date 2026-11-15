@@ -21,7 +21,7 @@ const emails=["owner","manager","member","outsider"].map(x=>x+"-"+nonce+"@exampl
 const pause=ms=>new Promise(r=>setTimeout(r,ms));
 let server;
 async function start(){
- const env={...process.env,TEAMFLOW_BACKEND:"supabase",NEXT_PUBLIC_SUPABASE_URL:LOCAL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:ANON,APP_BASE_URL:BASE,APP_ALLOWED_ORIGINS:BASE,RESEND_API_KEY:"",TEAMFLOW_INVITE_EMAIL_FROM:"",GEMINI_API_KEY:"",GITHUB_APP_ID:"",GITHUB_APP_PRIVATE_KEY:"",GITHUB_APP_WEBHOOK_SECRET:"",TEAMFLOW_GITHUB_APP_BINDINGS:"[]",TEAMFLOW_GITHUB_CI_MAPPINGS:"[]",TEAMFLOW_GITHUB_INGEST_KEY:"",NEXT_TELEMETRY_DISABLED:"1"};
+ const env={...process.env,TEAMFLOW_BACKEND:"supabase",TEAMFLOW_PUBLIC_DEMO_ENABLED:"true",NEXT_PUBLIC_SUPABASE_URL:LOCAL,NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:ANON,APP_BASE_URL:BASE,APP_ALLOWED_ORIGINS:BASE,RESEND_API_KEY:"",TEAMFLOW_INVITE_EMAIL_FROM:"",GEMINI_API_KEY:"",GITHUB_APP_ID:"",GITHUB_APP_PRIVATE_KEY:"",GITHUB_APP_WEBHOOK_SECRET:"",TEAMFLOW_GITHUB_APP_BINDINGS:"[]",TEAMFLOW_GITHUB_CI_MAPPINGS:"[]",TEAMFLOW_GITHUB_INGEST_KEY:"",NEXT_TELEMETRY_DISABLED:"1"};
  delete env.VERCEL;delete env.VERCEL_URL;
  server=spawn(process.execPath,[path.resolve(__dirname,"../web/node_modules/next/dist/bin/next"),"dev","--hostname","127.0.0.1","--port","3100"],{cwd:path.resolve(__dirname,"../web"),env,stdio:"inherit"});
  for(let i=0;i<90;i++){if(server.exitCode!==null)throw Error("Local app exited");try{if((await fetch(BASE+"/api/health")).ok)return;}catch{}await pause(1000);}
@@ -264,6 +264,70 @@ async function shot(page,name){
   await publicPage.getByRole("button",{name:"Sign in",exact:true}).waitFor();
   assert.deepEqual(errors,[],"no uncaught authenticated browser errors");
   console.log("PASS Stage 3 responsive route sweep and public entry controls");
+  // V1.1: actual local Auth email delivery, PKCE confirmation, resend and recovery.
+  // Only the local Mailpit inbox is inspected; no tokens or email bodies are logged.
+  const mailPage=await (await browser.newContext()).newPage();
+  const email="recovery-"+nonce+"@example.test";
+  const newPassword="Replacement-"+randomUUID()+"-A9!";
+  async function latestMail(subject,excluded=[]){
+    for(let i=0;i<30;i++){
+      const response=await fetch("http://127.0.0.1:54324/api/v1/messages");
+      if(!response.ok)throw Error("Local mail inbox unavailable");
+      const list=await response.json();
+      const message=(list.messages||[]).find(m=>m.To?.some(t=>t.Address===email)&&subject.test(m.Subject)&&!excluded.includes(m.ID));
+      if(message){
+        const full=await (await fetch("http://127.0.0.1:54324/api/v1/message/"+message.ID)).json();
+        const html=full.HTML||"";
+        const link=(html.match(/href=["']([^"']*\/auth\/v1\/verify[^"']*)["']/i)||[])[1];
+        if(!link)throw Error("Local Auth email lacks verification link");
+        const url=new URL(link.replaceAll("&amp;","&"));
+        assert.ok(["127.0.0.1","localhost"].includes(url.hostname)&&url.port==="54321","Refusing external verification URL");
+        return {id:message.ID,url:url.toString()};
+      }
+      await pause(1000);
+    }
+    throw Error("Expected local email did not arrive");
+  }
+  await mailPage.goto(BASE+"/login");
+  await mailPage.getByRole("button",{name:"New here? Create an account"}).click();
+  await mailPage.getByLabel("Email address").fill(email);
+  await mailPage.getByLabel("Password",{exact:true}).fill(password);
+  await mailPage.getByRole("button",{name:"Create account",exact:true}).click();
+  await mailPage.getByRole("status").filter({hasText:"Check your email"}).waitFor();
+  const original=await latestMail(/confirm/i);
+  await pause(1200);
+  await call(mailPage,"/auth/resend-confirmation","POST",{email});
+  const resent=await latestMail(/confirm/i,[original.id]);
+  await mailPage.goto(resent.url);
+  await mailPage.waitForURL(url=>url.pathname==="/overview"||url.pathname==="/login");
+  // Older GoTrue resend links may use an implicit token. We deliberately do not consume it.
+  // Password login proves that the actual email was confirmed by Auth.
+  if(new URL(mailPage.url()).pathname==="/login")await call(mailPage,"/auth/login","POST",{email,password});
+  await call(mailPage,"/me");
+  await call(mailPage,"/auth/reset-password","POST",{password:newPassword},403);
+  await call(mailPage,"/auth/logout","POST",{});
+  await mailPage.goto(BASE+"/login");
+  await mailPage.getByRole("button",{name:"Forgot password?"}).click();
+  await mailPage.getByLabel("Email address").fill(email);
+  await mailPage.getByRole("button",{name:"Send reset link"}).click();
+  await mailPage.getByRole("status").filter({hasText:"password reset link"}).waitFor();
+  const recovery=await latestMail(/reset|recover/i);
+  await mailPage.goto(recovery.url);
+  await mailPage.waitForURL(BASE+"/reset-password");
+  await mailPage.getByLabel("New password",{exact:true}).fill(newPassword);
+  await mailPage.getByLabel("Confirm new password",{exact:true}).fill(password);
+  await mailPage.getByRole("button",{name:"Update password"}).click();
+  await mailPage.getByRole("alert").filter({hasText:"Passwords do not match"}).waitFor();
+  await mailPage.getByLabel("Confirm new password",{exact:true}).fill(newPassword);
+  await mailPage.getByRole("button",{name:"Update password"}).click();
+  await mailPage.getByRole("status").filter({hasText:"Password updated"}).waitFor();
+  await call(mailPage,"/me","GET",undefined,401);
+  await call(mailPage,"/auth/login","POST",{email,password},401);
+  await call(mailPage,"/auth/login","POST",{email,password:newPassword});
+  await call(mailPage,"/me");
+  await call(mailPage,"/auth/reset-password","POST",{password},403);
+  console.log("PASS V1.1 actual local registration, resend, email confirmation, PKCE password recovery and session invalidation");
+
 
 
  }finally{if(browser)await browser.close();await stop();}
