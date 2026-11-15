@@ -122,7 +122,7 @@ async function event(payload,valid=true,type="workflow_run",delivery=randomUUID(
   await call(guestPage,"/invitations/accept","POST",{token:invite.token,display_name:"Guest"},403);
   const overview=await call(guestPage,gb+"/dashboard");
   assert.equal((await call(guestPage,gb+"/dependencies")).edges.length,9);
-  const report=await call(guestPage,gb+"/project-intelligence");assert.equal(report.tasks.length,10);
+  const report=await call(guestPage,gb+"/project-intelligence");assert.equal(report.tasks.length,overview.tasks.filter(t=>t.status!=="done").length);
   assert.equal((await call(guestPage,gb+"/integrations")).ai_configured,true);
   await guestPage.getByRole("button",{name:"2 · TIC Intelligence",exact:true}).click();
   await guestPage.getByRole("heading",{name:"TIC Intelligence",exact:true}).waitFor();
