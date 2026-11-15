@@ -22,7 +22,7 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
     try:
         db.execute("CREATE SCHEMA IF NOT EXISTS auth")
         db.execute("CREATE TABLE IF NOT EXISTS auth.users(id uuid primary key)")
-        db.execute("ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS email text, ADD COLUMN IF NOT EXISTS email_confirmed_at timestamptz")
+        db.execute("ALTER TABLE auth.users ADD COLUMN IF NOT EXISTS email text, ADD COLUMN IF NOT EXISTS email_confirmed_at timestamptz, ADD COLUMN IF NOT EXISTS is_anonymous boolean NOT NULL DEFAULT false, ADD COLUMN IF NOT EXISTS created_at timestamptz NOT NULL DEFAULT now()")
         db.execute("CREATE OR REPLACE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$")
         db.execute("DO $$ BEGIN IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated NOLOGIN; END IF; IF NOT EXISTS(SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon NOLOGIN; END IF; END $$")
         db.execute('GRANT USAGE ON SCHEMA public,auth TO authenticated,anon')
