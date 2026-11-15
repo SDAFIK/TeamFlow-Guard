@@ -438,6 +438,37 @@ with psycopg.connect(host=url.host, port=url.port, user=url.username, password=u
         assert db.execute('select count(*) from auth.users where id=%s',(persona,)).fetchone()[0]==0
         assert db.execute('select count(*) from public.tf_workspaces where id=%s',(other_demo['id'],)).fetchone()[0]==1
         passed.append('personal demo seeds six members, ten tasks, four evidence signals; no Auth personas; isolated idempotent launch and atomic reset')
+        # Native anonymous judge identities must only reach their private demo.
+        guest, guest2 = [str(uuid4()) for _ in range(2)]
+        db.execute('reset role')
+        for g in (guest, guest2):
+            db.execute('insert into auth.users(id,is_anonymous) values(%s,true)',(g,))
+        identity(guest)
+        gd=personal_demo('open'); gw=gd['id']
+        gs=db.execute('select public.tf_snapshot(%s)',(gw,)).fetchone()[0]
+        assert len(gs['members'])==6 and len(gs['tasks'])==10 and len(gs['evidence'])==4
+        assert db.execute('select public.tf_snapshot(%s)',(fresh['id'],)).fetchone()[0] is None
+        denied('guest cannot create real workspace',lambda:workspace_write('create',{'name':'Real guest workspace','display_name':'Guest'},None),'42501')
+        denied('guest cannot invite',lambda:workspace_write('invite',{'email':'outsider@example.test','role':'member','token_hash':'f'*64},gw),'42501')
+        assert personal_demo('open')['id']==gw
+        identity(guest2)
+        gd2=personal_demo('open')
+        assert gd2['id']!=gw and db.execute('select public.tf_snapshot(%s)',(gw,)).fetchone()[0] is None
+        identity(guest)
+        for idx in range(3):
+            db.execute("select public.tf_analysis_begin(%s,%s,'fingerprint','model','prompt')",(gw,'guest-test-'+str(idx)))
+        denied('guest fourth AI request denied',lambda:db.execute("select public.tf_analysis_begin(%s,'guest-four','fingerprint','model','prompt')",(gw,)),'P0429')
+        reset_guest=personal_demo('reset',gw,gd['name'])
+        denied('guest reset cannot evade Gemini quota',lambda:db.execute("select public.tf_analysis_begin(%s,'guest-after-reset','fingerprint','model','prompt')",(reset_guest['id'],)),'P0429')
+        db.execute('reset role')
+        db.execute("update auth.users set created_at=now()-interval '3 hours' where id=%s",(guest,))
+        identity(guest)
+        assert db.execute('select public.tf_snapshot(%s)',(reset_guest['id'],)).fetchone()[0] is None
+        denied('expired guest cannot reopen',lambda:personal_demo('open'),'42501')
+        identity(guest2)
+        assert db.execute('select public.tf_snapshot(%s)',(gd2['id'],)).fetchone()[0] is not None
+        passed.append('native guest tenant isolation, expiry and Gemini budget survive reset')
+
     finally:
         db.rollback()
 print(f'{len(passed)} SQL checks passed; all test changes rolled back.')
