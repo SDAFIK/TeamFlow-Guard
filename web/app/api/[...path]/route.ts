@@ -64,6 +64,21 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
     if (path.join("/") === "health") return answer({ message: "alive" });
     const client = await supabaseServer();
     const body = ["GET", "HEAD"].includes(request.method) ? {} : await readBody(request);
+    if (path.join("/") === "auth/demo" && request.method === "POST") {
+      z.object({}).strict().parse(body);
+      if(process.env.TEAMFLOW_PUBLIC_DEMO_ENABLED!=="true")throw new HttpError(503,"Live demo entry is not enabled yet. Sign in to open a private demo.");
+      const {data:current}=await client.auth.getUser();
+      let guest=current.user;
+      if(guest?.is_anonymous&&Date.parse(guest.created_at)<=Date.now()-2*3600000){await client.auth.signOut({scope:"local"});guest=null;}
+      if(!guest){
+        const {data,error}=await client.auth.signInAnonymously();
+        if(error||!data.user)throw new HttpError(error?.status===429?429:503,"Live demo is temporarily unavailable. Please retry shortly.");
+        guest=data.user;
+      }
+      const {data,error}=await client.rpc("tf_personal_demo",{operation:"open",w:null,confirmed_name:null});
+      if(error){if(guest.is_anonymous)await client.auth.signOut({scope:"local"});databaseError(error);}
+      const response=answer({id:data.id});response.cookies.delete("tf_recovery");return response;
+    }
     if (path.join("/") === "auth/login" && request.method === "POST") {
       const input = z.object({ email: z.email().max(254), password: z.string().min(1).max(256) }).strict().parse(body);
       const { data, error } = await client.auth.signInWithPassword(input);
@@ -118,7 +133,8 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
       return answer({message:'Check your email to confirm your account, then return here to sign in.'});
     }
     const { data: { user }, error: authError } = await client.auth.getUser();
-    if (authError || !user) throw new HttpError(401, "Sign in to continue");
+    if (authError || !user || (user.is_anonymous&&Date.parse(user.created_at)<=Date.now()-2*3600000)) throw new HttpError(401, "Sign in or start a fresh demo to continue");
+    if(user.is_anonymous&&(path.join("/")==="projects"&&request.method==="POST"||path.join("/")=== "invitations/accept"))throw new HttpError(403,"Guest access is limited to your personal demo. Sign in to manage real projects.");
     const inviteEmailConfig = { RESEND_API_KEY: process.env.RESEND_API_KEY, TEAMFLOW_INVITE_EMAIL_FROM: process.env.TEAMFLOW_INVITE_EMAIL_FROM, APP_BASE_URL: process.env.APP_BASE_URL, TEAMFLOW_GMAIL_USER: process.env.TEAMFLOW_GMAIL_USER, TEAMFLOW_GMAIL_APP_PASSWORD: process.env.TEAMFLOW_GMAIL_APP_PASSWORD };
     const workspaceWrite=async(w:string|null,operation:string,input:unknown)=>{
       const result=await client.rpc('tf_workspace_write',{w,operation,body:input});
@@ -134,7 +150,7 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
     }
     if (path[0] === "me" && path.length === 1 && request.method === "GET") {
       const { data } = await client.from("tf_memberships").select("name").eq("user_id", user.id).limit(1).maybeSingle();
-      return answer({ id: user.id, email: user.email ?? "", name: data?.name ?? "Member" });
+      return answer({ id: user.id, email: user.email ?? "", name: data?.name ?? (user.is_anonymous?"Guest judge":"Member"), guest:Boolean(user.is_anonymous) });
     }
     if (path[0] === "projects" && path.length === 1 && request.method === "GET") {
       const { data, error } = await client.from("tf_memberships").select("workspace_id,role,tf_workspaces(name,is_demo,archived_at,demo_owner_id)").eq("user_id", user.id);
