@@ -44,7 +44,82 @@ jobs:
           p=Path('supabase/config.toml'); s=p.read_text()
           s=re.sub(r'^site_url\s*=.*$', 'site_url = "http://127.0.0.1:3100"',s,flags=re.M)
           s=re.sub(r'^additional_redirect_urls\s*=.*$', 'additional_redirect_urls = ["http://127.0.0.1:3100/auth/callback"]',s,flags=re.M)
-          s=re.sub(r'^enable_confirmations\s*=.*$', 'enable_confirmations = true',s,flags=re.M)
+          s=re.sub(r'^enable_confirmations\s*=.*
+          s=re.sub(r'^max_frequency\s*=.*$', 'max_frequency = "1s"',s,flags=re.M)
+          p.write_text(s)
+          PY
+          mkdir -p supabase/migrations
+          cp "$GITHUB_WORKSPACE"/supabase/migrations/*.sql supabase/migrations/
+          touch supabase/seed.sql
+          npx --yes supabase@2.79.0 start > "$RUNNER_TEMP/stage8-supabase-start.log" 2>&1 || { tail -n 25 "$RUNNER_TEMP/stage8-supabase-start.log"; exit 1; }
+          npx --yes supabase@2.79.0 status -o env > "$RUNNER_TEMP/stage8-local.env"
+          node -e 'const fs=require("fs"); const lines=fs.readFileSync(process.argv[1],"utf8").split(/\r?\n/); const v={}; for(const line of lines){const i=line.indexOf("=");if(i>0)v[line.slice(0,i)]=line.slice(i+1).replace(/^"|"$/g,"");} const u=new URL(v.API_URL); if(!["127.0.0.1","localhost"].includes(u.hostname)||u.port!=="54321")throw Error("Not local"); const values={STAGE8_LOCAL_SUPABASE_URL:v.API_URL,STAGE8_LOCAL_ANON_KEY:v.ANON_KEY||v.PUBLISHABLE_KEY,STAGE8_LOCAL_SERVICE_ROLE:v.SERVICE_ROLE_KEY||v.SECRET_KEY};for(const [k,x] of Object.entries(values)){if(!x||/[\r\n]/.test(x))throw Error("Missing local config "+k);if(k!=="STAGE8_LOCAL_SUPABASE_URL")console.log("::add-mask::"+x);fs.appendFileSync(process.env.GITHUB_ENV,k+"="+x+"\n");}' "$RUNNER_TEMP/stage8-local.env"
+          rm -f "$RUNNER_TEMP/stage8-local.env"
+      - name: Authenticated workspace lifecycle browser journey
+        env:
+          NODE_PATH: ${{ github.workspace }}/web/node_modules
+          TEAMFLOW_ARTIFACT_DIR: ${{ runner.temp }}/teamflow-lifecycle-evidence
+        run: node scripts/workspace-lifecycle-e2e.cjs
+      - name: Full product integration acceptance (intercepted external providers)
+        env:
+          NODE_PATH: ${{ github.workspace }}/web/node_modules
+          TEAMFLOW_ARTIFACT_DIR: ${{ runner.temp }}/teamflow-lifecycle-evidence
+          TEAMFLOW_ACCEPT_TIC_V2: '1'
+        run: node scripts/stage8-auth-e2e.cjs
+      - name: Upload fictional UI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: teamflow-lifecycle-evidence
+          path: ${{ runner.temp }}/teamflow-lifecycle-evidence
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Stop disposable Supabase
+        if: always()
+        run: |
+          if [ -d "$RUNNER_TEMP/teamflow-stage1/supabase" ]; then
+            cd "$RUNNER_TEMP/teamflow-stage1"
+            npx --yes supabase@2.79.0 stop --no-backup
+          fi
+, 'enable_confirmations = true',s,flags=re.M)
+          s=re.sub(r'^enable_anonymous_sign_ins\s*=.*
+          s=re.sub(r'^max_frequency\s*=.*$', 'max_frequency = "1s"',s,flags=re.M)
+          p.write_text(s)
+          PY
+          mkdir -p supabase/migrations
+          cp "$GITHUB_WORKSPACE"/supabase/migrations/*.sql supabase/migrations/
+          touch supabase/seed.sql
+          npx --yes supabase@2.79.0 start > "$RUNNER_TEMP/stage8-supabase-start.log" 2>&1 || { tail -n 25 "$RUNNER_TEMP/stage8-supabase-start.log"; exit 1; }
+          npx --yes supabase@2.79.0 status -o env > "$RUNNER_TEMP/stage8-local.env"
+          node -e 'const fs=require("fs"); const lines=fs.readFileSync(process.argv[1],"utf8").split(/\r?\n/); const v={}; for(const line of lines){const i=line.indexOf("=");if(i>0)v[line.slice(0,i)]=line.slice(i+1).replace(/^"|"$/g,"");} const u=new URL(v.API_URL); if(!["127.0.0.1","localhost"].includes(u.hostname)||u.port!=="54321")throw Error("Not local"); const values={STAGE8_LOCAL_SUPABASE_URL:v.API_URL,STAGE8_LOCAL_ANON_KEY:v.ANON_KEY||v.PUBLISHABLE_KEY,STAGE8_LOCAL_SERVICE_ROLE:v.SERVICE_ROLE_KEY||v.SECRET_KEY};for(const [k,x] of Object.entries(values)){if(!x||/[\r\n]/.test(x))throw Error("Missing local config "+k);if(k!=="STAGE8_LOCAL_SUPABASE_URL")console.log("::add-mask::"+x);fs.appendFileSync(process.env.GITHUB_ENV,k+"="+x+"\n");}' "$RUNNER_TEMP/stage8-local.env"
+          rm -f "$RUNNER_TEMP/stage8-local.env"
+      - name: Authenticated workspace lifecycle browser journey
+        env:
+          NODE_PATH: ${{ github.workspace }}/web/node_modules
+          TEAMFLOW_ARTIFACT_DIR: ${{ runner.temp }}/teamflow-lifecycle-evidence
+        run: node scripts/workspace-lifecycle-e2e.cjs
+      - name: Full product integration acceptance (intercepted external providers)
+        env:
+          NODE_PATH: ${{ github.workspace }}/web/node_modules
+          TEAMFLOW_ARTIFACT_DIR: ${{ runner.temp }}/teamflow-lifecycle-evidence
+          TEAMFLOW_ACCEPT_TIC_V2: '1'
+        run: node scripts/stage8-auth-e2e.cjs
+      - name: Upload fictional UI evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: teamflow-lifecycle-evidence
+          path: ${{ runner.temp }}/teamflow-lifecycle-evidence
+          if-no-files-found: ignore
+          retention-days: 7
+      - name: Stop disposable Supabase
+        if: always()
+        run: |
+          if [ -d "$RUNNER_TEMP/teamflow-stage1/supabase" ]; then
+            cd "$RUNNER_TEMP/teamflow-stage1"
+            npx --yes supabase@2.79.0 stop --no-backup
+          fi
+, 'enable_anonymous_sign_ins = true',s,flags=re.M)
           s=re.sub(r'^max_frequency\s*=.*$', 'max_frequency = "1s"',s,flags=re.M)
           p.write_text(s)
           PY
