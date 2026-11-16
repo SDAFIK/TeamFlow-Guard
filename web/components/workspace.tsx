@@ -47,7 +47,7 @@ import Login from "./login";
 import { IntelligenceCenter } from "./intelligence-center";
 import { DashboardHero, WorkspaceLoader } from "./brand-motion";
 import { DashboardAnalytics, DashboardTeam, WorkspaceSearch } from "./premium-dashboard";
-import { AuditHistory } from "./audit-history";
+import { AuditHistory, AuditTimeline } from "./audit-history";
 import { EmptyWorkspaceWelcome, WorkspaceChecklist } from "./onboarding";
 import { downstream } from "@/domain/graph";
 import { getDeliveryFocus, getDeliveryProgress } from "@/domain/delivery-guidance";
@@ -84,8 +84,8 @@ const navigation = [
   { label: "Risk Center", view: "risks", icon: TriangleAlert },
   { label: "Task Board", view: "tasks", icon: Columns3 },
   { label: "Dependencies", view: "dependencies", icon: GitBranch },
-  { label: "Decision Inbox", view: "decisions", icon: Inbox },
   { label: "Team Capacity", view: "team", icon: Users },
+  { label: "Decision Inbox", view: "decisions", icon: Inbox },
   { label: "Audit Log", view: "audit", icon: ScrollText },
 ] as const;
 const titles: Record<View, [string, string]> = {
@@ -467,6 +467,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
         <span className="nav-label">WORKSPACE</span>
         <nav aria-label="Main navigation">
           {navigation.map((item) => (
+            <div key={item.view} className="nav-group-item">{item.view==="overview"&&<span className="nav-section-label">UNDERSTAND</span>}{item.view==="tasks"&&<span className="nav-section-label">PLAN & EXECUTE</span>}{item.view==="decisions"&&<span className="nav-section-label">GOVERN</span>}
             <button
               key={item.view}
               className={`nav-item ${view === item.view ? "active" : ""}`}
@@ -481,7 +482,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
               {item.view === "risks" && activeRisks.length > 0 && (
                 <i className="risk-dot" />
               )}
-            </button>
+            </button></div>
           ))}
         </nav>
         <span className="nav-label">CONNECT</span>
@@ -638,7 +639,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                 <span>Plan v{data.plan_version}</span>
                 {data.fixture_label&&<span>{data.fixture_label}</span>}
               </div>
-              {data.personal_demo&&showJudgeGuide&&<section className="panel judge-guide" aria-label="Optional competition guide"><div><span className="section-kicker">INTERACTIVE COMPETITION DEMO</span><h2>See the problem. Test our solution.</h2><p>Your fictional checkout release has a failing build, dependent tasks, a delayed review and a capacity constraint. TIC turns evidence into delivery intelligence; Gemini proposes recovery; you decide what changes.</p>{user.guest&&<p className="field-help">Private temporary guest session · Up to 3 Gemini requests per session (provider availability applies). TIC and rule-based recovery remain available. Exit demo to sign in to a real workspace.</p>}</div><div className="judge-guide-actions">{([{view:"overview",label:"1 · Understand"},{view:"intelligence",label:"2 · TIC Intelligence"},{view:"risks",label:"3 · Gemini & recovery"},{view:"dependencies",label:"4 · Trace impact"},{view:"decisions",label:"5 · Decide"},{view:"audit",label:"6 · Verify"}] as {view:View;label:string}[]).map(step=><button key={step.view} className={view===step.view?"primary":"secondary"} onClick={()=>navigate(step.view)} aria-current={view===step.view?"step":undefined}>{step.label}</button>)}<button className="text-link" onClick={()=>setShowJudgeGuide(false)}>Hide guide</button></div></section>}
+              {data.personal_demo&&showJudgeGuide&&<section className="panel judge-guide" aria-label="Optional competition guide"><div><span className="section-kicker">INTERACTIVE COMPETITION DEMO</span><h2>See the problem. Test our solution.</h2><p>Your fictional checkout release has a failing build, dependent tasks, a delayed review and a capacity constraint. TIC turns evidence into delivery intelligence; Gemini proposes recovery; you decide what changes.</p>{user.guest&&<p className="field-help">Private temporary guest session · Up to 3 Gemini requests per session (provider availability applies). TIC and rule-based recovery remain available. Exit demo to sign in to a real workspace.</p>}</div><p className="judge-context"><strong>Current focus: </strong>{({overview:"See project health and the evidence behind delivery risks.",intelligence:"Inspect dependency effort, model controls and evidence-backed warnings.",risks:"Open a risk, compare feasible recovery actions, then analyze with Gemini.",dependencies:"Select a task to trace prerequisites and downstream impact.",decisions:"Review before-and-after changes. Approve or reject the proposal.",audit:"Verify the recorded decision, who made it and the plan version.",tasks:"Explore the shared task plan and update fictional work.",team:"Understand reported availability and estimated workload.",settings:"Manage this private workspace and its integrations."})[view]}</p><div className="judge-guide-actions">{([{view:"overview",label:"1 · Understand"},{view:"intelligence",label:"2 · TIC Intelligence"},{view:"risks",label:"3 · Gemini & recovery"},{view:"dependencies",label:"4 · Trace impact"},{view:"decisions",label:"5 · Decide"},{view:"audit",label:"6 · Verify"}] as {view:View;label:string}[]).map(step=><button key={step.view} className={view===step.view?"primary":"secondary"} onClick={()=>navigate(step.view)} aria-current={view===step.view?"step":undefined}>{step.label}</button>)}<button className="text-link" onClick={()=>setShowJudgeGuide(false)}>Hide guide</button></div></section>}
               {data.personal_demo&&!showJudgeGuide&&<button className="text-link" onClick={()=>setShowJudgeGuide(true)}>Show competition guide</button>}
               <div className="view-content" key={view}>
                 {receipt&&receipt.workspace===data.project.id&&<section className="panel recovery-receipt" aria-label="Recovery decision recorded">
@@ -1143,7 +1144,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                     </div>
                   </>
                 )}
-                {view === "audit" && integrations.ai_provider === 'gemini' && <AuditHistory key={data.project.id} workspace={data.project.id}/>}
+                {view === "audit" && integrations.ai_provider === 'gemini' && <AuditHistory key={data.project.id} workspace={data.project.id} data={data} proposals={proposals}/>}
                 {view === "audit" && integrations.ai_provider !== 'gemini' && (
                   <section className="panel">
                     <div className="panel-head">
@@ -1156,36 +1157,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                       </div>
                       <ScrollText size={20} />
                     </div>
-                    <div className="audit-list">
-                      {audit.map((a) => (
-                        <details key={a.id}>
-                          <summary>
-                            <span className="audit-icon">
-                              {a.kind.includes("approved") ? (
-                                <Check size={17} />
-                              ) : (
-                                <Activity size={17} />
-                              )}
-                            </span>
-                            <div>
-                              <strong>{a.summary}</strong>
-                              <small>
-                                {a.actor_name} ·{" "}
-                                {new Date(a.created_at).toLocaleString()}
-                              </small>
-                            </div>
-                            <span className="version-label">
-                              v{a.plan_version}
-                            </span>
-                            <ChevronRight size={16} />
-                          </summary>
-                          <div className="audit-detail">
-                            <span className="mono">Event {a.id}</span>
-                            <pre>{JSON.stringify(a.changes, null, 2)}</pre>
-                          </div>
-                        </details>
-                      ))}
-                    </div>
+                    <AuditTimeline items={audit} data={data} proposals={proposals}/>
                     {!audit.length && (
                       <Empty
                         title="A fresh start"

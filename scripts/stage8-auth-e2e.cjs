@@ -149,6 +149,26 @@ async function event(payload,valid=true,type="workflow_run",delivery=randomUUID(
   assert.ok((await call(guestPage,gb+"/dashboard")).plan_version>overview.plan_version);
   assert.ok((await call(guestPage,gb+"/risks")).some(r=>r.id===guestRisk.id&&r.active));
   assert.ok((await call(guestPage,gb+"/audit")).some(a=>a.kind==="proposal.approved"));
+  await guestPage.goto(BASE+"/audit");
+  const timeline=guestPage.getByRole("region",{name:"Audit history"});
+  await timeline.getByText("RECOVERY APPROVED",{exact:true}).waitFor();
+  await timeline.getByText("Plan v2",{exact:true}).waitFor();
+  await timeline.getByText("Before",{exact:true}).first().waitFor();
+  const technical=timeline.getByText("View technical details",{exact:true}).first();
+  assert.equal(await timeline.locator("details[open]").count(),0,"raw audit is collapsed by default");
+  await technical.click();
+  assert.equal(await timeline.locator("details[open]").count(),1);
+  await technical.click();
+  assert.equal(await timeline.locator("details[open]").count(),0);
+  await timeline.getByText(/A failed CI signal is resolved only/).waitFor();
+  if(process.env.TEAMFLOW_ARTIFACT_DIR){
+    await guestPage.screenshot({path:path.join(process.env.TEAMFLOW_ARTIFACT_DIR,"v12-audit-desktop.png"),fullPage:true});
+    await guestPage.setViewportSize({width:390,height:844});
+    assert.equal(await guestPage.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
+    await guestPage.screenshot({path:path.join(process.env.TEAMFLOW_ARTIFACT_DIR,"v12-audit-mobile.png"),fullPage:true});
+    await guestPage.setViewportSize({width:1440,height:900});
+  }
+
   for(let i=0;i<2;i++)await call(guestPage,"/risks/"+guestRisk.id+"/analyze?mode=gemini","POST",undefined,200,{"Idempotency-Key":randomUUID()});
   await call(guestPage,"/risks/"+guestRisk.id+"/analyze?mode=gemini","POST",undefined,429,{"Idempotency-Key":randomUUID()});
   const guestProject=(await call(guestPage,"/projects"))[0];
