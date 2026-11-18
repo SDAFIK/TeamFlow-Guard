@@ -598,3 +598,36 @@ dialog .field-grid { gap: 18px; }
 @media(max-width:900px){.premium-hero{grid-template-columns:1fr;gap:13px;padding:22px 20px 45px}.hero-actions{border-left:0;padding-left:0}.hero-actions>p{margin-bottom:12px}.premium-stats{grid-template-columns:repeat(2,minmax(0,1fr))}.premium-search{flex:none;max-width:42px;justify-content:center}.premium-search>span{display:none}}
 @media(max-width:600px){.premium-overview-grid,.premium-analytics-grid{grid-template-columns:minmax(0,1fr);gap:10px}.premium-team-panel,.premium-analytics-grid>.delivery-progress-panel{grid-column:auto}.premium-team-list{grid-template-columns:1fr}.premium-hero{padding:20px 14px 42px;min-height:0;margin-bottom:12px}.premium-hero .hero-brand-content>.guard-mark{width:62px}.premium-hero .hero-wordmark{font-size:30px}.hero-button-row button{font-size:11px;padding:9px 10px}.premium-stats{gap:8px;margin-bottom:12px}.premium-stats .stat{min-height:100px;padding:11px}.premium-stats .stat strong{font-size:26px}.premium-stats .stat small{font-size:10px}.premium-overview-grid .graph-canvas{height:300px}.risk-donut-layout{flex-wrap:nowrap}}
 @media(prefers-reduced-motion:reduce){.hero-running-signal{animation:none}.premium-stats .stat,.workload-track i{transition:none}.premium-stats .stat:hover{transform:none}}
+
+
+/* Brand identity sync — same approved shield artwork in Overview and loader.
+   Keep existing risk-signal artwork and recovery controls unchanged. */
+.hero-brand-content > .guard-mark-brand {
+  display: block;
+  flex: 0 0 auto;
+  width: clamp(70px, 8vw, 112px);
+  height: auto;
+  max-height: 140px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 16px #31e5d855);
+}
+.guard-loading-orbit > .guard-mark-brand {
+  width: 103px;
+  height: auto;
+  max-height: 132px;
+  object-fit: contain;
+  filter: drop-shadow(0 0 18px #3befdf55);
+}
+@media (max-width: 700px) {
+  .hero-brand-content > .guard-mark-brand {
+    width: clamp(55px, 13vw, 90px);
+    max-height: 112px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hero-brand-content > .guard-mark-brand,
+  .guard-loading-orbit > .guard-mark-brand {
+    transition: none;
+    animation: none;
+  }
+}
