@@ -46,6 +46,7 @@ import {
 import Login from "./login";
 import { IntelligenceCenter } from "./intelligence-center";
 import { DashboardHero, WorkspaceLoader } from "./brand-motion";
+import { ProductGuide } from "./product-guide";
 import { DashboardAnalytics, DashboardTeam, WorkspaceSearch } from "./premium-dashboard";
 import { AuditHistory, AuditTimeline } from "./audit-history";
 import { EmptyWorkspaceWelcome, WorkspaceChecklist } from "./onboarding";
@@ -138,7 +139,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
     [menu, setMenu] = useState(false);
   const [manageTask, setManageTask] = useState<string | null>(null);
   const [demoBusy,setDemoBusy]=useState(false);
-  const [showJudgeGuide,setShowJudgeGuide]=useState(true);
+  const [showProductGuide,setShowProductGuide]=useState(true);
   const [personalDemoBusy,setPersonalDemoBusy]=useState(false);
   const [resetDemoOpen,setResetDemoOpen]=useState(false);
   const [resetDemoName,setResetDemoName]=useState("");
@@ -639,8 +640,8 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                 <span>Plan v{data.plan_version}</span>
                 {data.fixture_label&&<span>{data.fixture_label}</span>}
               </div>
-              {data.personal_demo&&showJudgeGuide&&<section className="panel judge-guide" aria-label="Optional competition guide"><div><span className="section-kicker">INTERACTIVE COMPETITION DEMO</span><h2>See the problem. Test our solution.</h2><p>Your fictional checkout release has a failing build, dependent tasks, a delayed review and a capacity constraint. TIC turns evidence into delivery intelligence; Gemini proposes recovery; you decide what changes.</p>{user.guest&&<p className="field-help">Private temporary guest session · Up to 3 Gemini requests per session (provider availability applies). TIC and rule-based recovery remain available. Exit demo to sign in to a real workspace.</p>}</div><p className="judge-context"><strong>Current focus: </strong>{({overview:"See project health and the evidence behind delivery risks.",intelligence:"Inspect dependency effort, model controls and evidence-backed warnings.",risks:"Open a risk, compare feasible recovery actions, then analyze with Gemini.",dependencies:"Select a task to trace prerequisites and downstream impact.",decisions:"Review before-and-after changes. Approve or reject the proposal.",audit:"Verify the recorded decision, who made it and the plan version.",tasks:"Explore the shared task plan and update fictional work.",team:"Understand reported availability and estimated workload.",settings:"Manage this private workspace and its integrations."})[view]}</p><div className="judge-guide-actions">{([{view:"overview",label:"1 · Understand"},{view:"intelligence",label:"2 · TIC Intelligence"},{view:"risks",label:"3 · Gemini & recovery"},{view:"dependencies",label:"4 · Trace impact"},{view:"decisions",label:"5 · Decide"},{view:"audit",label:"6 · Verify"}] as {view:View;label:string}[]).map(step=><button key={step.view} className={view===step.view?"primary":"secondary"} onClick={()=>navigate(step.view)} aria-current={view===step.view?"step":undefined}>{step.label}</button>)}<button className="text-link" onClick={()=>setShowJudgeGuide(false)}>Hide guide</button></div></section>}
-              {data.personal_demo&&!showJudgeGuide&&<button className="text-link" onClick={()=>setShowJudgeGuide(true)}>Show competition guide</button>}
+              {data.personal_demo&&showProductGuide&&<ProductGuide current={view} guest={Boolean(user.guest)} onNavigate={target=>navigate(target)} onClose={()=>setShowProductGuide(false)}/>}
+              {data.personal_demo&&!showProductGuide&&<button className="text-link" onClick={()=>setShowProductGuide(true)}>Show interactive guide</button>}
               <div className="view-content" key={view}>
                 {receipt&&receipt.workspace===data.project.id&&<section className="panel recovery-receipt" aria-label="Recovery decision recorded">
                   <JourneySteps current={3}/><h2>{receipt.decision==='approve'?'Approved plan saved':'Proposal rejected — plan unchanged'}</h2><p>{receipt.title}</p><p>The decision is recorded in your workspace history. {receipt.decision==='approve'?'Check the updated task assignments and follow up on the source signal.':'No proposed changes were applied.'}</p>
