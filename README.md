@@ -15,7 +15,7 @@
 [![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?style=flat-square&logo=google&logoColor=white)](https://ai.google.dev/)
 [![CI](https://img.shields.io/github/actions/workflow/status/SDAFIK/TeamFlow-Guard/validation.yml?branch=main&label=Release%20validation&style=flat-square)](https://github.com/SDAFIK/TeamFlow-Guard/actions/workflows/validation.yml)
 
-[**Launch live application →**](https://teamflow-guard.vercel.app) · [**Competition submission**](SUBMISSION.md) · [Demo walkthrough](DEMO.md) · [Architecture](#architecture) · [Local setup](#local-development) · [Release evidence](#validation-and-release-evidence)
+[**Open TeamFlow Guard →**](https://teamflow-guard.vercel.app) · [Interactive demo](DEMO.md) · [Product tour](#product-tour) · [Architecture](#architecture) · [Local setup](#local-development)
 
 </div>
 
@@ -119,35 +119,15 @@ flowchart TB
 
 The repository also retains a legacy FastAPI/Python local-development path. The public production application uses the Next.js/Supabase architecture above.
 
-## Competition release — live on Vercel
+## Explore TeamFlow Guard
 
-**Website:** https://teamflow-guard.vercel.app  
-**GitHub:** https://github.com/SDAFIK/TeamFlow-Guard  
-**Submission overview:** [SUBMISSION.md](SUBMISSION.md)  
-**4-minute walkthrough:** [DEMO.md](DEMO.md)
+Try the full product directly at [teamflow-guard.vercel.app](https://teamflow-guard.vercel.app). Select **Enter Live Demo — No Sign-up** to explore the real workspace with a private, fictional six-person team. There is no separate mock interface and no account required to get started.
 
-The production release is live, including the premium responsive landing page, updated shield branding, native six-person guest workspace, TIC Intelligence V2, Gemini-assisted recovery, dependency graph, decision inbox and human-readable audit history. The latest Overview banner and loading-screen branding were released through [PR #30](https://github.com/SDAFIK/TeamFlow-Guard/pull/30). Verified GitHub regression and authenticated acceptance: [validation](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/44212190001) and [browser acceptance](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/44212189999). Those acceptance tests use disposable local Supabase and controlled external-provider transports; hosted production Gemini was separately verified with a genuine completed analysis and an approved proposal.
+Inside the workspace, the optional **interactive guide** explains the flow from delivery signals to TIC Intelligence, recovery proposals, dependency impact, human decisions and an understandable audit trail. Follow the steps, jump to any section, or hide the guide to explore independently.
 
-### Enter the live guest demo — no signup required
+The sample includes ten tasks, nine dependencies and four fictional risk signals. Gemini-assisted recovery is subject to provider availability and guest-use limits; deterministic alternatives are always available. All plan updates require a human decision. Approval alone never resolves a failed CI signal.
 
-1. Visit the [live website](https://teamflow-guard.vercel.app) and click **Enter Live Demo — No Sign-up**. This creates a private, time-limited guest identity and opens the **actual TeamFlow Guard workspace**, not a duplicate sandbox interface.
-2. Inspect **Overview**: six fictional members (one guest owner and five non-login teammates), ten tasks, nine dependencies and four initial fictional risk signals.
-3. Open **TIC Intelligence V2** to explore evidence-backed critical dependency effort, warnings and the explicitly **synthetic** model laboratory. Its experimental benchmark scores are not real-world predictive accuracy.
-4. Open **Risk Center** → choose the fictional authentication CI failure → **Compare recovery options**. Compare validated deterministic suggestions with a Gemini-assisted proposal.
-5. Inspect **Decision Inbox** and approve or reject a proposal. An approval updates the versioned plan only; it **does not automatically repair failed CI**.
-6. Explore the **Dependency Explorer**, **Team Capacity** and readable **Audit Log**. Use **View technical details** only when raw evidence or IDs are needed.
-7. Replay the fictional passing CI event or reset your private guest demo to start again. Judges can skip or hide the optional guide and explore in any order.
-
-**Guest safety limits:** guest sessions expire after two hours; at most three Gemini reservations per guest identity, with provider availability and global throttles applying. The demo is fictional and private. Normal email-based sign-in remains available for real workspaces.
-
-### Release claims and limitations
-
-- The live Gemini analysis and a human-approved recovery proposal were verified in the hosted guest environment. Automated integration acceptance additionally uses controlled Gemini and GitHub transport fixtures.
-- Genuine hosted GitHub PR **review-submission** end-to-end verification is still outstanding; signed event handling has been covered by controlled integration tests. Do not present fictional replay as a real GitHub event.
-- Hosted fresh email confirmation/resend and password-recovery delivery have not all been independently verified with an external mailbox; the complete flow passed disposable local Auth/Mailpit acceptance.
-- Guest workspace cleanup and fully automated GitHub App onboarding remain future operational improvements. Existing production data was preserved during release.
-
-See [competition submission](SUBMISSION.md) and [demo walkthrough](DEMO.md) for judge-facing guidance.
+For a quick product walkthrough, see [DEMO.md](DEMO.md). The TIC predictive laboratory uses **synthetic data** and is not a validated real-world prediction model.
 
 ## Local development
 
@@ -215,17 +195,14 @@ For full review lifecycle delivery, subscribe to **Pull request**, **Pull reques
 - Signed GitHub events and read-only repository access; no automatic plan changes.
 - Owner-controlled learning consent and pseudonymous exports; no individual performance ratings.
 
-## Validation and release evidence
+## Engineering validation
 
 | Verification | Evidence |
 | --- | --- |
 | Intelligence and graph release | [PR #17](https://github.com/SDAFIK/TeamFlow-Guard/pull/17) · [Authenticated acceptance](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/43390956285) |
 | AI comparison and graph scalability | [PR #18](https://github.com/SDAFIK/TeamFlow-Guard/pull/18) · [Authenticated acceptance](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/43391423711) |
 | Workspace-managed GitHub mappings | [PR #19](https://github.com/SDAFIK/TeamFlow-Guard/pull/19) · [Authenticated acceptance](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/43392725571) |
-| Production deployment | [Live application](https://teamflow-guard.vercel.app) |
-| Native competition demo, email recovery | [PR #27](https://github.com/SDAFIK/TeamFlow-Guard/pull/27) · [Authenticated acceptance](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/43657733699) |
-| Premium UX and readable audit | [PR #28](https://github.com/SDAFIK/TeamFlow-Guard/pull/28) · [Authenticated acceptance](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/43661524133) |
-| Final logo across navbar, Overview and loader | [PR #29](https://github.com/SDAFIK/TeamFlow-Guard/pull/29) · [PR #30](https://github.com/SDAFIK/TeamFlow-Guard/pull/30) · [Authenticated acceptance](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/44212189999) |
+| Live application | [TeamFlow Guard](https://teamflow-guard.vercel.app) |
 
 The release tests exercise actual local Supabase Auth/PostgREST, multi-user workspace isolation, fictional signed GitHub events, graph drag-and-drop, dependency approvals, cycle rejection, recovery comparison, and desktop/mobile Intelligence UI. The separate real Gemini provider smoke test passed; authenticated Gemini browser tests use an intercepted provider response. Real CI failure/recovery ingestion has also been verified in a dedicated acceptance workspace.
 
