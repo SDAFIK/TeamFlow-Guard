@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { ShieldCheck, ArrowRight, LockKeyhole, Activity, GitBranch, CheckCircle2, Menu, X, Sparkles, Compass, Users } from "lucide-react";
 import styles from "./premium-entry.module.css";
 import { Brand } from "./ui";
+import Image from "next/image";
 import { api } from "@/lib/api";
 export default function Login({
   onLogin,
@@ -64,6 +65,7 @@ export default function Login({
       <div className={`login-story ${styles.story}`}>
         <span className={styles.brandline}>TEAMFLOW GUARD / DELIVERY INTELLIGENCE</span>
         <div className={styles.hero} id="platform">
+          <div className={styles.heroBrand}><Image src="/teamflow-brand-icon.svg" alt="" width={86} height={105} unoptimized priority/><div className={styles.heroBrandText}><strong>TeamFlow <span>Guard</span></strong><small>Human-governed delivery intelligence</small></div></div>
           <span className={styles.kicker}><i aria-hidden="true"/> WORKFORCE OPERATING SYSTEM</span>
           <h1 className={styles.headline}>Build with clarity.<br/><span>Recover with confidence.</span></h1>
           <p className={styles.copy}>Connect delivery evidence, trace blocked dependencies and compare AI recovery options. Keep your team in control of every important decision.</p>
