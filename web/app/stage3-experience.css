@@ -37,3 +37,9 @@
 .judge-guide{padding:20px;margin:0 0 18px;border:1px solid #3e7679;background:linear-gradient(130deg,#173943,#122a3c);display:grid;gap:14px;min-width:0}.judge-guide h2{font-size:20px;margin:4px 0 8px}.judge-guide p{font-size:13px;color:#bcd6df;line-height:1.6}.judge-guide-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}.judge-guide-actions button{min-height:44px;white-space:normal}.judge-guide-actions .primary{box-shadow:0 5px 20px #43d9c029}.judge-guide-actions .secondary:hover{border-color:#72d8c8}.judge-guide-actions .text-link{margin-left:auto}@media(max-width:560px){.judge-guide{padding:14px}.judge-guide-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.judge-guide-actions .text-link{grid-column:1/-1;margin:0}.judge-guide-actions button{font-size:12px;justify-content:center}}@media(prefers-reduced-motion:reduce){.judge-guide *{animation:none!important;transition:none!important}}
 
 .nav-group-item{min-width:0}.nav-group-item .nav-item{width:100%}.nav-section-label{display:block;padding:12px 10px 5px;font-size:9px;letter-spacing:.12em;color:#91aebf;font-weight:700}.nav-group-item:first-child .nav-section-label{padding-top:3px}.judge-guide-actions button{transition:background .2s,border-color .2s,box-shadow .2s}.judge-guide-actions button:hover{box-shadow:0 4px 18px #50d6b71c}@media(prefers-reduced-motion:reduce){.judge-guide-actions button{transition:none}}
+
+/* Logo refresh: transparent artwork, consistent sizing across the application. */
+.brand-mark{background:transparent;border:0;box-shadow:none;overflow:visible;flex-shrink:0;width:40px;height:48px}
+.brand-mark .brand-logo-image{display:block;width:35px;height:auto;max-height:46px;object-fit:contain;filter:drop-shadow(0 2px 9px #26dacf35)}
+.brand:hover .brand-logo-image{filter:drop-shadow(0 2px 13px #26dacf60)}
+@media(prefers-reduced-motion:reduce){.brand-mark .brand-logo-image{transition:none}}
