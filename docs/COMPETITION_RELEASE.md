@@ -1,5 +1,8 @@
 # Competition release checklist
 
+> **Historical release-gate document (archived):** This checklist describes the pre-release candidate and is preserved for engineering traceability. The current public release is live. For verified submission links and current limitations, see [SUBMISSION.md](../SUBMISSION.md) and [DEMO.md](../DEMO.md). Do not treat the historical “blocked” or “candidate” statements below as current status.
+
+
 ## Candidate and evidence
 
 Stages 1–4: workspace lifecycle, private six-person demo, premium responsive UI/motion, full authenticated local acceptance. Candidate baseline: 599f5c79fd74b115fab04318eccd859dee6842be.
