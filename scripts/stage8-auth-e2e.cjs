@@ -109,7 +109,15 @@ async function event(payload,valid=true,type="workflow_run",delivery=randomUUID(
     const id=projects[0].id;const data=await call(page,"/projects/"+id+"/dashboard");
     assert.equal(data.members.length,6);assert.equal(data.tasks.length,10);
     assert.equal(await page.locator("select#project").inputValue(),id);
-    await page.getByRole("region",{name:"Optional competition guide"}).waitFor();
+    await page.getByRole("region",{name:"Interactive product guide"}).waitFor();
+    const guide=page.getByRole("region",{name:"Interactive product guide"});
+    await guide.getByRole("heading",{name:"Explore the problem. Understand the solution."}).waitFor();
+    assert.equal(await guide.getByRole("button",{name:/^[1-6] · /}).count(),6);
+    await guide.getByRole("button",{name:"2 · TIC Intelligence"}).click();
+    await page.getByRole("heading",{name:"TIC Intelligence",exact:true}).waitFor();
+    await guide.getByRole("button",{name:"1 · Understand"}).click();
+    await page.getByRole("heading",{name:"Delivery overview",exact:true}).waitFor();
+
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1),false);
     return {id,me};
   }
