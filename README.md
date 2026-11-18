@@ -13,7 +13,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-3178C6?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Supabase](https://img.shields.io/badge/Supabase-PostgreSQL-3ECF8E?style=flat-square&logo=supabase&logoColor=white)](https://supabase.com/)
 [![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?style=flat-square&logo=google&logoColor=white)](https://ai.google.dev/)
-[![CI](https://img.shields.io/github/actions/workflow/status/SDAFIK/TeamFlow-Guard/validation.yml?branch=main&label=Release%20validation&style=flat-square)](https://github.com/SDAFIK/TeamFlow-Guard/actions/workflows/validation.yml)
+[![CI](https://img.shields.io/github/actions/workflow/status/SDAFIK/TeamFlow-Guard/validation.yml?branch=main&label=Build%20status&style=flat-square)](https://github.com/SDAFIK/TeamFlow-Guard/actions/workflows/validation.yml)
 
 [**Open TeamFlow Guard →**](https://teamflow-guard.vercel.app) · [Interactive demo](DEMO.md) · [Product tour](#product-tour) · [Architecture](#architecture) · [Local setup](#local-development)
 
@@ -195,16 +195,9 @@ For full review lifecycle delivery, subscribe to **Pull request**, **Pull reques
 - Signed GitHub events and read-only repository access; no automatic plan changes.
 - Owner-controlled learning consent and pseudonymous exports; no individual performance ratings.
 
-## Engineering validation
+## Quality and testing
 
-| Verification | Evidence |
-| --- | --- |
-| Intelligence and graph release | [PR #17](https://github.com/SDAFIK/TeamFlow-Guard/pull/17) · [Authenticated acceptance](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/43390956285) |
-| AI comparison and graph scalability | [PR #18](https://github.com/SDAFIK/TeamFlow-Guard/pull/18) · [Authenticated acceptance](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/43391423711) |
-| Workspace-managed GitHub mappings | [PR #19](https://github.com/SDAFIK/TeamFlow-Guard/pull/19) · [Authenticated acceptance](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/43392725571) |
-| Live application | [TeamFlow Guard](https://teamflow-guard.vercel.app) |
-
-The release tests exercise actual local Supabase Auth/PostgREST, multi-user workspace isolation, fictional signed GitHub events, graph drag-and-drop, dependency approvals, cycle rejection, recovery comparison, and desktop/mobile Intelligence UI. The separate real Gemini provider smoke test passed; authenticated Gemini browser tests use an intercepted provider response. Real CI failure/recovery ingestion has also been verified in a dedicated acceptance workspace.
+The repository includes automated frontend, backend, database and authenticated browser tests. Tests use isolated development resources and do not modify existing production records.
 
 ```bash
 npm --prefix web run lint
@@ -213,7 +206,7 @@ npm --prefix web test
 npm --prefix web run build
 ```
 
-The [validation workflow](.github/workflows/validation.yml) and [authenticated acceptance workflow](.github/workflows/phase5b-local-acceptance.yml) document the reproducible CI environment. Authenticated tests use disposable local databases, not production records.
+See the [CI workflows](.github/workflows) for complete test configuration.
 
 ## Repository structure
 
