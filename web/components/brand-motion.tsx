@@ -1,16 +1,10 @@
 import { ArrowRight, Github, Play } from "lucide-react";
 
+import Image from "next/image";
+
+// Shared identity across the sidebar, Overview hero, and loading state.
 export function GuardMark({size=36}:{size?:number}){
- return <svg className="guard-mark" width={size} height={size} viewBox="0 0 64 64" aria-hidden="true" fill="none">
-  <path className="guard-outline" d="M32 4 56 13v17c0 15-10 24-24 30C18 54 8 45 8 30V13Z" fill="#102a3b" stroke="#50ead8" strokeWidth="3"/>
-  <g stroke="#a0fff0" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-   <path d="M28 25h8m-4-4 4 4-4 4M42 31v4q0 10-10 10"/>
-   <rect className="guard-node guard-node-one" x="15" y="19" width="13" height="12" rx="3" fill="#102a3b"/>
-   <rect className="guard-node guard-node-two" x="36" y="19" width="13" height="12" rx="3" fill="#102a3b"/>
-   <rect className="guard-node guard-node-three" x="25" y="39" width="14" height="12" rx="3" fill="#102a3b"/>
-   <path d="m18 25 3 3 5-6m2 17 3 3 5-6"/>
-  </g>
- </svg>;
+ return <Image className="guard-mark guard-mark-brand" src="/teamflow-brand-icon.svg" width={size} height={Math.round(size*157/128)} alt="" aria-hidden="true" unoptimized priority={size>=100}/>;
 }
 export function DashboardHero({demoAction,onDemo,onGithub,githubLinked,personalDemo=false}:{demoAction:string;onDemo:()=>void;onGithub:()=>void;githubLinked:boolean;personalDemo?:boolean}){
  return <section className="brand-hero brand-hero-hd premium-hero" aria-label="TeamFlow Guard brand hero">
