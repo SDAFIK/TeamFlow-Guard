@@ -508,7 +508,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
             <span className="avatar">{user.name[0]}</span>
             <div>
               <strong>{user.name}</strong>
-              <small>{user.guest?"Guest judge":data?.project.role ?? "Member"}</small>
+              <small>{user.guest?"Guest session":data?.project.role ?? "Member"}</small>
             </div>
             <button
               className="icon-button"
