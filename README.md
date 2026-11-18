@@ -1,6 +1,8 @@
 <div align="center">
 
-# 🛡️ TeamFlow Guard
+<img src="web/public/teamflow-brand-icon.svg" alt="TeamFlow Guard shield logo" width="105" />
+
+# TeamFlow Guard
 
 ### Human-governed AI delivery intelligence for software teams
 
