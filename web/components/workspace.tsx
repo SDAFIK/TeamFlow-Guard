@@ -641,7 +641,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                 {data.fixture_label&&<span>{data.fixture_label}</span>}
               </div>
               {data.personal_demo&&showProductGuide&&<ProductGuide current={view} guest={Boolean(user.guest)} onNavigate={target=>navigate(target)} onClose={()=>setShowProductGuide(false)}/>}
-              {data.personal_demo&&!showProductGuide&&<button className="text-link" onClick={()=>setShowProductGuide(true)}>Show interactive guide</button>}
+              {data.personal_demo&&!showProductGuide&&<button className="text-link product-guide-reopen" onClick={()=>setShowProductGuide(true)}>Show interactive guide</button>}
               <div className="view-content" key={view}>
                 {receipt&&receipt.workspace===data.project.id&&<section className="panel recovery-receipt" aria-label="Recovery decision recorded">
                   <JourneySteps current={3}/><h2>{receipt.decision==='approve'?'Approved plan saved':'Proposal rejected — plan unchanged'}</h2><p>{receipt.title}</p><p>The decision is recorded in your workspace history. {receipt.decision==='approve'?'Check the updated task assignments and follow up on the source signal.':'No proposed changes were applied.'}</p>
