@@ -1,29 +1,53 @@
-# TeamFlow Guard — live product demonstration
+# TeamFlow Guard — Competition judge walkthrough
 
-Start at [teamflow-guard.vercel.app](https://teamflow-guard.vercel.app). Use a labeled fictional demo workspace, not a real customer project.
+**Live website:** https://teamflow-guard.vercel.app  
+**Source code:** https://github.com/SDAFIK/TeamFlow-Guard  
+**Submission summary:** [SUBMISSION.md](SUBMISSION.md)
 
-## Suggested 4-minute competition journey
+## Start immediately: no account or password needed
 
-| Time | Show | Explain |
+1. Open the live website and select **Enter Live Demo — No Sign-up**.
+2. The application opens the actual TeamFlow Guard workspace with a fictional six-person team, ten tasks, nine dependencies and four initial evidence-based risks.
+3. Follow the optional six-step guide inside the workspace, or select any menu item directly. No predefined click sequence is required.
+
+**This is a private, temporary native guest workspace, not a separate illustrative mock-up.** It uses the actual task planning, TIC Intelligence, recovery, decision and audit interfaces. The demo data is fictional and clearly labeled.
+
+## Suggested four-minute judging demonstration
+
+| Time | Screen | Show and explain |
 | --- | --- | --- |
-| 0:00–0:30 | Overview and project workspace | A CI failure can affect downstream work; the team needs evidence and coordinated recovery. |
-| 0:30–1:15 | TIC Intelligence → Start fresh AI rehearsal | A new fictional task and CI event create a repeatable scenario. Model laboratory scores are synthetic, not real-project predictions. |
-| 1:15–2:00 | Risk evidence → Compare recovery options | The rule engine supplies feasible choices; Gemini proposes an evidence-backed action. Compare both pending proposals. |
-| 2:00–2:45 | Decision Inbox | A lead inspects before/after changes and approves one proposal. Show the updated plan and audit. Approval does not clear failed CI. |
-| 2:45–3:30 | Dependencies | Focus a task, trace prerequisites/successors, switch layout, and demonstrate a validated connection proposal. |
-| 3:30–4:00 | Replay passing CI; audit | Recovery evidence resolves the fictional failure. Summarize human governance and repeatability. |
+| 0:00–0:30 | **Overview** | A failing authentication CI check threatens related work. Show the six-member team and linked task/risk summary. |
+| 0:30–1:10 | **TIC Intelligence V2** | Explain downstream effort, evidence-backed warnings and synthetic model laboratory. The model scores are experimental, not real-world accuracy. |
+| 1:10–2:00 | **Risk Center** | Select the fictional authentication CI failure (AUTH-142), trace affected work, compare feasible rules-based options and select **Analyze with Gemini** if a guest AI call remains available. |
+| 2:00–2:45 | **Decision Inbox** | Compare proposed changes and trade-offs; approve or reject one. Show that the plan changes only after human approval. |
+| 2:45–3:25 | **Dependencies / Team Capacity** | Trace task prerequisites, inspect affected tasks and reported availability. Propose a dependency instead of silently editing it. |
+| 3:25–4:00 | **Audit Log / replay** | Show the readable before/after record, actor and plan version. Replay a fictional passing CI event to resolve the CI evidence; approval alone cannot clear a failed check. |
 
-## Live GitHub evidence (separate from demo)
+## What the system genuinely does
 
-Use the administrator-authorized acceptance workspace and its mapped workflow. A real signed GitHub event is recorded as GitHub evidence; a later verified successful run resolves the matching failure. Do not represent fictional replay as a live event. PR review submission requires the correct GitHub App event subscription and a genuine eligible reviewer.
+- **Evidence first:** tracked failures, review delays, blocked tasks and capacity constraints generate explainable risks.
+- **Dependencies matter:** a single blocked prerequisite can affect multiple unfinished downstream tasks.
+- **AI is advisory:** Gemini assists with evidence-backed recovery, constrained to validated actions. Rule-based recovery is also available. Human review and version checks control changes.
+- **Accountability:** approved decisions are recorded with human-readable activity and expandable technical evidence.
+- **Repeatability:** reset your private fictional workspace and explore a different path.
 
-## Rehearsal checklist
+## Demo safety and operating limits
 
-- Sign in and confirm the selected workspace is labeled demo.
-- Confirm Gemini is configured; use deterministic rules if the provider is unavailable.
-- Start a fresh rehearsal instead of repeatedly exhausting the same task's recovery options.
-- Keep the plan version and audit trail visible.
-- Never approve a stale proposal or claim that approval itself fixed CI.
-- Do not share secrets or real project records during the presentation.
+- Anonymous guest identity is limited to two hours. Each guest has a maximum of three Gemini request reservations; provider limits and availability also apply.
+- Fictional CI replay is **not** a genuine GitHub webhook. Real GitHub evidence requires an authorized repository and correctly signed event.
+- The synthetic TIC benchmark does **not** establish real-world prediction accuracy.
+- Demo records must not be used to represent actual employee performance; the capacity feature uses voluntarily reported availability and task estimates.
+- Never upload confidential production records or secrets into the competition demo.
 
-For the original local FastAPI demonstration, see [legacy demo](docs/LEGACY_LOCAL_DEMO.md).
+## If something unexpected happens
+
+- **Gemini unavailable / limit reached:** compare the deterministic recovery options, then use Decision Inbox. The AI integration is optional to demonstrate the human approval mechanics.
+- **Previously approved actions:** start a new fictional rehearsal or use the **Reset personal demo** action with exact-name confirmation.
+- **Guest session expired:** return to the login page and select **Enter Live Demo — No Sign-up** again.
+- **Registration not needed:** guests should not use signup or email confirmation to test the fictional workspace.
+
+## Technical acceptance and scope
+
+[Latest regression](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/44212190001) · [Latest authenticated acceptance](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/44212189999) · [Final branding release](https://github.com/SDAFIK/TeamFlow-Guard/pull/30)
+
+The authenticated browser suites run with disposable local Supabase and controlled external-provider transport. A genuine hosted Gemini recovery proposal and human approval have been verified separately; a genuine hosted GitHub review submission, and some external mailbox delivery checks, remain open follow-ups. Do not confuse controlled fixture tests with genuine external provider operations.
