@@ -1,5 +1,8 @@
 # V1.1 native competition demo release gates
 
+> **Historical release-gate document (archived):** This checklist describes the pre-release candidate and is preserved for engineering traceability. The current public release is live. For verified submission links and current limitations, see [SUBMISSION.md](../SUBMISSION.md) and [DEMO.md](../DEMO.md). Do not treat the historical “blocked” or “candidate” statements below as current status.
+
+
 ## Experience
 Login page → Enter Live Demo — No Sign-up → native anonymous Supabase Auth session → existing `tf_personal_demo` → actual /overview, TIC Intelligence, Risk Center, dependencies, tasks, decisions, team, audit and settings. The independent /demo sandbox prototype is removed. The optional guide is in the shared workspace; no duplicate UI or AI engine.
 
