@@ -1,8 +1,7 @@
-# TeamFlow Guard — Competition judge walkthrough
+# TeamFlow Guard — Interactive product walkthrough
 
 **Live website:** https://teamflow-guard.vercel.app  
 **Source code:** https://github.com/SDAFIK/TeamFlow-Guard  
-**Submission summary:** [SUBMISSION.md](SUBMISSION.md)
 
 ## Start immediately: no account or password needed
 
@@ -12,7 +11,7 @@
 
 **This is a private, temporary native guest workspace, not a separate illustrative mock-up.** It uses the actual task planning, TIC Intelligence, recovery, decision and audit interfaces. The demo data is fictional and clearly labeled.
 
-## Suggested four-minute judging demonstration
+## Follow the complete product journey
 
 | Time | Screen | Show and explain |
 | --- | --- | --- |
@@ -37,7 +36,7 @@
 - Fictional CI replay is **not** a genuine GitHub webhook. Real GitHub evidence requires an authorized repository and correctly signed event.
 - The synthetic TIC benchmark does **not** establish real-world prediction accuracy.
 - Demo records must not be used to represent actual employee performance; the capacity feature uses voluntarily reported availability and task estimates.
-- Never upload confidential production records or secrets into the competition demo.
+- Never upload confidential production records or secrets into the sample workspace.
 
 ## If something unexpected happens
 
@@ -46,7 +45,7 @@
 - **Guest session expired:** return to the login page and select **Enter Live Demo — No Sign-up** again.
 - **Registration not needed:** guests should not use signup or email confirmation to test the fictional workspace.
 
-## Technical acceptance and scope
+## Product scope and development checks
 
 [Latest regression](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/44212190001) · [Latest authenticated acceptance](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/44212189999) · [Final branding release](https://github.com/SDAFIK/TeamFlow-Guard/pull/30)
 
