@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
-import { ShieldCheck, ArrowRight, LockKeyhole, Activity, GitBranch, CheckCircle2, Menu, X, Sparkles, Compass, Users } from "lucide-react";
+import { ShieldCheck, ArrowRight, LockKeyhole, Activity, GitBranch, CheckCircle2, Menu, X, Sparkles, Compass, Users, Eye, EyeOff } from "lucide-react";
 import styles from "./premium-entry.module.css";
 import { Brand } from "./ui";
 import Image from "next/image";
@@ -19,7 +19,8 @@ export default function Login({
   const [email, setEmail] = useState(""),
     [password, setPassword] = useState(""),
     [error, setError] = useState(initialError),
-    [busy, setBusy] = useState(false);
+    [busy, setBusy] = useState(false),
+    [showPassword, setShowPassword] = useState(false);
   const [register,setRegister]=useState(false),[message,setMessage]=useState(initialMessage??"");
   const [forgot,setForgot]=useState(false);
   const [navOpen,setNavOpen]=useState(false);
@@ -69,7 +70,7 @@ export default function Login({
           <span className={styles.kicker}><i aria-hidden="true"/> WORKFORCE OPERATING SYSTEM</span>
           <h1 className={styles.headline}>Build with clarity.<br/><span>Recover with confidence.</span></h1>
           <p className={styles.copy}>Connect delivery evidence, trace blocked dependencies and compare AI recovery options. Keep your team in control of every important decision.</p>
-          <section className={styles.guestEntry} aria-label="Interactive competition demo"><span className={styles.kicker}>INTERACTIVE COMPETITION DEMO</span><h2>Enter sandbox instantly</h2><p>A complete product experience without registration. Enter the actual six-person TeamFlow Guard workspace with TIC Intelligence, Gemini recovery, connected tasks and human decisions.</p><button type="button" disabled={busy} onClick={()=>void enterDemo()} className={styles.guestButton}>{busy?"Opening workspace…":"Enter Live Demo — No Sign-up"} <ArrowRight size={18}/></button><small>No email · No password · Private temporary demo session</small></section>
+          <section className={styles.guestEntry} aria-label="Try the TeamFlow Guard demo"><span className={styles.kicker}>TRY THE LIVE PRODUCT</span><h2>Explore a real workflow in one click</h2><p>Try the actual TeamFlow Guard workspace with six fictional teammates, connected tasks, delivery risks and human-approved recovery. No account needed.</p><button type="button" disabled={busy} onClick={()=>void enterDemo()} className={styles.guestButton}>{busy?"Opening workspace…":"Enter Live Demo — No Sign-up"} <ArrowRight size={18}/></button><small>No email · No password · Private temporary demo session</small></section>
           <div className={styles.panel} aria-label="Illustrative evidence to decision workflow"><div className={styles.scanner} aria-hidden="true"><div className={styles.orbit}/><div className={styles.orbitTwo}/><div className={styles.core}><ShieldCheck size={36}/></div><i className={styles.scanBeam}/></div>
             <div className={styles.panelHeader}><span>Delivery intelligence</span><b>Illustrative flow</b></div>
             <div className={styles.graph}>
@@ -88,7 +89,7 @@ export default function Login({
           <span className="login-icon">
             <ShieldCheck size={28} />
           </span>
-          <h2>{forgot?'Reset your password':'Welcome to your workspace'}</h2>
+          <h2>{forgot?'Reset your password':register?'Create your account':'Welcome to your workspace'}</h2>
           <button type="button" disabled={busy} onClick={()=>void enterDemo()} className={styles.formGuestLink}>Enter the real demo workspace <ArrowRight size={15}/></button>
           <p>{forgot?'Enter your account email. Open the newest reset link in this browser.':register?'Create your account, then create or join a workspace.':'Sign in to TeamFlow Guard.'}</p>
           {message&&<p role="status" className="success-banner">{message}</p>}
@@ -108,31 +109,32 @@ export default function Login({
             onChange={(e) => setEmail(e.target.value)}
           />
           {!forgot&&<><label htmlFor="password">Password</label>
-          <input
+          <div className={styles.passwordField}><input
             id="password"
-            type="password"
+            type={showPassword?"text":"password"}
             autoComplete={register?"new-password":"current-password"}
+            aria-describedby={register?"password-help":undefined}
             required
             minLength={register?12:1}
             maxLength={register?128:256}
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-          />
+          /><button type="button" className={styles.passwordVisibility} aria-label={showPassword?"Hide password":"Show password"} aria-pressed={showPassword} onClick={()=>setShowPassword(v=>!v)}>{showPassword?<EyeOff size={18}/>:<Eye size={18}/>}</button></div>{register&&<small id="password-help" className={styles.passwordHint}>Use at least 12 characters for your password.</small>}
           </>}
           <button className="primary" type="submit" disabled={busy||(forgot&&remaining>0)}>
             {busy ? "Please wait…" : forgot?(remaining>0?`Try again in ${remaining}s`:"Send reset link"):register?'Create account':"Sign in"}
             <ArrowRight size={17} />
           </button>
-          <button className="text-link" type="button" onClick={()=>{setForgot(v=>!v);setRegister(false);setPassword("");setError("");setMessage("");}}>{forgot?"Back to sign in":"Forgot password?"}</button>
-          {!forgot&&<><button className="text-link" type="button" onClick={()=>{setRegister(!register);setError('');setMessage('');}}>{register?'Already have an account? Sign in':'New here? Create an account'}</button>
+          <button className="text-link" type="button" onClick={()=>{setForgot(v=>!v);setRegister(false);setPassword("");setShowPassword(false);setError("");setMessage("");}}>{forgot?"Back to sign in":"Forgot password?"}</button>
+          {!forgot&&<><button className="text-link" type="button" onClick={()=>{setRegister(!register);setPassword("");setShowPassword(false);setError('');setMessage('');}}>{register?'Already have an account? Sign in':'New here? Create an account'}</button>
           <div className="confirmation-help"><p>Didn’t receive your verification email? Check spam or request a fresh link. Use the newest email.</p><button className="text-link" type="button" disabled={busy||remaining>0} onClick={()=>void resendConfirmation()}>{remaining>0?`Resend available in ${remaining}s`:"Resend confirmation email"}</button></div>
           </>}
           <div className="login-note">
             <LockKeyhole size={17} />
             <span>
-              Create an account to explore your private six-person demo.
+              Try the fictional demo without signing up.
               <br />
-              Real projects and fictional demo data stay separate.
+              Create an account to manage a real team workspace.
             </span>
           </div>
         </form>
