@@ -1,8 +1,9 @@
 "use client";
-import {useState} from "react";
+import {useMemo,useState} from "react";
 import {ArrowRight, ChartNoAxesColumn, GitBranch, Search, ShieldCheck, TriangleAlert, UserPlus, Users} from "lucide-react";
 import type {Overview,Risk} from "@/lib/api";
 import {Modal} from "./ui";
+import {countOpenTasksByOwner,searchWorkspaceItems} from "@/domain/dashboard-efficiency";
 
 const riskColors=["#fb858e","#f8c478","#54e2ce","#8caeff","#c0a1ff"];
 const riskLabels:Record<string,string>={ci_failure:"CI failures",dependency:"Dependencies",review_delay:"Review delays",capacity:"Capacity",ci_pass:"CI checks"};
@@ -18,7 +19,8 @@ export function DashboardTeam({data,onManage,onInvite}:{data:Overview;onManage:(
  </section>;
 }
 export function DashboardAnalytics({data,risks}:{data:Overview;risks:Risk[]}){
- const workload=data.members.map(m=>({id:m.id,name:m.name,count:data.tasks.filter(t=>t.owner_id===m.id&&t.status!=="done").length}));
+ const counts=useMemo(()=>countOpenTasksByOwner(data.tasks),[data.tasks]);
+ const workload=useMemo(()=>data.members.map(m=>({id:m.id,name:m.name,count:counts.get(m.id)??0})),[counts,data.members]);
  const highest=Math.max(1,...workload.map(m=>m.count));
  const groups=Object.entries(risks.reduce<Record<string,number>>((counts,r)=>{counts[r.evidence.kind]=(counts[r.evidence.kind]??0)+1;return counts;},{})).sort((a,b)=>b[1]-a[1]||a[0].localeCompare(b[0]));
  let position=0;
@@ -33,10 +35,12 @@ export function DashboardAnalytics({data,risks}:{data:Overview;risks:Risk[]}){
 }
 export function WorkspaceSearch({data,risks,onTask,onRisk,onPerson,onDependency}:{data:Overview;risks:Risk[];onTask:(id:string)=>void;onRisk:(id:string)=>void;onPerson:()=>void;onDependency:(id:string)=>void}){
  const [open,setOpen]=useState(false),[query,setQuery]=useState("");
- const search=query.trim().toLowerCase();
- const tasks=data.tasks.filter(t=>(t.key+" "+t.title).toLowerCase().includes(search)).slice(0,6);
- const people=data.members.filter(m=>(m.name+" "+m.specialty).toLowerCase().includes(search)).slice(0,4);
- const signals=risks.filter(r=>r.active&&(r.evidence.title+" "+r.reason).toLowerCase().includes(search)).slice(0,4);
+ // Do not scan every task, member, and signal on each background dashboard refresh
+ // when the search dialog is closed. Keep the existing result order and limits.
+ const {tasks,people,signals}=useMemo(()=>open
+   ?searchWorkspaceItems(data.tasks,data.members,risks,query)
+   :{tasks:[],people:[],signals:[]},
+ [open,query,data.tasks,data.members,risks]);
  function choose(action:()=>void){setOpen(false);action();}
  return <><button className="premium-search" aria-label="Search workspace" onClick={()=>{setQuery("");setOpen(true);}}><Search size={18}/><span>Search tasks, people or risks…</span></button>
  {open&&<Modal title="Search workspace" onClose={()=>setOpen(false)} wide><label className="premium-search-input"><Search size={19}/><input type="search" aria-label="Search tasks, teammates and risks" autoFocus value={query} onChange={e=>setQuery(e.target.value)} placeholder="Find a task, teammate or risk"/></label><div className="premium-search-results">
