@@ -10,6 +10,8 @@ on:
       - 'supabase/migrations/**'
       - 'scripts/workspace-lifecycle-e2e.cjs'
       - 'scripts/stage8-auth-e2e.cjs'
+      - 'scripts/stage8-acceptance-gate.cjs'
+      - 'scripts/stage8-acceptance-gate.test.cjs'
       - 'scripts/test-supabase.py'
       - '.github/workflows/workspace-lifecycle-acceptance.yml'
   workflow_dispatch:
