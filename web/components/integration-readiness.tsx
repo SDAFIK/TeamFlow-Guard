@@ -6,7 +6,7 @@ import {aiReadinessDiagnostic,githubReadinessDiagnostic,type AiReadiness,type Gi
 import {Busy} from "./ui";
 import {GithubMappingPanel} from "./github-mapping-panel";
 
-type Readiness=GithubReadinessSnapshot&{
+type Readiness=Omit<GithubReadinessSnapshot,"mappings"|"review_mappings">&{
   can_manage?:boolean;
   review_mappings?:{pull_number:number;task_id:string;reviewer_id:string;valid:boolean}[];
   mappings:{workflow_id:number;task_id:string;task_key:string|null;task_title:string|null;valid:boolean}[];
