@@ -52,7 +52,7 @@ import { AuditHistory, AuditTimeline } from "./audit-history";
 import { EmptyWorkspaceWelcome, WorkspaceChecklist } from "./onboarding";
 import { downstream } from "@/domain/graph";
 import { getDeliveryFocus, getDeliveryProgress } from "@/domain/delivery-guidance";
-import { dueState, sortTasksByAttention } from "@/domain/task-attention";
+import { dueState, needsAttention, sortTasksByAttention } from "@/domain/task-attention";
 import { JourneySteps } from './journey-steps';
 import { TaskManager } from "./task-manager";
 import { WorkspaceSetup } from './workspace-management';
@@ -379,7 +379,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
     currentProposal = proposals.find((p) => p.id === proposalId);
   const shownTasks = sortTasksByAttention(data?.tasks.filter(
       (t) =>
-        (filter === "all" || t.status === filter) &&
+        (filter === "all" || (filter === "attention" ? needsAttention(t) : t.status === filter)) &&
         `${t.title} ${t.key}`.toLowerCase().includes(query.toLowerCase()),
     ) ?? []);
   const shownRisks = risks.filter(
@@ -880,7 +880,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                   <>
                     <div className="task-intro">
                       <div><span className="section-kicker">YOUR TEAM&apos;S PLAN</span><h2>{data.tasks.length} saved {data.tasks.length === 1 ? "task" : "tasks"}</h2><p>Open a card to update status or propose a change. Work requiring attention appears first in each column.</p></div>
-                      {lead && integrations.ai_provider === "gemini" && <button className="primary" onClick={() => setManageTask("new")}><Plus size={17}/> Create task</button>}
+                      {lead && <button className="primary" onClick={() => setManageTask("new")}><Plus size={17}/> Create task</button>}
                     </div>
                     <div className="task-toolbar">
                       <SearchInput
@@ -889,11 +889,12 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                         label="Search tasks"
                       />
                       <select
-                        aria-label="Task status"
+                        aria-label="Task filter"
                         value={filter}
                         onChange={(e) => setFilter(e.target.value)}
                       >
                         <option value="all">All statuses</option>
+                        <option value="attention">Needs attention</option>
                         {Object.entries(statusLabels).map(([v, l]) => (
                           <option key={v} value={v}>
                             {l}
@@ -926,6 +927,21 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                         </button>
                       )}
                     </div>
+                    <div className="task-quick-filters" role="group" aria-label="Quick task filters">
+                      {[
+                        { value: "all", label: "All tasks", count: data.tasks.length },
+                        { value: "attention", label: "Needs attention", count: data.tasks.filter(t => needsAttention(t)).length },
+                        { value: "blocked", label: "Blocked", count: data.tasks.filter(t => t.status === "blocked").length },
+                      ].map(option => (
+                        <button key={option.value} type="button" className="task-quick-filter" aria-pressed={filter === option.value} onClick={() => setFilter(option.value)}>
+                          {option.label}<span aria-hidden="true" className="task-filter-count">{option.count}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="task-results-summary" role="status" aria-live="polite">
+                      Showing {shownTasks.length} of {data.tasks.length} saved {data.tasks.length === 1 ? "task" : "tasks"}
+                      {filter === "attention" ? " · Blocked, overdue or due within seven days" : ""}
+                    </p>
                     {board && <p className="mobile-board-hint">Swipe left or right to see all four columns. Switch to List for a compact task view.</p>}
                     {board ? (
                       <div className="kanban">
@@ -997,7 +1013,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                         description={data.tasks.length ? "Clear the search or status filter to see all saved work." : "Create a task with an owner to begin tracking real delivery work."}
                       >
                         {data.tasks.length ? <button className="secondary" onClick={() => {setQuery("");setFilter("all");}}>Clear filters</button>
-                          : lead && integrations.ai_provider === "gemini" ? <button className="primary" onClick={() => setManageTask("new")}><Plus size={17}/> Create first task</button> : null}
+                          : lead ? <button className="primary" onClick={() => setManageTask("new")}><Plus size={17}/> Create first task</button> : null}
                       </Empty>
                     )}
                   </>
