@@ -38,6 +38,7 @@ function TaskCard({ id,data }: NodeProps<TaskNode>) {
   );
 }
 const nodeTypes = { task: TaskCard };
+const prefersReducedMotion = () => typeof window !== "undefined" && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 function downstreamIds(graph:Graph,id:string){return downstream(graph.nodes.map(t=>t.id),graph.edges,id); }
 export default function DependencyMap({
   graph,
@@ -67,11 +68,12 @@ export default function DependencyMap({
   const flow=useRef<ReactFlowInstance<TaskNode>|null>(null);
   const initFlow=(instance:ReactFlowInstance<TaskNode>)=>{flow.current=instance;};
   useEffect(()=>{const timer=window.setTimeout(()=>{if(window.matchMedia("(max-width: 680px)").matches)setVertical(true);},0);return()=>window.clearTimeout(timer);},[]);
-  useEffect(()=>{const timer=window.setTimeout(()=>void flow.current?.fitView({padding:.16,maxZoom:1.15,duration:350}),100);return()=>window.clearTimeout(timer);},[vertical]);
+  useEffect(()=>{const timer=window.setTimeout(()=>void flow.current?.fitView({padding:.16,maxZoom:1.15,duration:prefersReducedMotion()?0:350}),100);return()=>window.clearTimeout(timer);},[vertical]);
   const selected=graph.nodes.find(t=>t.id===graph.selected_task_id);
-  const fit=()=>void flow.current?.fitView({padding:.16,maxZoom:1.15,duration:350});
+  const fit=()=>void flow.current?.fitView({padding:.16,maxZoom:1.15,duration:prefersReducedMotion()?0:350});
   const reset=()=>{setPositions({});requestAnimationFrame(fit);};
-  const focus=(id:string)=>{onSelect(id);if(id)void flow.current?.fitView({nodes:[{id}],padding:.3,maxZoom:1.15,duration:350});};
+  const clearSelection=()=>{onSelect("");fit();};
+  const focus=(id:string)=>{onSelect(id);if(id)void flow.current?.fitView({nodes:[{id}],padding:.3,maxZoom:1.15,duration:prefersReducedMotion()?0:350});};
   const changeDirection=()=>{setVertical(v=>!v);setPositions({});};
   const connect=(c:Pick<Connection,"source"|"target">)=>{if(!c.source||!c.target||!onConnectProposal)return;try{if(graph.edges.some(e=>e.predecessor_id===c.source&&e.successor_id===c.target))throw Error("This dependency already exists.");if(graph.nodes.find(t=>t.id===c.target)?.status==="done")throw Error("Completed tasks cannot receive a new dependency.");validateGraph(graph.nodes.map(t=>t.id),[...graph.edges,{predecessor_id:c.source,successor_id:c.target}]);setLinkError("");setLinkMode(false);setLinkSource("");onConnectProposal(c.source,c.target);}catch(e){setLinkError((e as Error).message);}};
   const { nodes, edges, invalid } = useMemo(() => {
@@ -194,14 +196,14 @@ export default function DependencyMap({
             : graph.edges.length === 0 ? "No links yet — propose a dependency to begin" : "Select any task to explore"}
         </span>
       </div>
-      {expanded&&selected&&<div className="graph-inspector" aria-label="Selected task impact"><div className="graph-inspector-head"><div><span className="section-kicker">SELECTED TASK</span><h3>{selected.key} · {selected.title}</h3><p>{members.find(m=>m.id===selected.owner_id)?.name??"Unassigned"} · {statusLabels[selected.status]??selected.status}</p></div>{onOpenTask&&<button className="secondary" onClick={()=>onOpenTask(selected.id)}>Open task <ArrowUpRight size={16}/></button>}</div><div className="graph-impact-columns">{[{title:"Prerequisites",ids:graph.upstream_ids},{title:"Downstream impact",ids:graph.downstream_ids}].map(group=><div key={group.title}><h3>{group.title} · {group.ids.length}</h3>{group.ids.length?group.ids.map(id=>{const task=graph.nodes.find(t=>t.id===id);return task&&<button key={id} onClick={()=>focus(id)}>{task.key} · {task.title}</button>;}):<p>No linked tasks in this direction.</p>}</div>)}</div><p className="field-help">Dragging changes only your temporary visual arrangement, not approved dependencies. Use Propose dependency to change the plan.</p></div>}
+      {expanded&&selected&&<div className="graph-inspector" aria-label="Selected task impact"><div className="graph-inspector-head"><div><span className="section-kicker">SELECTED TASK</span><h3>{selected.key} · {selected.title}</h3><p>{members.find(m=>m.id===selected.owner_id)?.name??"Unassigned"} · {statusLabels[selected.status]??selected.status}</p></div>{onOpenTask&&<button className="secondary" onClick={()=>onOpenTask(selected.id)}>Open task <ArrowUpRight size={16}/></button>}<button className="text-link" onClick={clearSelection}>Clear selection</button></div><div className="graph-impact-columns">{[{title:"Prerequisites",ids:graph.upstream_ids},{title:"Downstream impact",ids:graph.downstream_ids}].map(group=><div key={group.title}><h3>{group.title} · {group.ids.length}</h3>{group.ids.length?group.ids.map(id=>{const task=graph.nodes.find(t=>t.id===id);return task&&<button key={id} onClick={()=>focus(id)}>{task.key} · {task.title}</button>;}):<p>No linked tasks in this direction.</p>}</div>)}</div><p className="field-help">Dragging changes only your temporary visual arrangement, not approved dependencies. Use Propose dependency to change the plan.</p></div>}
       <details className="graph-alternative" open={expanded ? true : undefined}>
         <summary>Task list and impact details</summary>
         <div>
           {graph.nodes.map((t) => (
             <button
               key={t.id}
-              onClick={() => onSelect(t.id)}
+              onClick={() => focus(t.id)}
               aria-pressed={graph.selected_task_id === t.id}
             >
               {t.key} · {t.title} · {statusLabels[t.status] ?? t.status}
