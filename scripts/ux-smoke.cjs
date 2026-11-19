@@ -143,7 +143,18 @@ async function run(viewport, role="lead") {
     await page.getByRole("dialog",{name:"Recent team activity"}).getByText("Workspace created (simulated)").waitFor();
     await page.getByRole("button",{name:"Close activity",exact:true}).click();
 
-    if (viewport.width<600) await page.getByRole("button",{name:"Open navigation"}).click();
+    if (viewport.width < 600) {
+      const navToggle = page.getByRole("button", { name: "Open navigation" });
+      assert.equal(await navToggle.getAttribute("aria-controls"), "workspace-navigation");
+      assert.equal(await page.locator(".sidebar").isVisible(), false, "closed mobile navigation must not be keyboard-visible");
+      await navToggle.click();
+      await page.getByRole("dialog", { name: "Navigation" }).waitFor();
+      await page.keyboard.press("Escape");
+      await page.getByRole("dialog", { name: "Navigation" }).waitFor({ state: "hidden" });
+      await page.waitForFunction(() => document.activeElement?.getAttribute("aria-label") === "Open navigation");
+      assert.equal(await page.locator(".sidebar").isVisible(), false, "Escape hides the mobile navigation");
+      await navToggle.click();
+    }
     await page.getByRole("button",{name:"Risk Center",exact:true}).click();
     await page.getByRole("region",{name:"Risk protection overview"}).waitFor();
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1),false,"risk overview has no overflow");
