@@ -439,6 +439,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
         />
       )}
       <aside
+        id="workspace-navigation"
         ref={navRef}
         className={`sidebar ${menu ? "open" : ""}`}
         role={menu ? "dialog" : undefined}
@@ -527,6 +528,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
           <button
             className="mobile-toggle icon-button"
             aria-label="Open navigation"
+            aria-controls="workspace-navigation"
             aria-expanded={menu}
             onClick={() => setMenu(true)}
           >
