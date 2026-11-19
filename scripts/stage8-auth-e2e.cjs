@@ -347,6 +347,8 @@ async function event(payload,valid=true,type="workflow_run",delivery=randomUUID(
     await ownerPage.getByRole("heading",{name:"Risk evidence & recovery"}).waitFor();
     await ownerPage.getByRole("button",{name:"Compare recovery options"}).click();
     await ownerPage.getByRole("button",{name:"Analyze with Gemini"}).click();
+    // Wait for the actual persisted proposal review, not static Gemini marketing/help copy.
+    await ownerPage.getByRole("heading",{name:"Review recovery proposal",exact:true}).waitFor();
     await ownerPage.getByText("Gemini analysis",{exact:true}).waitFor();
     const both=await call(ownerPage,demoBase+"/proposals");
     assert.equal(both.length,2);assert.ok(both.some(p=>p.source==="gemini"&&p.status==="pending"));
