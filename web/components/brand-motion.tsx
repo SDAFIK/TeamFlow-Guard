@@ -17,7 +17,7 @@ export function DashboardHero({demoAction,onDemo,onGithub,githubLinked,personalD
    <g fill="#69eadd" opacity=".5">{Array.from({length:16},(_,i)=><circle key={i} cx={(i*137+33)%1200} cy={185+(i*29)%93} r={i%4===0?1.6:.8}/>)}</g>
   </svg>
   <div className="hero-brand-content"><GuardMark size={104}/><div><span className="hero-eyebrow">DELIVERY INTELLIGENCE</span><div className="hero-wordmark">TEAMFLOW <span>GUARD</span></div></div></div>
-  <div className="hero-actions"><p>See risks early. Keep humans in control.</p><div className="hero-button-row"><button className="primary" onClick={onDemo}><Play size={16}/>{demoAction}<ArrowRight size={16}/></button><button className="secondary" onClick={onGithub}><Github size={18}/>{personalDemo?"Explore fictional evidence":githubLinked?"GitHub connection":"Connect GitHub"}</button></div></div>
+  <div className="hero-actions"><p>See risks early. Keep humans in control.</p><div className="hero-button-row"><button className="primary" onClick={onDemo}><Play size={16}/>{demoAction}<ArrowRight size={16}/></button><button className="secondary" onClick={onGithub}><Github size={18}/>{personalDemo?"Explore fictional evidence":githubLinked?"GitHub connection":"Connect GitHub"}</button></div><div className="hero-proof-row" aria-label="How TeamFlow Guard works"><span>Evidence-first risks</span><span>Validated recovery</span><span>Human approval</span></div></div>
   <div className="brand-hero-light" aria-hidden="true"/>
  </section>;
 }
