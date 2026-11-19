@@ -689,3 +689,61 @@ dialog.wide-dialog {
 @media(max-width:500px){.recovery-focus{padding:20px}.recovery-focus .dialog-actions{align-items:stretch;flex-direction:column}.journey-steps{gap:5px}.journey-steps li{font-size:11px}.recovery-receipt{padding:18px}.recovery-receipt .dialog-actions{flex-wrap:wrap}}
 
 .proposal-evidence{margin:18px 0;padding:16px;border:1px solid #38536a;border-radius:8px}.proposal-evidence summary{cursor:pointer;min-height:28px;color:#63e5d5}.proposal-evidence p{margin-top:12px;font-size:13px}
+
+/* V3 decision inbox — distinguish actionable approvals from stale pending records. */
+.decision-quick-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  padding: 0;
+  margin: 0 22px 12px;
+}
+.decision-quick-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 9px 14px;
+  border: 1px solid #446b7b;
+  border-radius: 12px;
+  background: #132e40;
+  color: #cae0ea;
+  font-size: 12px;
+  font-weight: 680;
+  cursor: pointer;
+  transition: border-color .18s ease, background-color .18s ease;
+}
+.decision-quick-filter strong {
+  display: inline-grid;
+  place-items: center;
+  min-width: 24px;
+  min-height: 22px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: #7ee8d321;
+  color: #aef7e5;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+.decision-quick-filter[aria-pressed="true"] {
+  border-color: #76e6d4;
+  background: linear-gradient(115deg, #20524f, #173947);
+  color: #f0fffc;
+}
+.decision-quick-filter:hover { border-color: #78b3ad; background: #1c4050; }
+.decision-quick-filter:focus-visible { outline: 3px solid #a8ffe9; outline-offset: 3px; }
+.decision-results-summary {
+  margin: 0 22px 15px;
+  font-size: 12px;
+  line-height: 1.6;
+  color: #b9d4df;
+}
+@media (max-width: 650px) {
+  .decision-quick-filters { margin-inline: 14px; gap: 7px; }
+  .decision-quick-filter { flex: 1 1 auto; padding: 9px 10px; }
+  .decision-results-summary { margin-inline: 14px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .decision-quick-filter { transition: none; }
+}
