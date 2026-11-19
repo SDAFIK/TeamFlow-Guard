@@ -23,7 +23,6 @@ import {
   Play,
   Plus,
   ChevronRight,
-  Activity,
   Check,
   Github,
   UserPlus,
@@ -48,11 +47,12 @@ import { IntelligenceCenter } from "./intelligence-center";
 import { DashboardHero, WorkspaceLoader } from "./brand-motion";
 import { ProductGuide } from "./product-guide";
 import { DashboardAnalytics, DashboardTeam, WorkspaceSearch } from "./premium-dashboard";
-import { AuditHistory, AuditTimeline } from "./audit-history";
+import { AuditHistory } from "./audit-history";
+import { decisionCounts, matchesDecisionFilter, type DecisionFilter } from "@/domain/decision-inbox";
 import { EmptyWorkspaceWelcome, WorkspaceChecklist } from "./onboarding";
 import { downstream } from "@/domain/graph";
 import { getDeliveryFocus, getDeliveryProgress } from "@/domain/delivery-guidance";
-import { dueState, sortTasksByAttention } from "@/domain/task-attention";
+import { dueState, needsAttention, sortTasksByAttention } from "@/domain/task-attention";
 import { JourneySteps } from './journey-steps';
 import { TaskManager } from "./task-manager";
 import { WorkspaceSetup } from './workspace-management';
@@ -374,12 +374,14 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
     pending = proposals.filter((p) => p.status === "pending"),
     ready = pending.filter((p) => !p.stale);
   const lead = data?.project.role === "lead";
+  const decisionStats = decisionCounts(proposals);
+  const visibleProposals = proposals.filter(p => matchesDecisionFilter(p, filter as DecisionFilter));
   const currentTask = data?.tasks.find((t) => t.id === taskId),
     currentRisk = risks.find((r) => r.id === riskId),
     currentProposal = proposals.find((p) => p.id === proposalId);
   const shownTasks = sortTasksByAttention(data?.tasks.filter(
       (t) =>
-        (filter === "all" || t.status === filter) &&
+        (filter === "all" || (filter === "attention" ? needsAttention(t) : t.status === filter)) &&
         `${t.title} ${t.key}`.toLowerCase().includes(query.toLowerCase()),
     ) ?? []);
   const shownRisks = risks.filter(
@@ -880,7 +882,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                   <>
                     <div className="task-intro">
                       <div><span className="section-kicker">YOUR TEAM&apos;S PLAN</span><h2>{data.tasks.length} saved {data.tasks.length === 1 ? "task" : "tasks"}</h2><p>Open a card to update status or propose a change. Work requiring attention appears first in each column.</p></div>
-                      {lead && integrations.ai_provider === "gemini" && <button className="primary" onClick={() => setManageTask("new")}><Plus size={17}/> Create task</button>}
+                      {lead && <button className="primary" onClick={() => setManageTask("new")}><Plus size={17}/> Create task</button>}
                     </div>
                     <div className="task-toolbar">
                       <SearchInput
@@ -889,11 +891,12 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                         label="Search tasks"
                       />
                       <select
-                        aria-label="Task status"
+                        aria-label="Task filter"
                         value={filter}
                         onChange={(e) => setFilter(e.target.value)}
                       >
                         <option value="all">All statuses</option>
+                        <option value="attention">Needs attention</option>
                         {Object.entries(statusLabels).map(([v, l]) => (
                           <option key={v} value={v}>
                             {l}
@@ -926,6 +929,21 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                         </button>
                       )}
                     </div>
+                    <div className="task-quick-filters" role="group" aria-label="Quick task filters">
+                      {[
+                        { value: "all", label: "All tasks", count: data.tasks.length },
+                        { value: "attention", label: "Needs attention", count: data.tasks.filter(t => needsAttention(t)).length },
+                        { value: "blocked", label: "Blocked", count: data.tasks.filter(t => t.status === "blocked").length },
+                      ].map(option => (
+                        <button key={option.value} type="button" className="task-quick-filter" aria-pressed={filter === option.value} onClick={() => setFilter(option.value)}>
+                          {option.label}<span aria-hidden="true" className="task-filter-count">{option.count}</span>
+                        </button>
+                      ))}
+                    </div>
+                    <p className="task-results-summary" role="status" aria-live="polite">
+                      Showing {shownTasks.length} of {data.tasks.length} saved {data.tasks.length === 1 ? "task" : "tasks"}
+                      {filter === "attention" ? " · Blocked, overdue or due within seven days" : ""}
+                    </p>
                     {board && <p className="mobile-board-hint">Swipe left or right to see all four columns. Switch to List for a compact task view.</p>}
                     {board ? (
                       <div className="kanban">
@@ -997,7 +1015,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                         description={data.tasks.length ? "Clear the search or status filter to see all saved work." : "Create a task with an owner to begin tracking real delivery work."}
                       >
                         {data.tasks.length ? <button className="secondary" onClick={() => {setQuery("");setFilter("all");}}>Clear filters</button>
-                          : lead && integrations.ai_provider === "gemini" ? <button className="primary" onClick={() => setManageTask("new")}><Plus size={17}/> Create first task</button> : null}
+                          : lead ? <button className="primary" onClick={() => setManageTask("new")}><Plus size={17}/> Create first task</button> : null}
                       </Empty>
                     )}
                   </>
@@ -1041,15 +1059,25 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                         onChange={(e) => setFilter(e.target.value)}
                       >
                         <option value="all">All proposals</option>
-                        <option value="pending">Pending</option>
+                        <option value="ready">Ready for review</option>
+                        <option value="stale">Stale pending</option>
+                        <option value="pending">Pending (all)</option>
                         <option value="approved">Approved</option>
                         <option value="rejected">Rejected</option>
                       </select>
                     </div>
+                    <div className="decision-quick-filters" role="group" aria-label="Decision queue shortcuts">
+                      {[
+                        {value:"ready",label:"Ready for review",count:decisionStats.ready},
+                        {value:"stale",label:"Stale pending",count:decisionStats.stale},
+                        {value:"all",label:"All proposals",count:decisionStats.all},
+                      ].map(option=><button key={option.value} type="button" className="decision-quick-filter" aria-pressed={filter===option.value} onClick={()=>setFilter(option.value)}>
+                        <span>{option.label}</span><strong>{option.count}</strong>
+                      </button>)}
+                    </div>
+                    <p className="decision-results-summary" role="status" aria-live="polite">Showing {visibleProposals.length} of {proposals.length} proposals. Only a project lead can approve a current proposal.</p>
                     <div className="proposal-list">
-                      {proposals
-                        .filter((p) => filter === "all" || p.status === filter)
-                        .map((p) => (
+                      {visibleProposals.map((p) => (
                           <button
                             key={p.id}
                             onClick={() => setProposalId(p.id)}
@@ -1074,11 +1102,9 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                           </button>
                         ))}
                     </div>
-                    {!proposals.filter(
-                      (p) => filter === "all" || p.status === filter,
-                    ).length && (
+                    {!visibleProposals.length && (
                       <Empty
-                        title={proposals.length ? "No proposals with this status" : "No proposals yet"}
+                        title={proposals.length ? filter==="ready"?"No proposals ready for review":filter==="stale"?"No stale pending proposals":"No proposals with this status" : "No proposals yet"}
                         description={proposals.length ? "Switch the status filter to view other decisions." : "Open a risk to explore recovery options, or propose a protected change from a task."}
                       >
                         {proposals.length > 0 ? <button className="secondary" onClick={()=>setFilter('all')}>Show all proposals</button> : <button className="secondary" onClick={()=>navigate('risks')}>Open Risk Center</button>}
@@ -1145,28 +1171,7 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                     </div>
                   </>
                 )}
-                {view === "audit" && integrations.ai_provider === 'gemini' && <AuditHistory key={data.project.id} workspace={data.project.id} data={data} proposals={proposals}/>}
-                {view === "audit" && integrations.ai_provider !== 'gemini' && (
-                  <section className="panel">
-                    <div className="panel-head">
-                      <div>
-                        <h2>Activity & decisions</h2>
-                        <p>
-                          Append-only records, newest first. Showing up to 100
-                          events.
-                        </p>
-                      </div>
-                      <ScrollText size={20} />
-                    </div>
-                    <AuditTimeline items={audit} data={data} proposals={proposals}/>
-                    {!audit.length && (
-                      <Empty
-                        title="A fresh start"
-                        description="Status updates, replayed events and decisions will be recorded here."
-                      />
-                    )}
-                  </section>
-                )}
+                {view === "audit" && <AuditHistory key={data.project.id} workspace={data.project.id} data={data} proposals={proposals}/>}
                 {view === "settings" && (
                   <div className="settings-grid">
                     {integrations.ai_provider === 'gemini' ? (

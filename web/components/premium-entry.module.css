@@ -49,3 +49,69 @@
 .heroBrand:hover{border-color:#68efdb8a;box-shadow:0 14px 42px #30e3dd20;transform:translateY(-2px)}
 @media(max-width:760px){.heroBrand{gap:10px;margin:0 0 20px;padding:8px 13px 8px 6px;border-radius:16px}.heroBrand img{width:52px}.heroBrandText strong{font-size:18px}.heroBrandText small{font-size:10px;letter-spacing:0}}
 @media(prefers-reduced-motion:reduce){.heroBrand{transition:none}.heroBrand:hover{transform:none}}
+
+
+/* V3 auth usability: maintain a full-size field while providing an accessible reveal control. */
+.passwordField {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+.passwordField input {
+  width: 100%;
+  min-width: 0;
+  padding-right: 58px;
+}
+.passwordVisibility {
+  position: absolute;
+  inset-inline-end: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  background: transparent;
+  color: #c4eced;
+  cursor: pointer;
+}
+.passwordVisibility:hover:not(:disabled) {
+  background: #a18af821;
+  color: #ffffff;
+}
+.passwordVisibility:focus-visible {
+  outline: 3px solid #a9ffe7;
+  outline-offset: -3px;
+}
+.passwordHint {
+  display: block;
+  margin-top: 7px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: #c4c8dc;
+}
+@media (prefers-reduced-motion: reduce) {
+  .passwordVisibility { transition: none; }
+}
+
+/* V3 auth action spacing: prevent adjacent links appearing merged on narrow screens. */
+.landing :global(.login-form > button.text-link) {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin: 6px 16px 5px 0;
+  padding: 8px 2px;
+  line-height: 1.45;
+  text-align: left;
+}
+@media (max-width: 560px) {
+  .landing :global(.login-form > button.text-link) {
+    display: flex;
+    justify-content: flex-start;
+    width: 100%;
+    margin: 0;
+  }
+}

@@ -115,6 +115,8 @@ async function event(payload,valid=true,type="workflow_run",delivery=randomUUID(
     assert.equal(await guide.getByRole("button",{name:/^[1-6] · /}).count(),6);
     await guide.getByRole("button",{name:"2 · TIC Intelligence"}).click();
     await page.getByRole("heading",{name:"TIC Intelligence",exact:true}).waitFor();
+    // Inner pages intentionally show a compact guide; expand it before choosing another step.
+    await guide.getByRole("button",{name:"Show all steps",exact:true}).click();
     await guide.getByRole("button",{name:"1 · Understand"}).click();
     await page.getByRole("heading",{name:"Delivery overview",exact:true}).waitFor();
 
@@ -347,6 +349,8 @@ async function event(payload,valid=true,type="workflow_run",delivery=randomUUID(
     await ownerPage.getByRole("heading",{name:"Risk evidence & recovery"}).waitFor();
     await ownerPage.getByRole("button",{name:"Compare recovery options"}).click();
     await ownerPage.getByRole("button",{name:"Analyze with Gemini"}).click();
+    // Wait for the actual persisted proposal review, not static Gemini marketing/help copy.
+    await ownerPage.getByRole("heading",{name:"Review recovery proposal",exact:true}).waitFor();
     await ownerPage.getByText("Gemini analysis",{exact:true}).waitFor();
     const both=await call(ownerPage,demoBase+"/proposals");
     assert.equal(both.length,2);assert.ok(both.some(p=>p.source==="gemini"&&p.status==="pending"));
