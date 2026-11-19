@@ -19,10 +19,11 @@ export function GithubConnection({ workspaceId, planVersion, canManage, onChange
   const [notice, setNotice] = useState("");
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
-  const reload = useCallback(async () => {
+  const reload = useCallback(async (syncDraft = false) => {
     const status = await api<Connection>(`/projects/${workspaceId}/github`);
     setConnection(status);
-    setDraft(status.repository ?? "");
+    if (syncDraft) setDraft(status.repository ?? "");
+    setError("");
   }, [workspaceId]);
 
   useEffect(() => {
@@ -43,7 +44,7 @@ export function GithubConnection({ workspaceId, planVersion, canManage, onChange
     const timer=window.setInterval(async()=>{
       if (!active||running||document.visibilityState!=="visible") return;
       running=true;
-      try { const next=await api<Connection>(`/projects/${workspaceId}/github`); if(active)setConnection(next); }
+      try { const next=await api<Connection>(`/projects/${workspaceId}/github`); if(active){setConnection(next);setError("");} }
       catch { if(active)setError("GitHub activity refresh failed. Use Refresh to retry."); }
       finally {running=false;}
     },60_000);
@@ -58,7 +59,7 @@ export function GithubConnection({ workspaceId, planVersion, canManage, onChange
         method: "POST", body: JSON.stringify({ repository, base_plan_version: planVersion }),
       });
       setConfirmDisconnect(false);
-      await Promise.all([reload(), onChanged()]);
+      await Promise.all([reload(true), onChanged()]);
       setNotice(repository ? "Public repository linked. Recent GitHub Actions are shown below." : "Repository unlinked from this workspace.");
     } catch (cause) { setError((cause as Error).message); }
     finally { setBusy(false); }
@@ -81,7 +82,7 @@ export function GithubConnection({ workspaceId, planVersion, canManage, onChange
           {connection?.connected ? <><CheckCircle2 size={18}/><div><strong>{connection.repository}</strong><small>{appMode?"GitHub App repository configured":"Public GitHub repository linked"}</small></div></> :
             <><Unplug size={18}/><div><strong>No repository linked</strong><small>Link a public repo to see its latest workflows</small></div></>}
         </div>
-        {appMode && <p className="field-help">Administrator-authorized repository. Activity refreshes every minute while this panel is visible.</p>}
+        {appMode && <p className="field-help">Administrator-authorized repository. Activity refreshes every minute while Settings is open and this browser tab is visible. Activity can still be temporarily unavailable.</p>}
         {canManage && !appMode && <form className="github-connect-form" onSubmit={submit}>
           <label htmlFor="github-repository">Repository URL or owner/name</label>
           <div className="github-connect-row">
@@ -105,7 +106,7 @@ export function GithubConnection({ workspaceId, planVersion, canManage, onChange
               <span className={`github-run-indicator ${run.conclusion ?? run.status}`}/>
               <span><strong>{run.name}</strong><small>{run.conclusion ?? run.status} · {run.created_at ? new Date(run.created_at).toLocaleString() : "Time unavailable"}</small></span>
               <ArrowUpRight size={17}/>
-            </a>)}</div> : <p className="github-run-empty">No recent workflow runs for the tracked branch, or GitHub is temporarily unavailable.</p>}
+            </a>)}</div> : <p className="github-run-empty">No recent workflow runs returned for the tracked branch. Confirm the branch, check any warning above, or use Refresh to retry.</p>}
           {appMode && <>
             <div className="github-run-heading"><h3>Open pull requests</h3></div>
             {(connection.pulls??[]).length ? <div className="github-run-list">{connection.pulls!.map(pull=><a key={pull.number} href={pull.html_url} target="_blank" rel="noopener noreferrer" className="github-run-row"><GitBranch size={17}/><span><strong>#{pull.number} {pull.title}</strong><small>{pull.draft?"Draft":"Open"} · {pull.updated_at?new Date(pull.updated_at).toLocaleString():"Time unavailable"}</small></span><ArrowUpRight size={17}/></a>)}</div>:<p className="github-run-empty">No open pull requests returned for the tracked branch.</p>}

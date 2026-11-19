@@ -631,3 +631,13 @@ dialog .field-grid { gap: 18px; }
     animation: none;
   }
 }
+
+/* Stage 7 — truthful integration status and actionable, readable setup guidance. */
+.integration-readiness-diagnostics{margin:16px 0 18px}
+.integration-readiness .human-note{align-items:flex-start;gap:12px;min-width:0}
+.integration-readiness .human-note>div{min-width:0;flex:1}
+.integration-readiness .human-note strong{display:inline;font-size:13px;color:#e0fbf7}
+.integration-readiness .human-note p{margin:7px 0 0;line-height:1.6;color:#bdd9df;overflow-wrap:anywhere}
+.integration-readiness .human-note p strong{font-size:12px;color:#cbf9ea}
+.integration-readiness .integration-check small{line-height:1.45}
+@media(max-width:600px){.integration-readiness .human-note{padding:13px 14px;gap:10px}.integration-readiness .human-note strong{font-size:12px}.integration-readiness .human-note p{font-size:12px}}
