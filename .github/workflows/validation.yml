@@ -28,6 +28,8 @@ jobs:
           node-version: '24'
           cache: npm
           cache-dependency-path: web/package-lock.json
+      - name: Ensure fixture tests cannot certify live integrations
+        run: node --test scripts/stage8-acceptance-gate.test.cjs
       - run: npm ci
         working-directory: web
       - run: npm run lint
