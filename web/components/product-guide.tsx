@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Activity, ArrowRight, BrainCircuit, CheckCircle2, ChevronDown, ChevronRight, ChevronUp, GitBranch, ShieldCheck, Sparkles, X } from "lucide-react";
 import styles from "./product-guide.module.css";
 
@@ -32,8 +32,8 @@ export function ProductGuide({current, guest, onNavigate, onClose}: {
   onNavigate: (view: GuideDestination) => void;
   onClose: () => void;
 }) {
-  const [expanded,setExpanded] = useState(current === "overview");
-  useEffect(()=>{setExpanded(current === "overview");},[current]);
+  const [guideMode,setGuideMode] = useState({view:current,expanded:current === "overview"});
+  const expanded = guideMode.view === current ? guideMode.expanded : current === "overview";
   const activeIndex = steps.findIndex(step => step.view === current);
   return (
     <section className={[styles.guide,!expanded?styles.compact:""].filter(Boolean).join(" ")} aria-label="Interactive product guide">
@@ -44,7 +44,7 @@ export function ProductGuide({current, guest, onNavigate, onClose}: {
           <h2>{expanded?"Explore the problem. Understand the solution.":"Guided walkthrough"}</h2>
           {expanded&&<p>Follow how TeamFlow Guard turns delivery signals into informed, human-approved decisions. Start anywhere, or explore freely.</p>}
         </div>
-        <div className={styles.guideActions}><button type="button" className={styles.toggle} aria-expanded={expanded} onClick={()=>setExpanded(open=>!open)}>{expanded?"Collapse steps":"Show all steps"}{expanded?<ChevronUp size={15}/>:<ChevronDown size={15}/>}</button><button type="button" className={styles.close} onClick={onClose} aria-label="Hide product guide"><X size={16}/> <span>Hide guide</span></button></div>
+        <div className={styles.guideActions}><button type="button" className={styles.toggle} aria-expanded={expanded} onClick={()=>setGuideMode({view:current,expanded:!expanded})}>{expanded?"Collapse steps":"Show all steps"}{expanded?<ChevronUp size={15}/>:<ChevronDown size={15}/>}</button><button type="button" className={styles.close} onClick={onClose} aria-label="Hide product guide"><X size={16}/> <span>Hide guide</span></button></div>
       </header>
       {expanded&&<div className={styles.steps} aria-label="Product walkthrough steps">
         {steps.map((step,index)=>{

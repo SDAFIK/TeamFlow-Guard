@@ -23,7 +23,6 @@ import {
   Play,
   Plus,
   ChevronRight,
-  Activity,
   Check,
   Github,
   UserPlus,
