@@ -16,3 +16,6 @@
 @import "./workspace-lifecycle.css";
 
 @import "./stage3-experience.css";
+
+/* V3: scoped premium foundation, motion and responsive polish */
+@import "./v3-visual-foundation.css";
