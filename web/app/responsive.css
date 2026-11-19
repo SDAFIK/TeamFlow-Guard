@@ -188,10 +188,14 @@
   .sidebar {
     transform: translateX(-100%);
     width: 255px;
-    transition: transform 0.2s;
+    visibility: hidden;
+    pointer-events: none;
+    transition: transform 0.2s, visibility 0.2s;
   }
   .sidebar.open {
     transform: translateX(0);
+    visibility: visible;
+    pointer-events: auto;
   }
   .sidebar-brand {
     display: flex;
