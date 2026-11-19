@@ -338,7 +338,7 @@ export function RiskDialog({
           </div>
           <div>
             <span className="section-kicker">AI-ASSISTED EXPLANATION</span>
-            <strong>{aiProviderName} analysis</strong>
+            <strong>{aiProviderName} assistance</strong>
             <p>{integrations.ai_configured?"The provider is configured, but requests may still fail or reach a quota. AI selects from validated actions.":"The AI provider is not configured. You can still review the deterministic options."}</p>
           </div>
         </div>
