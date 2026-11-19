@@ -12,3 +12,7 @@ __pycache__/
 *.tsbuildinfo
 test-results/
 playwright-report/
+
+# Stage 8 real-provider evidence should never enter source control.
+stage8-evidence.local.json
+*.stage8-evidence.json
