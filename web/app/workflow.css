@@ -689,3 +689,72 @@ dialog.wide-dialog {
 @media(max-width:500px){.recovery-focus{padding:20px}.recovery-focus .dialog-actions{align-items:stretch;flex-direction:column}.journey-steps{gap:5px}.journey-steps li{font-size:11px}.recovery-receipt{padding:18px}.recovery-receipt .dialog-actions{flex-wrap:wrap}}
 
 .proposal-evidence{margin:18px 0;padding:16px;border:1px solid #38536a;border-radius:8px}.proposal-evidence summary{cursor:pointer;min-height:28px;color:#63e5d5}.proposal-evidence p{margin-top:12px;font-size:13px}
+
+/* V3 recovery clarity: visible provenance, method boundaries and approval effect. */
+.evidence-card .evidence-provenance-help {
+  padding: 10px 12px;
+  margin: 11px 0 15px;
+  border-left: 3px solid #5bd7c7;
+  border-radius: 0 9px 9px 0;
+  background: #14394786;
+  color: #c1e8e7;
+  font-size: 12px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.recovery-method-guide {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  margin: 16px 0;
+}
+.recovery-method-guide > div {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 17px 18px;
+  border: 1px solid #426877;
+  border-radius: 13px;
+  background: linear-gradient(150deg, #123041, #102332);
+  min-width: 0;
+}
+.recovery-method-guide > div:last-child {
+  background: linear-gradient(145deg, #143747, #172b3b);
+  border-color: #457c82;
+}
+.recovery-method-guide strong {
+  font-size: 15px;
+  line-height: 1.4;
+  color: #edf9f7;
+}
+.recovery-method-guide p {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #c0d8e3;
+  margin: 0;
+}
+.proposal-approval-summary {
+  padding: 17px 19px;
+  margin: 16px 0;
+  border: 1px solid #458f87;
+  border-radius: 13px;
+  background: linear-gradient(130deg, #153d40, #142c3c);
+}
+.proposal-approval-summary strong {
+  display: block;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #d5fff1;
+}
+.proposal-approval-summary p {
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.65;
+  color: #c8e5e8;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 690px) {
+  .recovery-method-guide { grid-template-columns: 1fr; gap: 9px; }
+  .recovery-method-guide > div { padding: 14px; }
+  .proposal-approval-summary { padding: 14px 15px; }
+}
