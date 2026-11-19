@@ -196,7 +196,10 @@ async function run(viewport, role="lead") {
     if (viewport.width<600) await page.getByRole("button",{name:"Open navigation"}).click();
     await page.getByRole("button",{name:"Team & invitations",exact:true}).first().click();
     await page.getByRole("heading",{name:"Your team",exact:true}).waitFor();
-    await page.getByRole("region",{name:"Integration readiness"}).getByText("Repository authorization",{exact:true}).waitFor();
+    const readiness=page.getByRole("region",{name:"Integration readiness"});
+    await readiness.getByText("Repository authorization",{exact:true}).waitFor();
+    await readiness.getByText("Gemini not configured",{exact:true}).waitFor();
+    await readiness.getByText("Repository not connected",{exact:true}).waitFor();
     await page.getByRole("searchbox",{name:"Search team members"}).fill("Jin");
     await page.locator(".settings-member-list").getByText("Jin (mock)",{exact:true}).waitFor();
     assert.equal(await page.locator(".settings-member-list").getByText("Asha (mock)",{exact:true}).count(),0);
@@ -221,6 +224,8 @@ async function run(viewport, role="lead") {
       await page.getByLabel("Repository URL or owner/name").fill("SDAFIK/TeamFlow-Guard");
       await page.getByRole("button",{name:"Link repository"}).click();
       await page.getByText("Public GitHub repository linked",{exact:true}).waitFor();
+      await readiness.getByText("Public repository view",{exact:true}).waitFor();
+      await readiness.getByText("Read-only public workflow status can be displayed. This does not enable signed webhook evidence ingestion.",{exact:true}).waitFor();
       await page.getByText("Validation (simulated)").waitFor();
       assert.equal(state.githubRepo,"SDAFIK/TeamFlow-Guard","GitHub link persisted in the simulated workspace");
     } else {
