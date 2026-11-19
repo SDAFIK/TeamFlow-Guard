@@ -886,3 +886,8 @@ dialog.wide-dialog {
   .recovery-method-guide > div { padding: 14px; }
   .proposal-approval-summary { padding: 14px 15px; }
 }
+
+/* Screenshot QA: keep audit pagination and end-of-history copy inside the panel. */
+.audit-history-panel>p{margin:8px 22px 18px;line-height:1.55;color:#bad4de}
+.audit-history-panel>button{margin:6px 22px 20px}
+@media(max-width:650px){.audit-history-panel>p{margin:8px 14px 16px}.audit-history-panel>button{margin:6px 14px 18px}}

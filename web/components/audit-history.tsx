@@ -31,7 +31,7 @@ export function AuditHistory({ workspace,data,proposals }: { workspace: string;d
     } catch (e) { setError((e as Error).message); }
     finally { setBusy(false); }
   }
-  return <section className="panel" aria-label="Audit history">
+  return <section className="panel audit-history-panel" aria-label="Audit history">
     <div className="panel-head"><div><h2>Activity & decisions</h2><p>See who changed what, and verify the outcome. {items.length} events loaded.</p></div>
       <button className="btn secondary" disabled={busy} onClick={() => { setBusy(true); setRevision(value => value + 1); }}>Refresh history</button></div>
     {error && <p role="alert">{error} Retry with Refresh history or Load older events.</p>}
