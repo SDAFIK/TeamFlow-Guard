@@ -27,7 +27,7 @@ export function searchWorkspaceItems<
   const needle = query.trim().toLowerCase();
   return {
     tasks: tasks.filter(t => (t.key + " " + t.title).toLowerCase().includes(needle)).slice(0, 6),
-    people: members.filter(m => (m.name + " " + (m.specialty ?? "")).toLowerCase().includes(needle)).slice(0, 4),
+    people: members.filter(m => (m.name + " " + m.specialty).toLowerCase().includes(needle)).slice(0, 4),
     signals: risks.filter(r => r.active && (r.evidence.title + " " + r.reason).toLowerCase().includes(needle)).slice(0, 4),
   };
 }
