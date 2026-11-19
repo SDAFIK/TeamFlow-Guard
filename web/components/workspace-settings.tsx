@@ -40,6 +40,7 @@ export function WorkspaceSettings({ id, workspaceName, integrations, onSaved, fo
   const [memberQuery, setMemberQuery] = useState("");
   const [roleChange, setRoleChange] = useState<{ id: string; name: string; role: Exclude<Role, "owner"> } | null>(null);
   const [refreshedAt, setRefreshedAt] = useState(0);
+  const [integrationRevision,setIntegrationRevision] = useState(0);
 
   const load = useCallback(async () => {
     const next = await api<Settings>(`/projects/${id}/settings`);
@@ -237,8 +238,8 @@ export function WorkspaceSettings({ id, workspaceName, integrations, onSaved, fo
         <p>Archive a workspace to pause planning and preserve its data, or permanently delete it when it is no longer needed.</p>
         <WorkspaceLifecycleActions id={id} name={workspaceName} archived={false} onChanged={onLifecycleChanged}/>
       </section>}
-      <IntegrationReadiness key={id} workspaceId={id} aiStatus={integrations}/>
-      {settings.demo_owner_id?<section className="panel settings-panel" id="github-settings-title"><h2>Fictional GitHub evidence</h2><p>This personal demo uses seeded and replayed CI and review signals. To connect a real repository, open a real workspace.</p></section>:<GithubConnection workspaceId={id} planVersion={settings.plan_version} canManage={manager} onChanged={async () => { await load(); await onSaved(); }}/> }
+      <IntegrationReadiness key={`${id}:${integrationRevision}`} workspaceId={id} aiStatus={integrations}/>
+      {settings.demo_owner_id?<section className="panel settings-panel" id="github-settings-title"><h2>Fictional GitHub evidence</h2><p>This personal demo uses seeded and replayed CI and review signals. To connect a real repository, open a real workspace.</p></section>:<GithubConnection workspaceId={id} planVersion={settings.plan_version} canManage={manager} onChanged={async () => { await load(); await onSaved(); setIntegrationRevision(v=>v+1); }}/> }
     </>
   );
 }
