@@ -20,6 +20,7 @@ import {
   type Graph,
 } from "@/lib/api";
 import { dependencyFeedback } from "@/domain/dependency-feedback";
+import { evidenceOriginDescription, evidenceOriginLabel } from "@/domain/evidence-provenance";
 import { Modal, Badge, Busy, statusLabels } from "./ui";
 import { JourneySteps } from './journey-steps';
 import type { RecoveryOption } from '@/domain/recovery-options';
@@ -248,6 +249,7 @@ export function RiskDialog({
   const [simulations,setSimulations]=useState<RecoverySimulation[]>([]);
   const [compareEngines,setCompareEngines]=useState(false);
   const [engineResults,setEngineResults]=useState<{rules?:Proposal;ai?:Proposal}>({});
+  const aiProviderName=integrations.ai_provider==="openai"?"OpenAI":"Gemini";
   async function compare() {
     setPending('options');setError('');
     try { const result=await api<{options:RecoveryOption[];simulations?:RecoverySimulation[]}>(`/risks/${risk.id}/recovery-options`);setOptions(result.options);setSimulations(result.simulations??[]);setStage('compare'); }
@@ -273,11 +275,7 @@ export function RiskDialog({
       <JourneySteps current={stage==='understand'?0:1}/>
       <div className="dialog-meta">
         <Badge value={risk.severity} />
-        <span className="source-tag">
-          {["replay", "seed"].includes(risk.evidence.origin)
-            ? "Labeled sample event"
-            : "Observed project event"}
-        </span>
+        <span className="source-tag">{evidenceOriginLabel(risk.evidence.origin)}</span>
       </div>
       <h3 className="risk-title">{risk.evidence.title}</h3>
       <a className="text-link" href={`/risks/${risk.id}`}>Open risk permalink</a>
@@ -289,16 +287,17 @@ export function RiskDialog({
       )}
       {stage==='understand'&&<div className="review-grid">
         <section className="evidence-card">
-          <span className="section-kicker">OBSERVED EVIDENCE</span>
+          <span className="section-kicker">SOURCE EVIDENCE</span>
           <h3>
             <FileText size={18} />
             Source record
           </h3>
-          <p>{risk.evidence.detail || 'A task status change produced this signal. Review the current task and its dependencies.'}</p>
+          <p>{risk.evidence.detail || "No additional detail was included in this evidence record."}</p>
+          <p className="evidence-provenance-help">{evidenceOriginDescription(risk.evidence.origin)}</p>
           <dl>
             <dt>Source ID</dt>
             <dd className="mono">{risk.evidence.id}</dd>
-            <dt>Observed</dt>
+            <dt>Recorded</dt>
             <dd>{new Date(risk.evidence.observed_at).toLocaleString()}</dd>
           </dl>
           {risk.stale_evidence && (
@@ -331,9 +330,21 @@ export function RiskDialog({
       </div>}
       {stage==='compare'&&<section aria-label="Recovery alternatives">
         <p>These choices come from plan constraints and reported availability. Compare the tradeoffs, then review one change. AI can explain and select from the same allowed actions.</p>
+        <div className="recovery-method-guide" role="note" aria-label="How the recovery methods differ">
+          <div>
+            <span className="section-kicker">DETERMINISTIC RECOVERY</span>
+            <strong>Rule-based options</strong>
+            <p>Uses task, dependency and capacity constraints to offer feasible changes. No AI request is needed.</p>
+          </div>
+          <div>
+            <span className="section-kicker">AI-ASSISTED EXPLANATION</span>
+            <strong>{aiProviderName} assistance</strong>
+            <p>{integrations.ai_configured?"The provider is configured, but requests may still fail or reach a quota. AI selects from validated actions.":"The AI provider is not configured. You can still review the deterministic options."}</p>
+          </div>
+        </div>
         <label className="engine-compare-toggle"><input type="checkbox" checked={compareEngines} disabled={!!pending||Object.keys(engineResults).length>0} onChange={e=>setCompareEngines(e.target.checked)}/> Compare rule-based and AI proposals side by side</label>
         {compareEngines&&<p className="field-help">Each button creates one separate pending proposal. Nothing is approved automatically. You may review either proposal; approving one can make the other stale.</p>}
-        {compareEngines&&<div className="engine-comparison" aria-label="Engine comparison">{([{key:"rules",label:"Deterministic rules"},{key:"ai",label:integrations.ai_provider==="openai"?"OpenAI":"Gemini"}] as const).map(engine=>{const proposal=engineResults[engine.key];return <article className="recovery-option" key={engine.key}><span className="section-kicker">{engine.label}</span>{proposal?<><h3>{proposal.title}</h3><p>{proposal.explanation}</p><span className="source-tag">Pending · plan v{proposal.base_plan_version}</span><ul>{proposal.actions.map((action,i)=><li key={i}><strong>{tasks.find(t=>t.id===action.task_id)?.key??"Task"}</strong> · {action.field.replaceAll("_"," ")}: {String(action.before??"Not assigned")} → {String(action.after)}</li>)}</ul><button className="secondary" disabled={!!pending} onClick={()=>void onProposal(proposal)}>Review {engine.label} proposal<ArrowRight size={16}/></button></>:<p>{engine.key==="rules"?"Select a deterministic option below.":"Run AI analysis to compare its explanation and actions."}</p>}</article>;})}</div>}
+        {compareEngines&&<div className="engine-comparison" aria-label="Engine comparison">{([{key:"rules",label:"Deterministic rules"},{key:"ai",label:aiProviderName}] as const).map(engine=>{const proposal=engineResults[engine.key];return <article className="recovery-option" key={engine.key}><span className="section-kicker">{engine.label}</span>{proposal?<><h3>{proposal.title}</h3><p>{proposal.explanation}</p><span className="source-tag">Pending · plan v{proposal.base_plan_version}</span><ul>{proposal.actions.map((action,i)=><li key={i}><strong>{tasks.find(t=>t.id===action.task_id)?.key??"Task"}</strong> · {action.field.replaceAll("_"," ")}: {String(action.before??"Not assigned")} → {String(action.after)}</li>)}</ul><button className="secondary" disabled={!!pending} onClick={()=>void onProposal(proposal)}>Review {engine.label} proposal<ArrowRight size={16}/></button></>:<p>{engine.key==="rules"?"Select a deterministic option below.":"Run AI analysis to compare its explanation and actions."}</p>}</article>;})}</div>}
         <div className="recovery-options">{options.map(option=><article className="recovery-option" key={option.id}><span className="section-kicker">RULE-BASED OPTION</span><h3>{option.title}</h3><p>{option.effect}</p><p className="option-tradeoff"><strong>Tradeoff:</strong> {option.tradeoff}</p>{simulations.filter(s=>s.id===option.id).map(s=><div key={s.id}><p><strong>Simulation:</strong> {s.affected_task_ids.length} unfinished dependent tasks. Source risk is not resolved by this action.</p>{s.capacity.map(c=><p key={c.member_id}>Estimated workload: {c.before_hours}h → {c.after_hours}h; {c.available_hours}h reported available.</p>)}<p className="field-help">No guaranteed delay reduction.</p></div>)}<button className="secondary" aria-label={`Review ${option.title}`} disabled={readOnly||!!pending||Boolean(compareEngines&&engineResults.rules)} onClick={()=>analyze('rules',option.id)}>Review this option<ArrowRight size={16}/></button></article>)}</div>
         {simulations.filter(s=>!s.feasible).map(s=><p className="warning" key={s.id}>{s.title} is unavailable: {s.explanation}</p>)}
         {!options.length&&<p className="warning">No feasible plan change remains for this risk. If this is a demo, start a fresh AI rehearsal from TIC Intelligence. Otherwise refresh evidence or discuss the constraint with your team.</p>}
@@ -359,7 +370,7 @@ export function RiskDialog({
           ) : (
             <>
               <Sparkles size={17} />
-              Analyze with {integrations.ai_provider === "gemini" ? "Gemini" : "OpenAI"}
+              Analyze with {aiProviderName}
             </>
           )}
         </button>
@@ -455,7 +466,7 @@ export function ProposalDialog({
       <h3 className="risk-title">{proposal.title}</h3>
       <a className="text-link" href={`/decisions/${proposal.id}`}>Open proposal permalink</a>
       <p>{proposal.explanation}</p>
-      {sourceRisk&&<details className="proposal-evidence"><summary>Evidence behind this proposal</summary><p><strong>{sourceRisk.evidence.title}</strong></p><p>{sourceRisk.reason}</p><p>{sourceRisk.evidence.origin==='seed'||sourceRisk.evidence.origin==='replay'?'Labeled sample evidence':'Observed project evidence'} · {new Date(sourceRisk.evidence.observed_at).toLocaleString()}</p><span className="mono">{sourceRisk.id}</span></details>}
+      {sourceRisk&&<details className="proposal-evidence"><summary>Evidence behind this proposal</summary><p><strong>{sourceRisk.evidence.title}</strong></p><p>{sourceRisk.reason}</p><p>{evidenceOriginLabel(sourceRisk.evidence.origin)} · Recorded {new Date(sourceRisk.evidence.observed_at).toLocaleString()}</p><p>{evidenceOriginDescription(sourceRisk.evidence.origin)}</p><span className="mono">{sourceRisk.id}</span></details>}
       {error && (
         <div className="error" role="alert">
           {error}
@@ -484,6 +495,10 @@ export function ProposalDialog({
             <strong>{display(a, a.after)}</strong>
           </div>
         ))}
+      </div>
+      <div className="proposal-approval-summary" role="note">
+        <strong>What will approval do?</strong>
+        <p>If approved, the server revalidates and applies {proposal.actions.length} proposed plan {proposal.actions.length===1?"change":"changes"}, then records the decision. Rejecting leaves the plan unchanged. Neither choice repairs an external CI failure or performs GitHub actions.</p>
       </div>
       <div className="assumptions">
         <h3>Check before applying</h3>
