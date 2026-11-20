@@ -23,6 +23,7 @@ import {
   Play,
   Plus,
   ChevronRight,
+  Download,
   Check,
   Github,
   UserPlus,
@@ -51,6 +52,7 @@ import { AuditHistory } from "./audit-history";
 import { decisionCounts, matchesDecisionFilter, type DecisionFilter } from "@/domain/decision-inbox";
 import { EmptyWorkspaceWelcome, WorkspaceChecklist } from "./onboarding";
 import { downstream } from "@/domain/graph";
+import { buildIncidentCsv } from "@/domain/incident-export";
 import { getDeliveryFocus, getDeliveryProgress } from "@/domain/delivery-guidance";
 import { dueState, needsAttention, sortTasksByAttention } from "@/domain/task-attention";
 import { JourneySteps } from './journey-steps';
@@ -395,6 +397,29 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
         .toLowerCase()
         .includes(query.toLowerCase()),
   );
+  function exportVisibleIncidents() {
+    if (!data || !shownRisks.length) return;
+    const csv = buildIncidentCsv({
+      workspaceName: data.project.name,
+      planVersion: data.plan_version,
+      snapshotAsOf: data.as_of,
+      isDemo: Boolean(data.is_demo),
+      tasks: data.tasks,
+      risks: shownRisks,
+      proposals,
+      exportedAt: new Date().toISOString(),
+    });
+    const file = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(file);
+    const link = document.createElement("a");
+    link.href = url;
+    const slug = data.project.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 48) || "workspace";
+    link.download = "teamflow-" + slug + "-incident-evidence-" + new Date().toISOString().slice(0, 10) + ".csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => URL.revokeObjectURL(url), 0);
+  }
   const person = (id: string | null) => data?.members.find((m) => m.id === id);
   const focus = data && graph ? getDeliveryFocus({
     role: data.project.role,
@@ -838,6 +863,9 @@ export default function Workspace({ initialRiskId, initialProposalId, confirmati
                         </h2>
                         <p>Deterministic rules. Inspectable source records.</p>
                       </div>
+                      <button type="button" className="secondary" onClick={exportVisibleIncidents} disabled={!shownRisks.length} title="Download currently filtered risk evidence, linked proposals and task keys. Fictional demos are labeled.">
+                        <Download size={16}/> Export visible risks (CSV)
+                      </button>
                     </div>
                     <div className="filters">
                       <SearchInput
