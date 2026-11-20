@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { supabaseServer } from "@/server/supabase";
+import { apiSecurityHeaders } from "@/server/api-security-headers";
 import { snapshot, mutate, HttpError, databaseError, uiRole, type Client } from "@/server/state";
 import { risksFor } from "@/domain/risk-engine";
 import { taskIntelligence } from "@/domain/tic-features";
@@ -383,6 +384,6 @@ async function handle(request: NextRequest, context: { params: Promise<{ path: s
   }
 }
 function answer(value: unknown, status = 200) {
-  return NextResponse.json(value, { status, headers: { "Cache-Control": "private, no-store", "X-Content-Type-Options": "nosniff", "Referrer-Policy": "same-origin" } });
+  return NextResponse.json(value, { status, headers: apiSecurityHeaders });
 }
 export { handle as GET, handle as POST, handle as PATCH, handle as PUT, handle as DELETE };
