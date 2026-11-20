@@ -30,6 +30,10 @@ jobs:
           cache-dependency-path: web/package-lock.json
       - name: Ensure fixture tests cannot certify live integrations
         run: node --test scripts/stage8-acceptance-gate.test.cjs
+      - name: Verify public documentation links
+        run: |
+          node --test scripts/check-public-docs.test.cjs
+          node scripts/check-public-docs.cjs
       - run: npm ci
         working-directory: web
       - run: npm run lint
