@@ -1,6 +1,7 @@
 # TeamFlow Guard — Interactive product walkthrough
 
 **Live website:** https://teamflow-guard.vercel.app  
+**Competition submission:** [SUBMISSION.md](SUBMISSION.md)  
 **Source code:** https://github.com/SDAFIK/TeamFlow-Guard  
 
 ## Start immediately: no account or password needed
@@ -47,6 +48,6 @@
 
 ## Product scope and development checks
 
-[Latest regression](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/44212190001) · [Latest authenticated acceptance](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/44212189999) · [Final branding release](https://github.com/SDAFIK/TeamFlow-Guard/pull/30)
+[Live validation workflow](https://github.com/SDAFIK/TeamFlow-Guard/actions/workflows/validation.yml) · [Authenticated acceptance workflow](https://github.com/SDAFIK/TeamFlow-Guard/actions/workflows/workspace-lifecycle-acceptance.yml) · [Submission pack](SUBMISSION.md) · [Stages 9–12 release readiness](docs/STAGE9_12_RELEASE_READINESS.md)
 
 The authenticated browser suites run with disposable local Supabase and controlled external-provider transport. A genuine hosted Gemini recovery proposal and human approval have been verified separately; a genuine hosted GitHub review submission, and some external mailbox delivery checks, remain open follow-ups. Do not confuse controlled fixture tests with genuine external provider operations.

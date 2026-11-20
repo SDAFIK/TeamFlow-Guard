@@ -60,7 +60,7 @@ export default function Login({
     }
   }
   return (
-    <main className={`login-page ${styles.landing}`}>
+    <main id="main" tabIndex={-1} className={`login-page ${styles.landing}`}>
       <header className={styles.topnav}><a href="#home" aria-label="TeamFlow Guard home"><Brand/></a><nav aria-label="Landing navigation" className={navOpen?styles.navOpen:styles.navLinks}><a href="#platform" onClick={()=>setNavOpen(false)}>Platform</a><a href="#journey" onClick={()=>setNavOpen(false)}>How it works</a><a href="#account" onClick={()=>setNavOpen(false)}>Sign in</a></nav><button type="button" className={styles.navCta} disabled={busy} onClick={()=>void enterDemo()}>Try live demo <ArrowRight size={16}/></button><button type="button" className={styles.navToggle} aria-label={navOpen?"Close menu":"Open menu"} aria-expanded={navOpen} onClick={()=>setNavOpen(v=>!v)}>{navOpen?<X/>:<Menu/>}</button></header>
       <div id="home" className={styles.entryGrid}>
       <div className={`login-story ${styles.story}`}>

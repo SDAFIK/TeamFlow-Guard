@@ -124,6 +124,12 @@ async function run(viewport, role="lead") {
   try {
     await mockApi(page,state);
     await page.goto(`${BASE}/overview`,{waitUntil:"networkidle"});
+    const skip=page.getByRole("link",{name:"Skip to main content",exact:true});
+    await page.keyboard.press("Tab");
+    assert.equal(await skip.evaluate(node=>node===document.activeElement),true,"skip link should be first keyboard focus");
+    await page.keyboard.press("Enter");
+    assert.equal(await page.evaluate(()=>document.activeElement?.id),"main","skip link must focus main");
+    assert.equal(await page.evaluate(()=>matchMedia("(prefers-reduced-motion: reduce)").matches),true,"reduced motion should be honored by browser context");
     await page.getByRole("heading",{name:"Delivery overview"}).waitFor();
     await page.getByRole("region",{name:"Your next action"}).waitFor();
     await page.getByRole("progressbar",{name:"Completed tasks"}).waitFor();
@@ -281,6 +287,7 @@ async function run(viewport, role="lead") {
 
 (async()=>{
   await run({width:1440,height:900},"lead");
+  await run({width:768,height:1024},"lead");
   await run({width:390,height:844},"lead");
   await run({width:390,height:844},"viewer");
 })().catch(error=>{console.error(error);process.exitCode=1;});

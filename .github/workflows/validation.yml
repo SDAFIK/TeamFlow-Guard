@@ -34,6 +34,9 @@ jobs:
         working-directory: web
       - run: npm run lint
         working-directory: web
+      - name: Verify strict TypeScript types
+        run: npm run typecheck
+        working-directory: web
       - run: npm test
         working-directory: web
       - run: npm run build

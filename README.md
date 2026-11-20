@@ -15,11 +15,17 @@
 [![Gemini](https://img.shields.io/badge/Google-Gemini-4285F4?style=flat-square&logo=google&logoColor=white)](https://ai.google.dev/)
 [![CI](https://img.shields.io/github/actions/workflow/status/SDAFIK/TeamFlow-Guard/validation.yml?branch=main&label=Build%20status&style=flat-square)](https://github.com/SDAFIK/TeamFlow-Guard/actions/workflows/validation.yml)
 
-[**Open TeamFlow Guard →**](https://teamflow-guard.vercel.app) · [Interactive demo](DEMO.md) · [Product tour](#product-tour) · [Architecture](#architecture) · [Local setup](#local-development)
+[**Open TeamFlow Guard →**](https://teamflow-guard.vercel.app) · [**Competition submission pack**](SUBMISSION.md) · [Interactive demo](DEMO.md) · [Release acceptance](docs/STAGE9_12_RELEASE_READINESS.md) · [Product tour](#product-tour) · [Architecture](#architecture) · [Local setup](#local-development)
 
 </div>
 
 ---
+
+## Competition release
+
+**For judges:** open the live app and choose **Enter Live Demo — No Sign-up**, then follow the [four-minute walkthrough](DEMO.md). [SUBMISSION.md](SUBMISSION.md) includes a copy-ready product pitch, exact demo steps, architecture and truthful evidence/limitations. [Stages 9–12 release gates](docs/STAGE9_12_RELEASE_READINESS.md) document the security, UX, reliability and pilot work completed or awaiting independent acceptance.
+
+**Scope disclosure:** guest data is fictional; Gemini is optional and quota-limited; a synthetic learning benchmark is not a real-world accuracy claim. Hosted external provider/inbox evidence and real-team pilot acceptance are tracked in [Stage 8 issue #45](https://github.com/SDAFIK/TeamFlow-Guard/issues/45). The code can be shown to competition judges without pretending that unverified integrations or customer pilots are complete.
 
 ## The problem
 
