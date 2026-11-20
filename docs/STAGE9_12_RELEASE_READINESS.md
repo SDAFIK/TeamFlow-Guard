@@ -1,8 +1,8 @@
-# Stages 9–12 — Competition release readiness and explicit acceptance boundaries
+# Stages 9–12 — Product release readiness and acceptance boundaries
 
 **Audit date:** 20 November 2026  
-**Release goal:** stable, responsibly labeled competition demo; production data, secrets and paid services remain untouched.  
-**Important distinction:** a working competition demonstration is not independently certified external integration, security/backup restoration, or a real-customer pilot.
+**Release goal:** stable, responsibly labeled public product release; production data, secrets and paid services remain untouched.  
+**Important distinction:** a working public demo is not independently certified external integration, security/backup restoration, or a real-customer pilot.
 
 ## Stage 9 — Security and operational reliability
 
@@ -30,9 +30,9 @@ Automated Playwright smoke uses **intercepted/simulated API**, not production ac
 
 ## Stage 11 — Real-team pilot and customer readiness
 
-The shipped guest demonstration and historical hosted workspace invitations support **demo readiness**. An independently observed multi-user *real-team pilot* with consent, usability notes, issue resolution, documented retention/deletion and customer support is **not complete**. It would be misleading to relabel fictional guest/team events as a pilot.
+The shipped guest demonstration and historical hosted workspace invitations support **interactive evaluation readiness**. An independently observed multi-user *real-team pilot* with consent, usability notes, issue resolution, documented retention/deletion and customer support is **not complete**. It would be misleading to relabel fictional guest/team events as a pilot.
 
-**Safe pilot protocol (post-submission):**
+**Safe pilot protocol (prior to broader commercial rollout):**
 1. Recruit a few consenting small software teams; confirm privacy/data use terms and avoid confidential production repo data.
 2. Self-onboard using an isolated test project; add two authorized members and a viewer; verify invitations, permission denial and browser navigation.
 3. Observe baseline planning, a failing tracked CI, dependency cascade, proposed recovery, lead approval, later passing CI and audit.
@@ -41,13 +41,13 @@ The shipped guest demonstration and historical hosted workspace invitations supp
 
 **Status:** pilot plan prepared, **external participation unverified**.
 
-## Stage 12 — Stable competition submission release
+## Stage 12 — Controlled public product release
 
-**Completed artifact scope after CI validation and promotion:** public web app, GitHub source, complete [SUBMISSION.md](../SUBMISSION.md), [DEMO.md](../DEMO.md), code-linked architecture, explicit acceptance caveats, keyboard accessibility improvements, and a versioned GitHub release record. The release may be titled **competition demo/release candidate**; do not claim enterprise general availability.
+**Documented release scope:** public web app, GitHub source, [product walkthrough](../DEMO.md), code-linked architecture, explicit acceptance caveats, keyboard accessibility improvements, and versioned release records. These artifacts do not by themselves establish production security certification or enterprise general availability.
 
 **Release is blocked by** lint/typecheck, Vitest, backend and RLS tests, Docker, browser smoke, failed production build, unhealthy live health endpoint, or unexpected runtime errors. Post-merge GitHub commit and Vercel alias must match before declaring that new production code is live.
 
-**Competition portal submission is an external action and is NOT complete until portal confirmation is independently observed.** The actual video recording/link and form confirmation cannot be inferred from an outline.
+**External integrations, security acceptance, restoration drills, and customer pilot are distinct release gates.** Do not infer their completion from a public deployment or automated fixture tests.
 
 ### Test source and what it proves
 
@@ -57,20 +57,20 @@ The shipped guest demonstration and historical hosted workspace invitations supp
 | Isolated authenticated local Supabase acceptance | Auth email via Mailpit, workspace permissions, approvals, fixture webhooks | Production inbox, live provider quota or hosted outsider rejection |
 | Historical hosting/Supabase telemetry | Specific past Gemini usage, accepted invites and github-origin CI evidence | All external provider delivery guarantees |
 | GitHub App Advanced Recent Deliveries | Signed request to TeamFlow endpoint with 204 response for review request | Ingestion of mapped CI or review evidence |
-| Public judge demo | Judges can experience actual app using fictional seeded data | Real employee risk accuracy, commercial customer pilot |
+| Public interactive demo | Visitors can experience the application using fictional seeded data | Real employee risk accuracy, commercial customer pilot |
 
-### Submission decision
+### Release decision
 
-**Eligible for transparent competition demo submission once post-merge CI and live smoke pass.** Keep Stage 8 external-provider acceptance [issue #45](https://github.com/SDAFIK/TeamFlow-Guard/issues/45) open; do not claim its pending gates complete. A real user pilot, backup/restore test and portal/video confirmation are separate obligations.
+**A public interactive demonstration is available, but production-wide certification remains pending.** Keep Stage 8 external-provider acceptance [issue #45](https://github.com/SDAFIK/TeamFlow-Guard/issues/45) open; do not claim its pending gates complete. A real-team pilot, backup/restore test, and independent hosted security acceptance are separate obligations.
 
-### Manual final judge-day checklist
+### Manual production-readiness checklist
 
 - [ ] Production domain resolves to expected release commit, `/login` and `/api/health` return HTTP 200
 - [ ] Guest demo opens without account, main risk/approval/audit journey works, deterministic fallback works without Gemini
-- [ ] Public source README/SUBMISSION/DEMO are updated; check release and CI links
-- [ ] Record & upload an actual 4-minute product walkthrough and verify video visibility
-- [ ] Confirm competition entry rules, date and category; enter team/eligibility details
-- [ ] Submit final entry in competition portal and save confirmation
-- [ ] Schedule post-competition real integration, restore and pilot follow-up without jeopardizing the stable demo
+- [ ] Public source README and DEMO have working links; check release and CI links
+- [ ] Review real hosted sign-up, recovery and invitation inbox delivery in isolated test accounts
+- [ ] Independently verify signed GitHub webhook deliveries, mapped PR reviews and AI-provider receipts
+- [ ] Rehearse database restoration and production rollback using disposable infrastructure
+- [ ] Complete cross-tenant security acceptance and an opt-in real-team pilot before commercial rollout
 
 **Policy:** no fake user testimony, simulated provider traffic described as live, external email receipt claims, benchmark numbers without measurements, or “100% production ready” statements.
