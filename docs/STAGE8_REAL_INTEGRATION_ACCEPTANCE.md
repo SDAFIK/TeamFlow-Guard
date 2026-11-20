@@ -1,6 +1,6 @@
 # Stage 8 — Real external integration acceptance
 
-**Audit baseline:** 2026-11-20. **Status: AUTOMATED SAFETY COVERAGE PRESENT; EXTERNAL ACCEPTANCE NOT YET CERTIFIED.**
+**Audit baseline:** 2026-11-20. **Updated with verified historical production records on 2026-11-20. Status: AUTOMATED SAFETY COVERAGE PRESENT; PARTIAL HISTORICAL PROVIDER EVIDENCE; EXTERNAL ACCEPTANCE NOT YET CERTIFIED.**
 
 This checklist intentionally distinguishes **configured**, **local fixture tested**, and **verified with a real external provider**. Build success, environment variable presence, GitHub API read-only visibility and intercepted provider tests are *not* proof of genuine event delivery. Stage 8 cannot be declared entirely finished until the separately reviewed evidence below exists.
 
@@ -17,18 +17,31 @@ This checklist intentionally distinguishes **configured**, **local fixture teste
 Security reference: https://supabase.com/docs/guides/database/database-advisors
 Password security reference: https://supabase.com/docs/guides/auth/password-security#password-strength-and-leaked-password-protection
 
+## Supplemental read-only historical evidence (20 November 2026)
+
+A second, narrowly scoped read-only review of non-demo evidence and matching public GitHub run records found **real past CI activity** missed by the first audit. This is a correction of the earlier claim that no live CI webhook evidence was observed; it **does not** certify the six Stage 8 gates, imply a new production test, or verify GitHub's delivery receipt.
+
+- **GitHub Actions:** the non-demo evidence record for [CI failure 43324373557](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/43324373557) has `origin=github`, `ingestion=github-app-webhook`, and a matching run ID, branch (`codex/github-live-sandbox`), conclusion, and timestamp. A subsequent [successful run 43324780151](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/43324780151) also matches persisted non-demo CI-pass evidence. The failure is inactive, the pass is active. We did **not** inspect an independent GitHub App delivery receipt, replay a signed delivery, prove webhook idempotency in a new real scenario, or use a newly dedicated sandbox repository.
+- **Gemini:** hosted production records include four completed demo-workspace analyses for model `gemini-3.1-flash-lite`; all four record token-usage metadata and link to four Gemini-sourced proposals, three approved. Recorded latencies range 1,335–1,838 ms. These are strong historical application-side signals of provider usage, **not** a provider-console receipt or independent validation of a fresh model response/quota. They came from fictional demo workspaces, not real customer data.
+- **Hosted invitations/team:** four non-demo invitations have recorded acceptance; non-demo workspaces include more than one authenticated member account. This supports that hosted collaboration occurred. It does **not** show the original email reached a recipient inbox, verify every approval/permission case, or demonstrate outsider denial.
+- **GitHub review deliveries:** the production `teamflow_private.tf_review_deliveries` count was zero at this audit; no independently verified real GitHub review submission/reconciliation is established.
+- **Dedicated test isolation:** the connected GitHub account lists no separate TeamFlow CI sandbox repository, and the connected Supabase account lists no standalone active staging project. We did not create either or invoke any paid service. Prior live CI history used an isolated branch of the primary repository.
+- **Connected email mailbox:** a targeted read-only Gmail search did not find a TeamFlow Guard invitation in the connected mailbox. This neither proves nor disproves delivery to other recipients.
+
+All findings were obtained without reading secret values, external email contents, production invitation tokens, or private workspace descriptions, and without mutating production data. GitHub run links are public-source corroboration; database origin tags alone are not independent webhook-signature receipts.
+
 ## Current evidence by gate
 
 | Acceptance gate | Local automated coverage | Real-world evidence needed | Status |
 | --- | --- | --- | --- |
 | Hosted signup, confirm, resend, recover | `scripts/workspace-lifecycle-e2e.cjs` uses disposable local Supabase and Mailpit | Actual hosted test-account confirmation/resend/recovery delivery to a test inbox and safe redirect; delete test account afterwards | BLOCKED — not observed in this audit |
-| Real Gemini response | `web/server/gemini.test.ts` and `scripts/stage8-auth-e2e.cjs` cover structured response, quota, error and intercepted transport | A bounded, explicitly authorized call with a correctly grounded structured response, a provider request ID/status, with no billable use without approval | BLOCKED — no live request observed in this audit |
-| Real GitHub CI delivery | `web/server/github-webhook-route.test.ts` and `scripts/stage8-auth-e2e.cjs` cover signed fixtures and persistence | Sandbox repository + TeamFlow App installation; actual GitHub delivery for fail/duplicate/success, recorded task/evidence state; no production workspace | BLOCKED — no sandbox App delivery observed |
-| Real GitHub PR-review delivery | Local signed review-submission fixture and reconciliation | Genuine eligible reviewer submission, observed signed webhook and risk resolution in isolated workspace | BLOCKED — no live review submitted |
-| Actual invitation inbox delivery | `web/server/invitation-email.test.ts`, `web/server/gmail-smtp.test.ts` cover provider behavior | Consent-based email to a dedicated test inbox; verify recipient receipt and safe invitation acceptance/expiration | BLOCKED — no external inbox receipt observed |
-| Hosted multi-user / outsider denial | Authenticated local browser suite tests permissions and isolated owner/member/outsider | Dedicated hosted staging workspace with non-production accounts; authentic session, cross-tenant denial, versioned approval and persisted audit | BLOCKED — no hosted isolation acceptance run observed |
+| Real Gemini response | `web/server/gemini.test.ts` and `scripts/stage8-auth-e2e.cjs` cover structured response, quota, error and intercepted transport | Verify historical completed demo analyses against provider-side logs, structured response and quota; use a bounded newly authorized test call only if needed | PARTIAL — four completed hosted analyses with usage metadata; provider-side proof pending |
+| Real GitHub CI delivery | `web/server/github-webhook-route.test.ts` and `scripts/stage8-auth-e2e.cjs` cover signed fixtures and persistence | Independently review delivery receipts/signature and idempotency in authorized isolated sandbox, including fail, duplicate and pass | PARTIAL — two real public GH CI runs correlate with non-demo persisted github-app-webhook evidence; delivery receipt missing |
+| Real GitHub PR-review delivery | Local signed review-submission fixture and reconciliation | Genuine eligible reviewer submission, observed signed webhook and risk resolution in isolated workspace | BLOCKED — no real review delivery observed; stored review-delivery count zero |
+| Actual invitation inbox delivery | `web/server/invitation-email.test.ts`, `web/server/gmail-smtp.test.ts` cover provider behavior | Consent-based email to a dedicated test inbox; verify recipient receipt and safe invitation acceptance/expiration | PARTIAL — hosted invitation acceptance exists; independent inbox delivery not verified |
+| Hosted multi-user / outsider denial | Authenticated local browser suite tests permissions and isolated owner/member/outsider | Dedicated hosted staging workspace with non-production accounts; authentic session, cross-tenant denial, versioned approval and persisted audit | PARTIAL — non-demo multi-member use observed; isolated outsider-denial acceptance not verified |
 
-The production system **is deployed**, and these blocked observations do **not** mean the corresponding software features are absent. They mean **real external acceptance has not been independently demonstrated for this stage**.
+The production system **is deployed**, and a few historical real provider activities are corroborated. However **none of the six full external acceptance gates is independently signed off**. Blocked or partial status does not imply features are absent, nor does recorded app-side telemetry alone prove end-to-end delivery.
 
 ## Repeatable validation command
 
