@@ -1,5 +1,15 @@
 # Phase progress
 
+## Incident evidence export & AI evidence — 20 November 2026 (PR #50)
+
+- Added **Export visible risks (CSV)** in the existing Risk Center using authorized, already-loaded workspace API data. The export respects risk filters/search and includes source/evidence IDs, source task and affected task keys, observed time, active/resolved and stale flags, deterministic reason and linked proposal statuses. No raw webhook payloads, emails or member names are deliberately exported; task titles can remain sensitive and are downloaded locally.
+- Added a clear **FICTIONAL DEMO** scope marker; no synthetic risk findings are represented as genuine GitHub incidents. CSV escaping includes spreadsheet-formula protection.
+- Added formatter unit tests and 1440px/390px simulated-API browser smoke that exercises a real CSV download. No new database schema, external integration, paid service or hosted data mutation was introduced.
+- Added `docs/INCIDENT_EVIDENCE_EXPORT.md` and `docs/AI_GOVERNANCE_EVIDENCE.md` to show supported source-linked claims and limitations.
+- **Observed CI on commit `e9c221ba77de66547538e9f1a543341b38d51c12`:** TeamFlow validation [run 44774343212](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/44774343212) passed frontend lint, TypeScript, unit, build, simulated Playwright desktop/mobile, backend and Docker/hosting checks. Authenticated local Supabase acceptance [run 44774342232](https://github.com/SDAFIK/TeamFlow-Guard/actions/runs/44774342232) completed successfully. Vercel preview [dpl_EsCQt32RXsqo9JUELBpvScaKqgf6](https://vercel.com/sadib-dewans-projects/teamflow-guard/EsCQt32RXsqo9JUELBpvScaKqgf6) was READY for the same commit.
+- **Acceptance boundary:** simulated browser success is not an independent production-browser download, real customer pilot, inbox/provider delivery or external security review. The change was developed on a review branch; no production database records or auth policies were changed.
+- Outstanding: confirm current head checks, review the PR, then confirm production alias and the exported CSV after any approved deployment.
+
 ## Stage 6 — GitHub App monitoring, 12 November 2026 (review branch)
 
 - Stage 4 run #43 and Stage 5 run #45 passed, including desktop/mobile simulated browser checks. Earlier screenshot selector error is fixed.

@@ -20,7 +20,7 @@ const firstTask = {
 
 function model(role) {
   const store = {
-    role, isDemo:false, replays:[], version: 1, tasks: [{...firstTask}], edges: [], proposals: [], audit: [{id:"mock-audit-1",actor_id:OWNER,actor_name:"Asha (mock)",kind:"workspace.created",summary:"Workspace created (simulated)",created_at:new Date().toISOString(),plan_version:1,changes:[]}], githubRepo:null,
+    role, isDemo:false, replays:[], version: 1, tasks: [{...firstTask}], risks:[], edges: [], proposals: [], audit: [{id:"mock-audit-1",actor_id:OWNER,actor_name:"Asha (mock)",kind:"workspace.created",summary:"Workspace created (simulated)",created_at:new Date().toISOString(),plan_version:1,changes:[]}], githubRepo:null,
     members: [
       {id:OWNER,name:"Asha (mock)",email:"asha@example.invalid",role:role==="viewer"?"viewer":"lead",specialty:"Product",available_hours:24},
       {id:OTHER,name:"Jin (mock)",email:"jin@example.invalid",role:"contributor",specialty:"Frontend",available_hours:20},
@@ -56,7 +56,7 @@ async function mockApi(page, state) {
       nodes:state.tasks,edges:state.edges,plan_version:state.version,
       selected_task_id:url.searchParams.get("selected"),downstream_ids:[],upstream_ids:[],
     });
-    if (pathname === `${base}/risks`) return json([]);
+    if (pathname === `${base}/risks`) return json(state.risks);
     if (pathname === `${base}/availability` && method==="PUT"){if(state.role==="viewer")return json({message:"Read-only access"},403);state.members[0].available_hours=input.hours;state.members[0].availability_start=input.start_at;state.members[0].availability_end=input.end_at;return json({message:"saved"});}
     if (pathname === `${base}/demo-events` && method==="POST"){state.replays.push(input);return json([]);}
     if (pathname === `${base}/proposals` && method==="GET") return json(state.proposals);
@@ -164,6 +164,30 @@ async function run(viewport, role="lead") {
     await page.getByRole("button",{name:"Risk Center",exact:true}).click();
     await page.getByRole("region",{name:"Risk protection overview"}).waitFor();
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1),false,"risk overview has no overflow");
+
+    const exportButton = page.getByRole("button",{name:"Export visible risks (CSV)"});
+    assert.equal(await exportButton.isDisabled(), true, "empty risk report cannot be downloaded");
+    // Simulated source evidence only. This is not a real GitHub delivery or production workspace.
+    state.risks = [{
+      id:"mock-risk-1",severity:"high",reason:"Example downstream impact",active:true,
+      affected_task_ids:[],stale_evidence:false,
+      evidence:{id:"mock-evidence-1",task_id:firstTask.id,kind:"ci_failure",
+        title:"Example failing CI",detail:"Simulated API fixture",origin:"replay",
+        active:true,observed_at:new Date().toISOString()},
+    }];
+    await page.reload({waitUntil:"networkidle"});
+    await page.getByRole("region",{name:"Risk protection overview"}).waitFor();
+    const readyExport=page.getByRole("button",{name:"Export visible risks (CSV)"});
+    assert.equal(await readyExport.isEnabled(), true, "export enabled when a visible risk exists");
+    const [incidentDownload] = await Promise.all([page.waitForEvent("download"),readyExport.click()]);
+    const reportCsv=fs.readFileSync(await incidentDownload.path(),"utf8");
+    assert.match(reportCsv,/mock-evidence-1/,"export contains source evidence ID");
+    assert.match(reportCsv,/APP-101/,"export contains source task key");
+    assert.match(reportCsv,/SAVED WORKSPACE/,"export labels saved workspace data");
+    assert.match(reportCsv,/Example downstream impact/,"export contains rule-based explanation");
+    state.risks=[];
+    await page.reload({waitUntil:"networkidle"});
+    await page.getByRole("region",{name:"Risk protection overview"}).waitFor();
     if (viewport.width<600) await page.getByRole("button",{name:"Open navigation"}).click();
     await page.getByRole("button",{name:"Task Board",exact:true}).click();
     if (role==="lead") {
