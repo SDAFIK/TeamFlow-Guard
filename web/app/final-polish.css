@@ -641,3 +641,30 @@ dialog .field-grid { gap: 18px; }
 .integration-readiness .human-note p strong{font-size:12px;color:#cbf9ea}
 .integration-readiness .integration-check small{line-height:1.45}
 @media(max-width:600px){.integration-readiness .human-note{padding:13px 14px;gap:10px}.integration-readiness .human-note strong{font-size:12px}.integration-readiness .human-note p{font-size:12px}}
+
+/* Stage 10: keyboard navigation. Hidden for pointer users; readable on focus. */
+.skip-to-content {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  z-index: 2000;
+  transform: translateY(-160%);
+  background: #112331;
+  color: #f1fffc;
+  border: 2px solid #45d7ba;
+  border-radius: 10px;
+  padding: 10px 16px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 8px 28px #0008;
+}
+.skip-to-content:focus,
+.skip-to-content:focus-visible {
+  transform: translateY(0);
+  outline: 3px solid #d6fff5;
+  outline-offset: 2px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .skip-to-content { transition: none !important; }
+}
